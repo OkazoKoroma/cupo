@@ -89,8 +89,6 @@ npm start          # opens the widget
 npm run dist       # builds the installer into the dist folder
 ```
 
-**Test mode:** `npm start -- --prueba` (or `Abrir widget (modo prueba).bat`) uses made-up data that you control from the tray menu, and stores it in a separate file. Handy to see the alerts without spending your quota.
-
 ## Layout
 
 ```

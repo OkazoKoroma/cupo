@@ -89,8 +89,6 @@ npm start          # abre el widget
 npm run dist       # genera el instalador en la carpeta dist
 ```
 
-**Modo de prueba:** `npm start -- --prueba` (o `Abrir widget (modo prueba).bat`) usa datos inventados que controlas desde el menú de la bandeja, y los guarda en otro archivo. Sirve para ver las alertas sin gastar tu cuota.
-
 ## Estructura
 
 ```
