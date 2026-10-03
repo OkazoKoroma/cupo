@@ -12,7 +12,9 @@
 
 - **Tres barras siempre a la vista:** *Hoy* (contra un límite diario que te pones tú), la *sesión de 5 horas* y la *cuota semanal*.
 - **Te avisa** (notificaciones de Windows) cuando te acercas al límite del día, cuando lo alcanzas y cuando se acaba o se reinicia la sesión de 5 horas.
-- **Varias cuentas de Claude**, cada una con su nombre, sus límites y su historial. Cambias de cuenta con un clic.
+- **Varias cuentas de Claude**, cada una con su nombre, sus límites y su historial. Cambias de cuenta con un clic, o las ves **todas a la vez** (vista "Cuentas", normal apilada o compacta con una línea por cuenta).
+- **Tipo de plan** de cada cuenta (Pro, Max, Team…) junto a su nombre.
+- **Ventana estirable:** arrastra los bordes para cambiar su forma; las letras no cambian de tamaño.
 - **Vista completa:** historial de 7 días, desglose por producto (Claude Code, Chats, Cowork…), proyección ("a este ritmo llegarías al límite a las 18:40") y el resumen de todas tus cuentas juntas.
 - **Límite distinto por día de la semana**, historial exportable a CSV (se abre en Excel).
 - **A tu gusto:** tema claro / oscuro / automático, transparencia, tamaño de 70% a 160%, vista normal / compacta (una línea) / completa, disposición vertical u horizontal.

@@ -12,7 +12,7 @@ const ESCALA_MINIMA = 70;
 const ESCALA_MAXIMA = 160;
 
 // Vistas del widget y su orientación (la orientación vale para la vista normal).
-const OPCIONES_MODO = ['normal', 'compacto', 'completo'];
+const OPCIONES_MODO = ['normal', 'compacto', 'completo', 'cuentas'];
 const OPCIONES_ORIENTACION = ['vertical', 'horizontal'];
 
 // Temas de color: oscuro, claro, o automático (sigue el tema de Windows).
@@ -104,6 +104,7 @@ function validar(datos) {
       opacidad: Math.round(opacidad),
       escala: Math.round(escala),
       limitesPorDia,
+      todasLasCuentas: datos.todasLasCuentas !== false,
     },
   };
 }

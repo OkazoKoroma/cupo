@@ -237,4 +237,11 @@ module.exports = {
   'tray.cuenta': 'Account',
   'tray.cuentasAdministrar': 'Manage accounts…',
   'tray.cerrarSesionDe': 'Sign out of {nombre}',
+  'aj.vista.cuentas': 'Accounts (all at once)',
+  'aj.todas': 'Show all accounts at once',
+  'aj.todas.ayuda': 'In the normal and the compact views, when there is more than one account.',
+  'tray.vista.cuentas': 'Accounts (all at once)',
+  'boton.vistaNormal': 'Back to the normal view',
+  'plan.free': 'Free',
+  'plan.titulo': '{plan} plan',
 };

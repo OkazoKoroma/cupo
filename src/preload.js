@@ -80,6 +80,11 @@ contextBridge.exposeInMainWorld('widget', {
   // Solo sirve en el modo de prueba (en el modo normal la app no responde a esto).
   prueba: (accion) => ipcRenderer.invoke('prueba', accion),
 
+  // Estirar la ventana arrastrando un borde ('n', 's', 'e', 'w', 'ne', 'nw', 'se' o 'sw'): empieza, termina, y vuelve al tamaño de siempre.
+  redimensionarInicio: (borde) => ipcRenderer.send('redimensionar-inicio', borde),
+  redimensionarFin: () => ipcRenderer.send('redimensionar-fin'),
+  restablecerTamano: () => ipcRenderer.send('restablecer-tamano'),
+
   // Pide abrir la ventana de inicio de sesión.
   iniciarSesion: () => ipcRenderer.send('iniciar-sesion'),
 

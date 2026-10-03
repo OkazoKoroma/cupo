@@ -23,6 +23,7 @@ const panelAjustes = (() => {
   const textoOpacidad = document.getElementById('opacidad-valor');
   const campoModo = document.getElementById('modo');
   const campoOrientacion = document.getElementById('orientacion');
+  const campoTodas = document.getElementById('todasLasCuentas');
   const campoEncima = document.getElementById('siempreEncima');
   const campoArranque = document.getElementById('arrancarConWindows');
   const formulario = document.getElementById('formulario-ajustes');
@@ -137,6 +138,7 @@ const panelAjustes = (() => {
     mostrarEscala(actuales.escala);
     campoModo.value = actuales.modo;
     campoOrientacion.value = actuales.orientacion;
+    campoTodas.checked = actuales.todasLasCuentas;
     campoEncima.checked = actuales.siempreEncima;
     campoArranque.checked = actuales.arrancarConWindows;
 
@@ -185,6 +187,7 @@ const panelAjustes = (() => {
       escala: Number(campoEscala.value),
       modo: campoModo.value,
       orientacion: campoOrientacion.value,
+      todasLasCuentas: campoTodas.checked,
       siempreEncima: campoEncima.checked,
       arrancarConWindows: campoArranque.checked,
     });

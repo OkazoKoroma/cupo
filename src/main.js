@@ -35,6 +35,7 @@ const MEDIDAS_DE_VISTA = {
   'normal-horizontal': { ancho: 540, alto: 92 },   // las tres barras, lado a lado
   compacto: { ancho: 300, alto: 44 },              // una sola línea con la barra de Hoy
   completo: { ancho: 640, alto: 92 + 8 + 250 },    // las barras arriba y, abajo, el historial, el desglose y la proyección juntos
+  cuentas: { ancho: 600, alto: 0 },                // todas las cuentas a la vez, una fila por cuenta (el alto depende de cuántas haya)
 };
 
 // Tamaño del widget (se elige en Ajustes, o con Ctrl + rueda del mouse): todas las medidas de la ventana
@@ -72,7 +73,7 @@ let bandeja = null;
 // dice si, al ensancharse, la ventana crece hacia la izquierda (quedando quieto su borde derecho).
 const expansion = { extra: 0, alto: 0, anchoPanel: 0, anclaDerecha: false, haciaArriba: true };
 
-// La vista actual: modo ('normal', 'compacto' o 'completo') y orientación ('vertical' u 'horizontal', para el modo normal).
+// La vista actual: modo ('normal', 'compacto', 'completo' o 'cuentas') y orientación ('vertical' u 'horizontal', para el modo normal).
 // Se lee de los ajustes al arrancar y se mantiene al día aquí.
 let vistaActual = { modo: 'normal', orientacion: 'vertical' };
 
@@ -86,14 +87,57 @@ const RESUMEN_SEPARACION = 8;
 const RESUMEN_RELLENO = 16;
 const RESUMEN_FILA = 22;
 let totalDeCuentas = 1; // cuántas cuentas hay (se actualiza al agregar o eliminar)
+let verTodasLasCuentas = true; // ajuste: en la vista normal y la compacta, mostrar todas las cuentas a la vez (si hay más de una)
+
+// Cuando se muestran todas las cuentas a la vez, la tarjeta de siempre se reemplaza por una lista (una fila o un bloque por cuenta).
+// Estas medidas deben coincidir con widget.css (body.todas).
+const LISTA_CABECERA = 24; // el título con sus botones
+const LISTA_BLOQUE = 84;   // una cuenta con sus tres barras una bajo la otra (vista normal vertical)
+
+function todasALaVez(vista = vistaActual) {
+  if (vista.modo === 'cuentas') return true;
+  if (vista.modo === 'completo') return false;
+  return totalDeCuentas >= 2 && verTodasLasCuentas;
+}
 
 function altoDelResumen() {
   return totalDeCuentas >= 2 ? RESUMEN_SEPARACION + RESUMEN_RELLENO + RESUMEN_FILA * totalDeCuentas : 0;
 }
 
+// Lo que el usuario estiró la ventana de cada vista (en píxeles sin escala), por vista: { ancho, alto }.
+// Se guarda en los datos de la app ("tamanos"). La ventana nunca es más chica que la medida base de su vista.
+let tamanosGuardados = {};
+const claveDeTamano = (vista = vistaActual) => claveDeVista(vista) + (todasALaVez(vista) ? '-todas' : '');
+
+// ¿Se puede estirar esa vista a lo alto? Solo a lo ancho en la compacta y en las listas de cuentas (su alto depende de las cuentas).
+const permiteAlto = (vista = vistaActual) => vista.modo !== 'compacto' && !todasALaVez(vista);
+
+function extrasDeVista(vista = vistaActual) {
+  const guardado = tamanosGuardados[claveDeTamano(vista)] || {};
+  return {
+    ancho: Math.max(0, Math.round(guardado.ancho || 0)),
+    alto: permiteAlto(vista) ? Math.max(0, Math.round(guardado.alto || 0)) : 0,
+  };
+}
+
+// Las medidas de una vista, con lo que el usuario la estiró.
 function medidasDeVista(vista = vistaActual) {
+  const base = medidasBase(vista);
+  const extras = extrasDeVista(vista);
+  return { ancho: base.ancho + extras.ancho, alto: base.alto + extras.alto };
+}
+
+// Las medidas de una vista sin estirar.
+function medidasBase(vista = vistaActual) {
   const base = MEDIDAS_DE_VISTA[claveDeVista(vista)];
-  return vista.modo === 'completo' ? { ...base, alto: base.alto + altoDelResumen() } : base;
+  if (vista.modo === 'completo') return { ...base, alto: base.alto + altoDelResumen() };
+  if (todasALaVez(vista)) {
+    const cabecera = RESUMEN_RELLENO + LISTA_CABECERA;
+    if (vista.modo === 'compacto') return { ancho: 300, alto: cabecera + RESUMEN_FILA * totalDeCuentas };
+    if (vista.modo === 'normal' && vista.orientacion === 'vertical') return { ancho: 300, alto: cabecera + LISTA_BLOQUE * totalDeCuentas };
+    return { ancho: 600, alto: cabecera + RESUMEN_FILA * totalDeCuentas }; // horizontal y la vista "Cuentas": una fila por cuenta
+  }
+  return base;
 }
 
 // Alto de la ventana sin el panel desplegable, según la vista.
@@ -293,6 +337,9 @@ function aparienciaActual() {
     modo: vistaActual.modo,
     orientacion: vistaActual.orientacion,
     escala: Math.round(escalaActual * 100),
+    todas: todasALaVez(),             // true = en vez de la tarjeta se ve la lista con todas las cuentas
+    extra: extrasDeVista(),           // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual)
+    redimensionando: Boolean(redimension), // true mientras estás arrastrando un borde
     altoPanel: expansion.alto || null, // alto del panel abierto (puede achicarse si ya no cabe en la pantalla)
   };
 }
@@ -427,20 +474,94 @@ function cambiarVista(pedida) {
   setTimeout(() => { cambiandoDeVista = false; }, duracionTotal);
 }
 
-// Si cambia la cantidad de cuentas con la vista completa abierta, la ventana cambia de alto (hay una fila más o menos).
-// La tarjeta queda quieta en el borde de la pantalla que tiene más cerca (arriba o abajo).
-function reajustarAltoDeLaVentana() {
-  if (!ventana || ventana.isDestroyed() || vistaActual.modo !== 'completo') return;
+// Si cambia la cantidad de cuentas (o el ajuste de verlas todas a la vez), la ventana cambia de tamaño.
+// Queda quieto el borde de la pantalla más cercano (el de arriba o el de abajo, el izquierdo o el derecho; con un panel
+// abierto, el mismo lado hacia donde creció el panel).
+function reajustarLaVentana() {
+  if (!ventana || ventana.isDestroyed()) return;
   const actual = ventana.getBounds();
+  const anchoNuevo = ancho();
   const altoNuevo = altoBase() + expansion.extra;
-  if (altoNuevo === actual.height) return;
+  if (anchoNuevo === actual.width && altoNuevo === actual.height) return;
   const area = screen.getDisplayMatching(actual).workArea;
-  const anclaAbajo = actual.y + actual.height / 2 > area.y + area.height / 2;
-  const y = Math.max(
-    area.y - margen(),
-    Math.min(anclaAbajo ? actual.y + actual.height - altoNuevo : actual.y, area.y + area.height + margen() - altoNuevo)
-  );
-  ventana.setBounds({ x: actual.x, y, width: actual.width, height: altoNuevo });
+  const anclaAbajo = expansion.extra > 0 ? expansion.haciaArriba : actual.y + actual.height / 2 > area.y + area.height / 2;
+  const anclaDerecha = actual.x + actual.width / 2 > area.x + area.width / 2;
+  const dentro = (valor, minimo, maximo) => Math.max(minimo, Math.min(valor, maximo));
+  const x = dentro(anclaDerecha ? actual.x + actual.width - anchoNuevo : actual.x, area.x - margen(), area.x + area.width + margen() - anchoNuevo);
+  const y = dentro(anclaAbajo ? actual.y + actual.height - altoNuevo : actual.y, area.y - margen(), area.y + area.height + margen() - altoNuevo);
+  ventana.setBounds({ x, y, width: anchoNuevo, height: altoNuevo });
+  enviarApariencia();
+}
+
+// ----- Estirar la ventana arrastrando sus bordes -----
+// Los bordes (y esquinas) de la pantalla avisan cuándo empieza y termina el arrastre; mientras tanto, aquí se mira
+// dónde está el mouse y se va cambiando el tamaño. Queda quieto el borde contrario al que arrastras.
+let redimension = null; // { borde, inicio, cursor, area, clave, temporizador } mientras se arrastra
+
+function empezarRedimension(borde) {
+  if (redimension || !ventana || ventana.isDestroyed() || expansion.extra > 0) return; // con un panel desplegado no se estira
+  if (typeof borde !== 'string' || !/^(n|s|e|w|ne|nw|se|sw)$/.test(borde)) return;
+  const inicio = ventana.getBounds();
+  redimension = {
+    borde,
+    inicio,
+    cursor: screen.getCursorScreenPoint(),
+    area: screen.getDisplayMatching(inicio).workArea,
+    clave: claveDeTamano(),
+    temporizador: setInterval(moverRedimension, 16),
+  };
+}
+
+function moverRedimension() {
+  if (!redimension || !ventana || ventana.isDestroyed()) return terminarRedimension();
+  const { borde, inicio, cursor, area, clave } = redimension;
+  const punto = screen.getCursorScreenPoint();
+  const dx = punto.x - cursor.x;
+  const dy = punto.y - cursor.y;
+  const base = medidasBase();
+  const minAncho = px(base.ancho + 2 * MARGEN);
+  const minAlto = px(base.alto + 2 * MARGEN);
+  const maxAncho = area.width + 2 * margen();
+  const maxAlto = area.height + 2 * margen();
+  const entre = (valor, minimo, maximo) => Math.max(minimo, Math.min(valor, maximo));
+
+  let { x, y, width, height } = inicio;
+  if (borde.includes('e')) width = entre(inicio.width + dx, minAncho, maxAncho);
+  if (borde.includes('w')) {
+    width = entre(inicio.width - dx, minAncho, maxAncho);
+    x = inicio.x + inicio.width - width;
+  }
+  if (permiteAlto()) {
+    if (borde.includes('s')) height = entre(inicio.height + dy, minAlto, maxAlto);
+    if (borde.includes('n')) {
+      height = entre(inicio.height - dy, minAlto, maxAlto);
+      y = inicio.y + inicio.height - height;
+    }
+  }
+
+  tamanosGuardados[clave] = {
+    ancho: Math.round((width - minAncho) / escalaActual),
+    alto: Math.round((height - minAlto) / escalaActual),
+  };
+  ventana.setBounds({ x, y, width, height });
+  enviarApariencia();
+}
+
+function terminarRedimension() {
+  if (!redimension) return;
+  clearInterval(redimension.temporizador);
+  redimension = null;
+  almacen.guardar({ tamanos: tamanosGuardados });
+  enviarApariencia();
+}
+
+// Vuelve la ventana de la vista actual a su tamaño de siempre.
+function restablecerTamano() {
+  if (redimension || expansion.extra > 0) return;
+  delete tamanosGuardados[claveDeTamano()];
+  almacen.guardar({ tamanos: tamanosGuardados });
+  reajustarLaVentana();
+  enviarApariencia();
 }
 
 // Crea la ventana del widget.
@@ -516,6 +637,7 @@ function ajustesActuales() {
     limiteDiario: cuenta.limiteDiario,   // los límites son de la cuenta que se muestra
     umbralAviso: cuenta.umbralAviso,
     nombreDeCuenta: nombreSiHayVarias(cuenta) || null,
+    todasLasCuentas: verTodasLasCuentas,
     intervaloMin: config.intervaloMin,
     limitesPorDia: cuenta.limitesPorDia,
     alertasSesion: config.alertasSesion,
@@ -546,6 +668,7 @@ function guardarAjustes(datos) {
     limitesPorDia: nuevos.limitesPorDia,
   });
   almacen.guardar({
+    todasLasCuentas: nuevos.todasLasCuentas,
     intervaloMin: nuevos.intervaloMin,
     alertasSesion: nuevos.alertasSesion,
     umbralSesion: nuevos.umbralSesion,
@@ -560,6 +683,12 @@ function guardarAjustes(datos) {
 
   // Tamaño del widget: se aplica al instante (el widget queda quieto en su borde más cercano de la pantalla).
   if (nuevos.escala !== Math.round(escalaActual * 100)) aplicarEscala(nuevos.escala);
+
+  // Ver todas las cuentas a la vez: cambia el tamaño de la ventana (en la vista normal y en la compacta).
+  if (nuevos.todasLasCuentas !== verTodasLasCuentas) {
+    verTodasLasCuentas = nuevos.todasLasCuentas;
+    reajustarLaVentana();
+  }
 
   // Apariencia: tema y transparencia al instante; la vista y la orientación cambian el tamaño de la ventana.
   if (nuevos.modo !== vistaActual.modo || nuevos.orientacion !== vistaActual.orientacion) {
@@ -702,6 +831,7 @@ function construirMenu() {
         { label: t('tray.vista.normal'), type: 'radio', checked: vistaActual.modo === 'normal', click: () => cambiarVista({ modo: 'normal' }) },
         { label: t('tray.vista.compacto'), type: 'radio', checked: vistaActual.modo === 'compacto', click: () => cambiarVista({ modo: 'compacto' }) },
         { label: t('tray.vista.completo'), type: 'radio', checked: vistaActual.modo === 'completo', click: () => cambiarVista({ modo: 'completo' }) },
+        { label: t('tray.vista.cuentas'), type: 'radio', checked: vistaActual.modo === 'cuentas', click: () => cambiarVista({ modo: 'cuentas' }) },
         { type: 'separator' },
         { label: t('tray.disposicion.vertical'), type: 'radio', checked: vistaActual.orientacion === 'vertical', click: () => cambiarVista({ orientacion: 'vertical' }) },
         { label: t('tray.disposicion.horizontal'), type: 'radio', checked: vistaActual.orientacion === 'horizontal', click: () => cambiarVista({ orientacion: 'horizontal' }) },
@@ -783,6 +913,7 @@ function lecturaSimulada(indiceDeCuenta = 0) {
     semana: Math.min(100, simulacion.semana + indiceDeCuenta * 8),
     reinicio: simulacion.reinicio || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
     sesion5h: { porcentaje: Math.min(100, simulacion.sesion + indiceDeCuenta * 15), reinicio: simulacion.reinicioSesion },
+    plan: indiceDeCuenta === 0 ? { clave: 'pro', multiplo: null } : { clave: 'max', multiplo: 5 }, // inventado, para ver cómo se muestra
     desglose: [
       { clave: 'cowork', nombre: 'Cowork', porcentaje: 45 },
       { clave: 'claude_code', nombre: 'Claude Code', porcentaje: 40 },
@@ -925,6 +1056,14 @@ function claveDeError(error) {
 }
 
 // Lo que la pantalla del widget necesita para dibujarse.
+// El nombre del plan para mostrar: "Pro", "Max 5x"... ("Gratis" / "Free" se traduce).
+function textoDePlan(plan) {
+  if (!plan) return null;
+  if (plan.clave === 'free') return t('plan.free');
+  if (plan.clave === 'max') return plan.multiplo ? `Max ${plan.multiplo}x` : 'Max';
+  return { pro: 'Pro', team: 'Team', enterprise: 'Enterprise' }[plan.clave] || null;
+}
+
 // Un resumen de cada cuenta (para la lista de cuentas y para la vista completa).
 function resumenDeCuentas() {
   return almacen.leer().cuentas.map((cuenta) => {
@@ -934,6 +1073,7 @@ function resumenDeCuentas() {
       nombre: nombreDeCuenta(cuenta),
       estado: sesion.estadoDe(cuenta.id),
       error: error ? t(error) : null,
+      plan: datos ? textoDePlan(datos.plan) : null,
       uso: datos && {
         hoy: datos.hoy,
         limiteDiario: datos.limiteDiario,
@@ -983,6 +1123,7 @@ async function leerCuenta(cuenta, indice) {
         reinicioTexto: textoDeHora(redondearAlMinuto(resultado.sesion5h.reinicio)),
       },
       desglose: resultado.desglose, // reparto de la semana por producto (puede ser null)
+      plan: resultado.plan,         // { clave, multiplo } del plan de esta cuenta (puede ser null)
       actualizado: ahora,
     };
     lectura.uso.proyeccion = calcularProyecciones(cuenta.id); // "a este ritmo..." de hoy y de la semana
@@ -1097,7 +1238,7 @@ async function agregarCuenta(nombre) {
   if (!nueva) return { ok: false, error: t('cuentas.err.maximo', { n: almacen.MAXIMO_DE_CUENTAS }) };
   await sesion.registrar(nueva, MODO_PRUEBA);
   totalDeCuentas = almacen.leer().cuentas.length;
-  reajustarAltoDeLaVentana();
+  reajustarLaVentana();
   activarCuenta(nueva.id);
   if (sesion.estadoDe(nueva.id) === 'conectado') actualizarUso({ solo: nueva.id }); // (solo pasa en el modo de prueba)
   if (!MODO_PRUEBA) sesion.abrirLogin(nueva.id, tituloDeInicioDeSesion(nueva));
@@ -1124,7 +1265,7 @@ async function eliminarCuenta(id) {
   if (id === config.cuentaActiva && ventana && !ventana.isDestroyed()) {
     ventana.webContents.send('estado-sesion', sesion.estadoDe(cuentaActivaId()));
   }
-  reajustarAltoDeLaVentana();
+  reajustarLaVentana();
   avisarCambioDeCuentas();
   programarProximaConsulta();
   return { ok: true };
@@ -1151,13 +1292,16 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('obtener-apariencia', () => aparienciaActual());
     ipcMain.handle('obtener-idioma', () => datosDeIdioma());
     ipcMain.on('alternar-modo', (evento, modo) => {
-      if (modo !== 'compacto' && modo !== 'completo') return;
+      if (modo !== 'compacto' && modo !== 'completo' && modo !== 'cuentas') return;
       cambiarVista({ modo: vistaActual.modo === modo ? 'normal' : modo }); // pulsar el mismo botón otra vez vuelve a la vista normal
     });
     ipcMain.on('fijar-escala', (evento, porcentaje) => {
       if (!Number.isFinite(porcentaje)) return;
       aplicarEscala(Math.max(ajustes.ESCALA_MINIMA, Math.min(Math.round(porcentaje), ajustes.ESCALA_MAXIMA)));
     });
+    ipcMain.on('redimensionar-inicio', (evento, borde) => empezarRedimension(borde));
+    ipcMain.on('redimensionar-fin', () => terminarRedimension());
+    ipcMain.on('restablecer-tamano', () => restablecerTamano());
     ipcMain.on('alternar-orientacion', () => {
       // La orientación solo se nota en la vista normal; en las otras no hay nada que cambiar.
       if (vistaActual.modo !== 'normal') return;
@@ -1178,6 +1322,8 @@ if (!app.requestSingleInstanceLock()) {
     // Primero averiguamos si ya hay sesión guardada, luego mostramos todo.
     const cuentasGuardadas = almacen.leer().cuentas;
     totalDeCuentas = cuentasGuardadas.length;
+    verTodasLasCuentas = almacen.leer().todasLasCuentas !== false;
+    tamanosGuardados = almacen.leer().tamanos || {};
     await sesion.iniciar(cuentasGuardadas, alCambiarSesion, MODO_PRUEBA);
     idiomas.fijar(almacen.leer().idioma); // el idioma guardado, antes de crear el menú y las pantallas
 

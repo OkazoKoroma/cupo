@@ -12,7 +12,9 @@
 
 - **Three bars always in sight:** *Today* (against a daily limit you set yourself), the *5-hour session* and the *weekly quota*.
 - **Warns you** (Windows notifications) when you approach the day's limit, when you reach it, and when the 5-hour session runs out or resets.
-- **Several Claude accounts**, each with its own name, limits and history. Switch accounts with one click.
+- **Several Claude accounts**, each with its own name, limits and history. Switch accounts with one click, or see **all of them at once** ("Accounts" view, stacked normal view, or compact view with one line per account).
+- **Plan type** of each account (Pro, Max, Team…) next to its name.
+- **Resizable window:** drag the edges to change its shape; text size stays the same.
 - **Full view:** 7-day history, breakdown by product (Claude Code, Chats, Cowork…), projection ("at this pace you'd hit your limit at 6:40 pm") and a summary of all your accounts together.
 - **A different limit for each weekday**, history export to CSV (opens in Excel).
 - **Make it yours:** light / dark / automatic theme, transparency, size from 70% to 160%, normal / compact (one line) / full view, vertical or horizontal layout.

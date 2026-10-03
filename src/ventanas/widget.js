@@ -148,7 +148,7 @@ const TAMANOS_DE_PANEL = {
   historial: { alto: 196 },
   desglose: { alto: 196 },
   proyeccion: { alto: 196 },
-  ajustes: { alto: 620, ancho: 476 },
+  ajustes: { alto: 660, ancho: 476 },
   cuentas: { alto: 250 },
 };
 const DURACION_PANEL_MS = 340; // debe coincidir con --duracion-panel en widget.css
@@ -307,7 +307,9 @@ function despuesDelProximoCuadro(funcion) {
 
 // --- Historial: una columna por cada uno de los últimos 7 días ---
 
-const ALTO_BARRAS = 96;       // alto máximo de una columna, en píxeles
+const ALTO_BARRAS_BASE = 96;  // alto máximo de una columna, en píxeles
+let extraAlto = 0;            // cuánto estiraste la ventana a lo alto (en la vista completa, el gráfico crece lo mismo)
+const altoDeBarras = () => ALTO_BARRAS_BASE + (esCompleto() ? extraAlto : 0);
 const ALTO_ETIQUETA_DIA = 18; // espacio que ocupa el nombre del día bajo cada columna
 
 // Nombre corto del día de la semana a partir de "2026-10-02" → "vie".
@@ -319,6 +321,7 @@ function nombreDelDia(fechaTexto) {
 
 async function dibujarHistorial() {
   const { dias, limiteDiario, hoy } = await window.widget.obtenerHistorial();
+  const ALTO_BARRAS = altoDeBarras();
   if (!panelVisible('historial')) return; // se cerró (o cambió) mientras esperábamos los datos
 
   // Cada día trae su propio límite (puede cambiar de un día a otro si usas límites distintos por día).
@@ -532,8 +535,9 @@ function aplicarEstado(estado) {
     return;
   }
 
-  // 'sin-sesion' o 'expirada': mostramos el mensaje y el botón (y cerramos el panel, si estaba abierto)
-  cerrarPanel();
+  // 'sin-sesion' o 'expirada': mostramos el mensaje y el botón (y cerramos el panel, si estaba abierto;
+  // cuando se ven todas las cuentas a la vez no, porque desde ahí mismo se entra y se sale de cada cuenta)
+  if (!document.body.classList.contains('todas')) cerrarPanel();
   escribirTextosDeSesion(estado);
   vistaDatos.classList.add('oculto');
   vistaSesion.classList.remove('oculto');
@@ -579,6 +583,21 @@ window.widget.alCambiarUso(mostrarUso);
 // la tarjeta cambia de tamaño (widget.css), y vuelve a aparecer. Así se ve como un "despliegue", sin saltos.
 let aparienciaMostrada = null;
 function aplicarAparienciaAnimada(apariencia) {
+  // Si solo cambió cuánto se estiró la ventana (se llama muchas veces por segundo mientras se arrastra un borde),
+  // basta con actualizar eso, sin repintar el resto.
+  const antes = aparienciaMostrada;
+  const soloTamano = antes !== null && ['tema', 'opacidad', 'modo', 'orientacion', 'escala', 'todas']
+    .every((clave) => apariencia[clave] === antes[clave]);
+  const altoAnterior = extraAlto;
+  extraAlto = (apariencia.extra && apariencia.extra.alto) || 0;
+  if (soloTamano) {
+    aparienciaMostrada = apariencia;
+    aplicarExtra(apariencia);
+    // Al terminar de arrastrar (o restablecer), las columnas del historial se redibujan con el alto nuevo.
+    if (!apariencia.redimensionando && extraAlto !== altoAnterior) refrescarPanel();
+    return;
+  }
+
   const cambiaLaVista = aparienciaMostrada !== null &&
     (apariencia.modo !== aparienciaMostrada.modo || apariencia.orientacion !== aparienciaMostrada.orientacion);
   aparienciaMostrada = apariencia;
@@ -595,6 +614,9 @@ function aplicarAparienciaAnimada(apariencia) {
   // Los botones de vista muestran cuál está activa.
   document.getElementById('boton-compacto').setAttribute('aria-pressed', String(apariencia.modo === 'compacto'));
   document.getElementById('boton-completo').setAttribute('aria-pressed', String(apariencia.modo === 'completo'));
+  for (const boton of document.querySelectorAll('[data-alternar="compacto"], [data-alternar="completo"]')) {
+    boton.setAttribute('aria-pressed', String(apariencia.modo === boton.dataset.alternar));
+  }
 
   const cambiar = () => {
     const eraCompleto = esCompleto();
@@ -646,6 +668,13 @@ document.getElementById('boton-compacto').addEventListener('click', () => {
 document.getElementById('boton-completo').addEventListener('click', () => {
   window.widget.alternarModo('completo');
 });
+// Los botones de la lista de cuentas (cuando se ven todas a la vez): hacen lo mismo que los de la tarjeta.
+for (const boton of document.querySelectorAll('[data-alternar]')) {
+  boton.addEventListener('click', () => {
+    if (boton.dataset.alternar === 'orientacion') window.widget.alternarOrientacion();
+    else window.widget.alternarModo(boton.dataset.alternar);
+  });
+}
 // El botón de columnas/filas cambia entre la disposición vertical y la horizontal.
 document.getElementById('boton-orientacion').addEventListener('click', () => {
   window.widget.alternarOrientacion();
@@ -659,6 +688,19 @@ window.widget.alPedirCerrarPanel(() => {
 window.widget.alPedirPanel((nombre) => {
   if (panelActual !== nombre) abrirPanel(nombre);
 });
+
+// Los bordes y esquinas de la ventana: arrastrarlos la estira (la app mira dónde está el mouse). Doble clic: tamaño de siempre.
+for (const agarre of document.querySelectorAll('.agarre')) {
+  agarre.addEventListener('pointerdown', (evento) => {
+    if (evento.button !== 0) return;
+    agarre.setPointerCapture(evento.pointerId); // así el arrastre sigue aunque el mouse salga de la ventana
+    window.widget.redimensionarInicio(agarre.dataset.borde);
+  });
+  const terminar = () => window.widget.redimensionarFin();
+  agarre.addEventListener('pointerup', terminar);
+  agarre.addEventListener('pointercancel', terminar);
+  agarre.addEventListener('dblclick', () => window.widget.restablecerTamano());
+}
 
 // Ctrl + rueda del mouse sobre el widget: cambia su tamaño de a 5 puntos (hacia arriba agranda, hacia abajo achica).
 // Se agrupan las vueltas de la rueda para no mandar decenas de cambios por segundo.

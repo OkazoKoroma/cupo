@@ -238,4 +238,11 @@ module.exports = {
   'tray.cuenta': 'Cuenta',
   'tray.cuentasAdministrar': 'Administrar cuentas…',
   'tray.cerrarSesionDe': 'Cerrar sesión de {nombre}',
+  'aj.vista.cuentas': 'Cuentas (todas a la vez)',
+  'aj.todas': 'Mostrar todas las cuentas a la vez',
+  'aj.todas.ayuda': 'En la vista normal y la compacta, cuando hay más de una cuenta.',
+  'tray.vista.cuentas': 'Cuentas (todas a la vez)',
+  'boton.vistaNormal': 'Volver a la vista normal',
+  'plan.free': 'Gratis',
+  'plan.titulo': 'Plan {plan}',
 };

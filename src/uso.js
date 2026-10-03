@@ -38,10 +38,31 @@ const CODIGO_EN_LA_PAGINA = `(async () => {
   if (!Array.isArray(orgs)) return { error: 'formato' };
   for (const org of orgs) {
     const r = await fetch('/api/organizations/' + org.uuid + '/usage');
-    if (r.ok) return { datos: await r.json() };
+    if (r.ok) return { datos: await r.json(), org: { capacidades: org.capabilities, nivel: org.rate_limit_tier, plan: org.analytics_subscription_plan } };
   }
   return { error: 'formato' };
 })()`;
+
+// El tipo de plan, a partir de los datos de la organización: { clave, multiplo } o null si no se reconoce.
+//   clave: 'free', 'pro', 'max', 'team' o 'enterprise' | multiplo: 5 o 20 en el plan Max (si claude.ai lo informa)
+// Es un dato extra: si no viene o no se entiende, queda en null y no es un error.
+function interpretarPlan(org) {
+  if (!org || typeof org !== 'object') return null;
+  const capacidades = Array.isArray(org.capacidades) ? org.capacidades.map((c) => String(c).toLowerCase()) : [];
+  const nivel = String(org.nivel || '').toLowerCase();
+  const plan = String(org.plan || '').toLowerCase();
+  const todo = [...capacidades, nivel, plan].join(' ');
+
+  if (todo.includes('enterprise')) return { clave: 'enterprise', multiplo: null };
+  if (todo.includes('team')) return { clave: 'team', multiplo: null };
+  if (todo.includes('max')) {
+    const multiplo = /max[_-]?(\d+)x/.exec(todo);
+    return { clave: 'max', multiplo: multiplo ? Number(multiplo[1]) : null };
+  }
+  if (todo.includes('pro')) return { clave: 'pro', multiplo: null };
+  if (capacidades.includes('chat')) return { clave: 'free', multiplo: null };
+  return null;
+}
 
 // Revisa que la respuesta tenga la forma esperada y saca lo que nos interesa.
 // Se separa en su propia función para poder probarla sola.
@@ -87,7 +108,7 @@ function interpretar(datos) {
 }
 
 // Consulta el uso de la cuenta que vive en esa partición (su espacio de sesión).
-// Devuelve { semana, reinicio, sesion5h, desglose } o lanza un ErrorUso.
+// Devuelve { semana, reinicio, sesion5h, desglose, plan } o lanza un ErrorUso.
 async function leerUso(particion) {
   // Ventana invisible: nunca se ve en pantalla y se destruye al terminar.
   const ventana = new BrowserWindow({
@@ -127,10 +148,12 @@ async function leerUso(particion) {
     if (respuesta.error) {
       throw new ErrorUso('formato', 'No se encontró el uso en claude.ai');
     }
-    return interpretar(respuesta.datos);
+    const resultado = interpretar(respuesta.datos);
+    resultado.plan = interpretarPlan(respuesta.org);
+    return resultado;
   } finally {
     if (!ventana.isDestroyed()) ventana.destroy();
   }
 }
 
-module.exports = { leerUso, interpretar, ErrorUso };
+module.exports = { leerUso, interpretar, interpretarPlan, ErrorUso };

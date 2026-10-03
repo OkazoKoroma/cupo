@@ -20,6 +20,8 @@ const VALORES_INICIALES = {
   escala: 100,         // tamaño del widget en %: 100 = normal, 70 = más chico, 160 = más grande
   alertasSesion: true, // avisar por la sesión de 5 horas (al llegar al umbral, al límite y al reiniciarse)
   umbralSesion: 80,    // % de la sesión de 5 horas en que llega el aviso
+  todasLasCuentas: true, // en la vista normal y la compacta, mostrar todas las cuentas a la vez (si hay más de una)
+  tamanos: {},         // cuánto estiraste la ventana de cada vista: { 'normal-vertical': { ancho, alto }, ... }
   cuentas: [],         // las cuentas de Claude (ver CAMPOS_DE_CUENTA)
   cuentaActiva: null,  // id de la cuenta que se muestra en la tarjeta
 };

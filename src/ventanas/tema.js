@@ -1,7 +1,7 @@
 // tema.js: aplica la apariencia elegida en Ajustes (tema, transparencia y modo compacto).
 // Lo usa el widget (y su panel de Ajustes). La app principal manda la apariencia con este formato:
 //   { tema: 'oscuro' | 'claro' | 'auto', opacidad: 40 a 100,
-//     modo: 'normal' | 'compacto' | 'completo', orientacion: 'vertical' | 'horizontal' }
+//     modo: 'normal' | 'compacto' | 'completo' | 'cuentas', todas: true | false, orientacion: 'vertical' | 'horizontal' }
 
 let aparienciaActual = { tema: 'oscuro', opacidad: 100, modo: 'normal', orientacion: 'vertical' };
 
@@ -22,8 +22,19 @@ function aplicarApariencia(apariencia) {
   const horizontal = modo === 'normal' && apariencia.orientacion === 'horizontal';
   document.body.classList.toggle('compacto', modo === 'compacto');
   document.body.classList.toggle('completo', modo === 'completo');
+  document.body.classList.toggle('vista-cuentas', modo === 'cuentas');   // la vista "Cuentas" (todas a la vez, sin la tarjeta)
+  document.body.classList.toggle('todas', Boolean(apariencia.todas));   // en vez de la tarjeta se ve la lista con todas las cuentas
   document.body.classList.toggle('horizontal', horizontal);
   document.body.classList.toggle('franja', horizontal || modo === 'completo');
+  aplicarExtra(apariencia);
+}
+
+// Cuánto estiraste la ventana (alto extra en píxeles): la tarjeta o el panel de abajo crecen lo mismo.
+// Mientras arrastras un borde las animaciones se apagan, para que el contenido siga al mouse sin retraso.
+function aplicarExtra(apariencia) {
+  const extra = apariencia.extra || { ancho: 0, alto: 0 };
+  document.documentElement.style.setProperty('--extra-alto', `${extra.alto}px`);
+  document.body.classList.toggle('redimensionando', Boolean(apariencia.redimensionando));
 }
 
 // Si el tema es "auto" y cambias el tema de Windows, el widget lo sigue al instante.

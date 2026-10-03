@@ -56,6 +56,7 @@
                       <option value="normal" data-i18n="aj.vista.normal">Normal</option>
                       <option value="compacto" data-i18n="aj.vista.compacto">Compacto (una sola línea)</option>
                       <option value="completo" data-i18n="aj.vista.completo">Completo (todo a la vez)</option>
+                      <option value="cuentas" data-i18n="aj.vista.cuentas">Cuentas (todas a la vez)</option>
                     </select>
                   </label>
                   <label class="campo">
@@ -66,6 +67,11 @@
                     </select>
                   </label>
                   <p class="campo-ayuda" data-i18n="aj.disposicion.ayuda">La disposición vale para la vista normal. La vista completa siempre es ancha.</p>
+                  <label class="casilla">
+                    <input id="todasLasCuentas" type="checkbox">
+                    <span data-i18n="aj.todas">Mostrar todas las cuentas a la vez</span>
+                  </label>
+                  <p class="campo-ayuda" data-i18n="aj.todas.ayuda">En la vista normal y la compacta, cuando hay más de una cuenta.</p>
 
                   <h3 data-i18n="aj.seccion.escala">Escala de la interfaz</h3>
                   <label class="campo">
@@ -214,7 +220,33 @@
     </section>
 
     <!-- Vista completa con varias cuentas: una fila por cuenta (Hoy, Sesión y Semana). cuentas.js la dibuja. -->
-    <section class="resumen-cuentas" id="resumen-cuentas" aria-label="Cuentas" data-i18n-aria="panel.cuentas"></section>
+    <section class="resumen-cuentas" id="resumen-cuentas" aria-label="Cuentas" data-i18n-aria="panel.cuentas">
+      <!-- Solo se ve cuando se muestran todas las cuentas a la vez (no hay tarjeta): el título y los botones de la tarjeta -->
+      <div class="resumen-cabecera">
+        <h2 data-i18n="panel.cuentas">Cuentas</h2>
+        <div class="resumen-herramientas">
+          <button class="boton-icono" data-panel="cuentas" type="button" title="Cuentas" data-i18n-title="panel.cuentas" aria-label="Cuentas" data-i18n-aria="panel.cuentas" aria-pressed="false">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="5.2" r="2.8" fill="none" stroke="currentColor" stroke-width="1.6"></circle><path d="M2.4 14c.5-3 2.8-4.4 5.6-4.4s5.1 1.4 5.6 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>
+          </button>
+          <button class="boton-icono" data-panel="ajustes" type="button" title="Ajustes" data-i18n-title="boton.ajustes" aria-label="Abrir los ajustes" data-i18n-aria="boton.ajustesAria" aria-pressed="false">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M2 4.5h8M13 4.5h1M2 11.5h1M6 11.5h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path><circle cx="11.5" cy="4.5" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"></circle><circle cx="4.5" cy="11.5" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"></circle></svg>
+          </button>
+          <button class="boton-icono" data-alternar="compacto" type="button" title="Vista compacta (una línea)" data-i18n-title="boton.compacto" aria-label="Cambiar entre la vista compacta y la normal" data-i18n-aria="boton.compactoAria" aria-pressed="false">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="6.2" width="12" height="3.6" rx="1.4" fill="currentColor"></rect></svg>
+          </button>
+          <button class="boton-icono" data-alternar="completo" type="button" title="Vista completa (todo a la vez)" data-i18n-title="boton.completo" aria-label="Cambiar entre la vista completa y la normal" data-i18n-aria="boton.completoAria" aria-pressed="false">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="1.5" y="1.5" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect><rect x="8.9" y="1.5" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect><rect x="1.5" y="8.9" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect><rect x="8.9" y="8.9" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect></svg>
+          </button>
+          <button class="boton-icono boton-lista-orientacion" data-alternar="orientacion" type="button" title="Cambiar la disposición (vertical / horizontal)" data-i18n-title="boton.orientacion" aria-label="Cambiar entre la disposición vertical y la horizontal" data-i18n-aria="boton.orientacionAria">
+            <svg class="icono-a-horizontal" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect><path d="M6 2.6v10.8M10 2.6v10.8" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg>
+            <svg class="icono-a-vertical" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect><path d="M1.6 6.2h12.8M1.6 9.8h12.8" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg>
+          </button>
+          <button class="boton-icono boton-lista-volver" data-alternar="cuentas" type="button" title="Volver a la vista normal" data-i18n-title="boton.vistaNormal" aria-label="Volver a la vista normal" data-i18n-aria="boton.vistaNormal">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="2.4" width="12" height="2.6" rx="1.2" fill="currentColor"></rect><rect x="2" y="6.7" width="12" height="2.6" rx="1.2" fill="currentColor"></rect><rect x="2" y="11" width="12" height="2.6" rx="1.2" fill="currentColor"></rect></svg>
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- La tarjeta del widget -->
     <div class="tarjeta">
@@ -332,6 +364,16 @@
 
     </div>
   </div>
+
+  <!-- Los bordes y esquinas por donde se estira la ventana (viven en el margen transparente de 8 px que rodea la tarjeta) -->
+  <div class="agarre agarre-n" data-borde="n"></div>
+  <div class="agarre agarre-s" data-borde="s"></div>
+  <div class="agarre agarre-e" data-borde="e"></div>
+  <div class="agarre agarre-w" data-borde="w"></div>
+  <div class="agarre agarre-ne" data-borde="ne"></div>
+  <div class="agarre agarre-nw" data-borde="nw"></div>
+  <div class="agarre agarre-se" data-borde="se"></div>
+  <div class="agarre agarre-sw" data-borde="sw"></div>
 
   <script src="i18n.js"></script>
   <script src="colores.js"></script>

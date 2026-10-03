@@ -38,8 +38,9 @@ const panelCuentas = (() => {
 
   function mostrarPestana(activa) {
     if (!activa) return;
-    pestana.textContent = activa.nombre;
-    pestana.title = t('boton.cuenta', { nombre: activa.nombre });
+    // Con el plan: "Personal · Pro"
+    pestana.textContent = activa.plan ? `${activa.nombre} · ${activa.plan}` : activa.nombre;
+    pestana.title = t('boton.cuenta', { nombre: activa.nombre }) + (activa.plan ? ' — ' + t('plan.titulo', { plan: activa.plan }) : '');
     pestana.setAttribute('aria-label', t('boton.cuenta', { nombre: activa.nombre }));
   }
 
@@ -72,6 +73,7 @@ const panelCuentas = (() => {
       if (evento.key === 'Enter') nombre.blur();
     });
 
+    const plan = crear('span', 'cuenta-plan');
     const punto = crear('span', 'cuenta-estado');
 
     const accion = crear('button', 'boton-secundario cuenta-accion');
@@ -100,9 +102,9 @@ const panelCuentas = (() => {
       eliminar.innerHTML = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>';
     }
 
-    fila.append(usar, nombre, punto, accion, eliminar);
+    fila.append(usar, nombre, plan, punto, accion, eliminar);
     lista.appendChild(fila);
-    return { fila, usar, nombre, punto, accion, eliminar, restaurarEliminar };
+    return { fila, usar, nombre, plan, punto, accion, eliminar, restaurarEliminar };
   }
 
   function dibujarLista(cuentas, activa) {
@@ -126,6 +128,8 @@ const panelCuentas = (() => {
       // Si estás escribiendo el nombre, no se pisa lo que escribes.
       if (document.activeElement !== elementos.nombre) elementos.nombre.value = cuenta.nombre;
       elementos.nombre.setAttribute('aria-label', t('cuentas.nombre'));
+      elementos.plan.textContent = cuenta.plan || '';
+      elementos.plan.title = cuenta.plan ? t('plan.titulo', { plan: cuenta.plan }) : '';
       elementos.punto.style.backgroundColor = COLORES_DE_ESTADO[cuenta.estado];
       elementos.punto.title = t(CLAVES_DE_ESTADO[cuenta.estado]);
       const conectada = cuenta.estado === 'conectado';
@@ -203,7 +207,7 @@ const panelCuentas = (() => {
       resumen.appendChild(e.fila);
       e.fila.classList.toggle('activa', cuenta.id === activa);
       e.nombre.textContent = cuenta.nombre;
-      e.nombre.title = t('cuentas.usar');
+      e.nombre.title = t('cuentas.usar') + (cuenta.plan ? ' — ' + t('plan.titulo', { plan: cuenta.plan }) : '');
 
       const datos = cuenta.uso;
       // Sin datos (sin sesión, error o cargando), en vez de las barras va un aviso corto.

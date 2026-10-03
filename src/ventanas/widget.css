@@ -66,7 +66,7 @@ body.abajo .escena {
 
 .tarjeta {
   flex: none;
-  height: 130px;
+  height: calc(130px + var(--extra-alto, 0px));   /* --extra-alto: lo que estiraste la ventana a lo alto */
   padding: 14px 18px;
   animation: entrada 0.65s var(--suave) both;
   transition: height 0.3s var(--suave), padding 0.3s var(--suave); /* 0,3 s = DURACION_TARJETA_MS en main.js */
@@ -88,12 +88,13 @@ body.prueba .tarjeta::before {
 }
 
 /* Al cambiar entre el modo normal y el compacto, el contenido se desvanece un instante (lo maneja widget.js) */
-#vista-datos, #vista-sesion {
+#vista-datos, #vista-sesion, .resumen-cuentas {
   transition: opacity 0.2s ease;
 }
 
 body.cambiando-modo #vista-datos,
-body.cambiando-modo #vista-sesion {
+body.cambiando-modo #vista-sesion,
+body.cambiando-modo .resumen-cuentas {
   opacity: 0;
   transition-duration: 0.14s;
 }
@@ -334,7 +335,7 @@ body.compacto #vista-sesion {
 /* ----- Vista en franja (horizontal y completa): las tres barras lado a lado ----- */
 
 body.franja .tarjeta {
-  height: 92px;
+  height: calc(92px + var(--extra-alto, 0px));
   padding: 12px 18px;
   display: flex;
   align-items: center;
@@ -386,11 +387,15 @@ body.completo .escena {
 
 /* El panel está siempre abierto: no se despliega ni se cierra. Se repiten las variantes con "abajo" y "panel-abierto"
    porque esas clases, más específicas, lo subían 12 px (y lo pegaban a la tarjeta) cuando el widget estaba arriba. */
+body.completo .tarjeta {
+  height: 92px;      /* en la vista completa, lo que estiras a lo alto se lo lleva el panel de abajo */
+}
+
 body.completo .panel,
 body.completo.abajo .panel,
 body.completo.panel-abierto .panel,
 body.completo.abajo.panel-abierto .panel {
-  height: 250px;
+  height: calc(250px + var(--extra-alto, 0px));
   margin: var(--separacion) 0 0;
   opacity: 1;
   transform: none;
@@ -400,7 +405,7 @@ body.completo.abajo.panel-abierto .panel {
 }
 
 body.completo .panel-interior {
-  height: 250px;
+  height: calc(250px + var(--extra-alto, 0px));
 }
 
 /* Los íconos de los paneles sobran: ya están todos a la vista */
@@ -464,7 +469,7 @@ body.completo.ajustes-abierto #vista-ajustes.activa {
 /* Columnas del historial un poco más juntas (y con alto propio: aquí el contenedor no se estira solo), y textos
    de la proyección con permiso para usar dos líneas */
 body.completo .grafico {
-  height: 150px;
+  height: calc(150px + var(--extra-alto, 0px));
 }
 
 body.completo .columnas {
@@ -538,6 +543,87 @@ body.completo.con-resumen .resumen-cuentas {
   animation: aparecer 0.4s var(--suave) both;
 }
 
+/* ----- Todas las cuentas a la vez: en vez de la tarjeta se ve una lista (vista "Cuentas", normal y compacta) ----- */
+/* (las alturas deben coincidir con medidasDeVista en main.js) */
+
+.resumen-cabecera {
+  display: none;
+}
+
+body.todas .tarjeta {
+  display: none;
+}
+
+body.todas .resumen-cuentas {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: calc(40px + 22px * var(--resumen-n, 2));   /* una fila por cuenta */
+  margin: 0;
+  padding: 8px 18px;
+  animation: none;
+}
+
+body.todas .resumen-cabecera {
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+}
+
+.resumen-cabecera h2 {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--etiqueta);
+}
+
+.resumen-herramientas {
+  display: flex;
+  gap: 2px;
+}
+
+.resumen-herramientas .boton-icono {
+  width: 20px;
+  height: 20px;
+}
+
+/* "Volver a la vista normal" solo en la vista "Cuentas"; la disposición, solo en la vista normal */
+body:not(.vista-cuentas) .boton-lista-volver,
+body.vista-cuentas .boton-lista-orientacion,
+body.compacto .boton-lista-orientacion {
+  display: none;
+}
+
+/* Vista normal vertical: cada cuenta es un bloque con sus tres barras una bajo la otra */
+body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-cuentas {
+  height: calc(40px + 84px * var(--resumen-n, 2));
+}
+
+body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-fila {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 19px;
+  height: 78px;
+  margin-bottom: 6px;
+  align-content: start;
+}
+
+body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-aviso {
+  grid-column: 1;
+}
+
+/* Vista compacta: una línea por cuenta, solo con la barra de Hoy */
+body.todas.compacto .resumen-fila {
+  grid-template-columns: 96px minmax(0, 1fr);
+}
+
+body.todas.compacto .resumen-medidor:nth-of-type(n + 2) {
+  display: none;
+}
+
 .resumen-fila {
   display: grid;
   grid-template-columns: 96px repeat(3, minmax(0, 1fr));
@@ -592,7 +678,7 @@ body.completo.con-resumen .resumen-cuentas {
 
 .resumen-medidor {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 62px minmax(0, 1fr) 46px;   /* anchos fijos: así las barras y los números quedan alineados entre cuentas */
   column-gap: 6px;
   align-items: center;
 }
@@ -620,7 +706,6 @@ body.completo.con-resumen .resumen-cuentas {
 }
 
 .resumen-valor {
-  min-width: 34px;
   font-size: 10.5px;
   font-weight: 700;
   text-align: right;
@@ -991,4 +1076,36 @@ body.abajo.panel-abierto .panel {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ----- Estirar la ventana: bordes y esquinas (en el margen transparente de 8 px) ----- */
+
+.agarre {
+  position: fixed;
+  z-index: 60;
+  -webkit-app-region: no-drag;
+  touch-action: none;
+}
+
+.agarre-n  { top: 0;    left: 12px;  right: 12px;  height: 8px; cursor: ns-resize; }
+.agarre-s  { bottom: 0; left: 12px;  right: 12px;  height: 8px; cursor: ns-resize; }
+.agarre-e  { right: 0;  top: 12px;   bottom: 12px; width: 8px;  cursor: ew-resize; }
+.agarre-w  { left: 0;   top: 12px;   bottom: 12px; width: 8px;  cursor: ew-resize; }
+.agarre-ne { top: 0;    right: 0;    width: 12px;  height: 12px; cursor: nesw-resize; }
+.agarre-sw { bottom: 0; left: 0;     width: 12px;  height: 12px; cursor: nesw-resize; }
+.agarre-nw { top: 0;    left: 0;     width: 12px;  height: 12px; cursor: nwse-resize; }
+.agarre-se { bottom: 0; right: 0;    width: 12px;  height: 12px; cursor: nwse-resize; }
+
+/* Con un panel desplegado no se estira. La vista compacta y las listas de cuentas solo se estiran a lo ancho. */
+body.panel-abierto .agarre,
+body.compacto .agarre-n, body.compacto .agarre-s, body.compacto .agarre-ne, body.compacto .agarre-nw, body.compacto .agarre-se, body.compacto .agarre-sw,
+body.todas .agarre-n, body.todas .agarre-s, body.todas .agarre-ne, body.todas .agarre-nw, body.todas .agarre-se, body.todas .agarre-sw {
+  display: none;
+}
+
+/* Mientras se arrastra un borde, nada se anima: el contenido sigue al mouse */
+body.redimensionando .tarjeta,
+body.redimensionando .panel,
+body.redimensionando .barra-relleno {
+  transition: none;
 }

@@ -488,3 +488,17 @@
   min-height: 12px;
   color: var(--aviso);
 }
+
+/* El tipo de plan de la cuenta (Pro, Max 5x...) */
+.cuenta-plan {
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--acento);
+}
+
+.cuenta-plan:empty {
+  display: none;
+}
