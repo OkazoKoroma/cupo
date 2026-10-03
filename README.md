@@ -4,7 +4,7 @@
 
 [English version](README.en.md)
 
-![Cupo en su vista normal](docs/captura-normal.png)
+![Cupo con dos cuentas a la vez](docs/captura-normal.png)
 
 > Proyecto **no oficial**. No tiene relación con Anthropic. "Claude" es una marca de Anthropic.
 
@@ -21,9 +21,11 @@
 - **Español e inglés** (o el idioma de Windows).
 - Queda en la bandeja del sistema, junto al reloj, y puede abrirse al iniciar Windows.
 
-| Varias cuentas | Vista completa |
+| Todas las cuentas a la vez (con su plan) y el panel de cuentas | Vista "Cuentas" |
 | --- | --- |
-| ![Panel de cuentas](docs/captura-cuentas.png) | ![Vista completa con dos cuentas](docs/captura-completo.png) |
+| ![Panel de cuentas y lista apilada](docs/captura-cuentas.png) | ![Vista Cuentas](docs/captura-lista.png) |
+
+![Vista completa con dos cuentas](docs/captura-completo.png)
 
 ## Instalar
 

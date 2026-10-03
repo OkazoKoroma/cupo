@@ -4,7 +4,7 @@
 
 [Versión en español](README.md)
 
-![Cupo, normal view](docs/captura-normal.png)
+![Cupo with two accounts at once](docs/captura-normal.png)
 
 > **Unofficial** project. Not affiliated with Anthropic. "Claude" is a trademark of Anthropic.
 
@@ -21,9 +21,11 @@
 - **Spanish and English** (or follow Windows).
 - Lives in the system tray next to the clock, and can start with Windows.
 
-| Several accounts | Full view |
+| All accounts at once (with their plan) and the accounts panel | "Accounts" view |
 | --- | --- |
-| ![Accounts panel](docs/captura-cuentas.png) | ![Full view with two accounts](docs/captura-completo.png) |
+| ![Accounts panel and stacked list](docs/captura-cuentas.png) | ![Accounts view](docs/captura-lista.png) |
+
+![Full view with two accounts](docs/captura-completo.png)
 
 ## Install
 

@@ -34,7 +34,7 @@ const MEDIDAS_DE_VISTA = {
   'normal-vertical': { ancho: 300, alto: 130 },    // las tres barras, una bajo la otra
   'normal-horizontal': { ancho: 540, alto: 92 },   // las tres barras, lado a lado
   compacto: { ancho: 300, alto: 44 },              // una sola línea con la barra de Hoy
-  completo: { ancho: 640, alto: 92 + 8 + 250 },    // las barras arriba y, abajo, el historial, el desglose y la proyección juntos
+  completo: { ancho: 760, alto: 92 + 8 + 250 },    // las barras arriba y, abajo, el historial, el desglose y la proyección juntos
   cuentas: { ancho: 760, alto: 0 },                // todas las cuentas a la vez, una fila por cuenta (el alto depende de cuántas haya)
 };
 
