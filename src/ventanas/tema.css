@@ -1,0 +1,88 @@
+/* tema.css: todos los colores de la app, como variables. Lo usa el widget (y su panel de Ajustes).
+   Para cambiar de tema solo se cambian estas variables: el resto de los estilos no se toca. */
+
+/* ----- Tema oscuro (el de siempre) ----- */
+:root {
+  --op: 1;                                   /* cuánto se ve el fondo del widget (1 = opaco; lo cambia tema.js) */
+  --acento: #e8895f;                         /* el naranja de la app */
+  --acento-suave: rgba(232, 137, 95, 0.16);
+  --texto: #f3f3f6;
+  --texto-suave: #9c9ca8;
+  --etiqueta: #c8c8d0;
+  --aviso: #f2b84b;
+
+  /* degradado de la tarjeta y del panel (de arriba-izquierda a abajo-derecha) */
+  --fondo-a: #28282f;
+  --fondo-b: #1b1b20;
+  --fondo-c: #16161a;
+  --brillo: rgba(232, 137, 95, 0.12);        /* resplandor naranja en la esquina */
+  --borde: rgba(255, 255, 255, 0.09);
+  --sombra: 0 12px 28px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --reflejo: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+  --riel-a: rgba(0, 0, 0, 0.38);             /* el canal hundido de las barras */
+  --riel-b: rgba(255, 255, 255, 0.05);
+  --riel-sombra: rgba(0, 0, 0, 0.55);
+
+  --icono: #8e8e99;
+  --icono-hover: #ffffff;
+  --hover-fondo: rgba(255, 255, 255, 0.09);
+  --cerrar-fondo: rgba(255, 255, 255, 0.06);
+  --cerrar-color: #a0a0ab;
+
+  --fila: rgba(255, 255, 255, 0.045);        /* tarjetas de la proyección */
+  --nota: #86868f;
+  --linea: rgba(255, 255, 255, 0.3);         /* línea punteada del límite */
+  --dia-sin-dato: rgba(255, 255, 255, 0.1);
+  --tramo-fondo: rgba(255, 255, 255, 0.07);
+
+  --campo-fondo: rgba(255, 255, 255, 0.06);  /* campos del panel de Ajustes */
+  --campo-borde: rgba(255, 255, 255, 0.12);
+  --campo-borde-hover: rgba(255, 255, 255, 0.25);
+  --separador: rgba(255, 255, 255, 0.08);
+  --scroll: rgba(255, 255, 255, 0.18);
+
+  color-scheme: dark;                        /* para que los controles de Windows (casillas, menús) también sean oscuros */
+}
+
+/* ----- Tema claro ----- */
+body[data-tema='claro'] {
+  --acento: #d9743f;
+  --acento-suave: rgba(217, 116, 63, 0.14);
+  --texto: #1c1c22;
+  --texto-suave: #5f5f6c;
+  --etiqueta: #3a3a45;
+  --aviso: #b9770e;
+
+  --fondo-a: #ffffff;
+  --fondo-b: #f3f4f8;
+  --fondo-c: #e9ebf1;
+  --brillo: rgba(232, 137, 95, 0.18);
+  --borde: rgba(0, 0, 0, 0.1);
+  --sombra: 0 12px 28px rgba(30, 30, 60, 0.22), 0 2px 6px rgba(30, 30, 60, 0.14);
+  --reflejo: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  --riel-a: rgba(0, 0, 0, 0.1);
+  --riel-b: rgba(0, 0, 0, 0.04);
+  --riel-sombra: rgba(0, 0, 0, 0.2);
+
+  --icono: #6c6c79;
+  --icono-hover: #111111;
+  --hover-fondo: rgba(0, 0, 0, 0.07);
+  --cerrar-fondo: rgba(0, 0, 0, 0.06);
+  --cerrar-color: #5c5c68;
+
+  --fila: rgba(0, 0, 0, 0.045);
+  --nota: #7a7a86;
+  --linea: rgba(0, 0, 0, 0.28);
+  --dia-sin-dato: rgba(0, 0, 0, 0.1);
+  --tramo-fondo: rgba(0, 0, 0, 0.08);
+
+  --campo-fondo: rgba(0, 0, 0, 0.04);
+  --campo-borde: rgba(0, 0, 0, 0.16);
+  --campo-borde-hover: rgba(0, 0, 0, 0.3);
+  --separador: rgba(0, 0, 0, 0.08);
+  --scroll: rgba(0, 0, 0, 0.22);
+
+  color-scheme: light;
+}

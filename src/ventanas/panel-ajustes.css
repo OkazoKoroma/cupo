@@ -1,0 +1,490 @@
+/* panel-ajustes.css: el aspecto del panel de Ajustes (el formulario dentro del widget).
+   Es compacto porque el panel mide 300 px de ancho. Los colores vienen de tema.css. */
+
+/* Todo el formulario es interactivo: no puede arrastrar la ventana (si no, los campos no responderían al mouse) */
+#vista-ajustes {
+  -webkit-app-region: no-drag;
+}
+
+/* Esta vista usa columnas (cuerpo que se desplaza + pie fijo), no el bloque de las demás vistas */
+#vista-ajustes.activa {
+  display: flex;
+  flex-direction: column;
+}
+
+#formulario-ajustes {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Zona del medio: se desplaza si no cabe */
+.ajustes-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+  user-select: text;          /* aquí sí se puede seleccionar texto, por ejemplo dentro de los campos */
+}
+
+.ajustes-cuerpo::-webkit-scrollbar { width: 6px; }
+.ajustes-cuerpo::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 3px; }
+.ajustes-cuerpo::-webkit-scrollbar-track { background: transparent; }
+
+#vista-ajustes h3 {
+  margin: 9px 0 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--acento);
+}
+
+#vista-ajustes h3:first-child {
+  margin-top: 2px;
+}
+
+.campo {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.campo-titulo {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.campo-ayuda {
+  margin: 0 0 6px;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--texto-suave);
+}
+
+.campo-entrada {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Dos campos lado a lado (límite y aviso previo) */
+.ajustes-doble {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#vista-ajustes input[type='number'],
+#vista-ajustes select {
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--texto);
+  background: var(--campo-fondo);
+  border: 1px solid var(--campo-borde);
+  border-radius: 8px;
+  padding: 5px 8px;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+#vista-ajustes input[type='number'] {
+  width: 64px;
+}
+
+#vista-ajustes select {
+  width: 100%;
+}
+
+/* La lista que se despliega usa un fondo sólido del tema: con el fondo translúcido de los campos
+   se veía casi blanca y las letras claras no se leían. */
+#vista-ajustes select option {
+  background-color: var(--fondo-b);
+  color: var(--texto);
+}
+
+#vista-ajustes input[type='number']:hover,
+#vista-ajustes select:hover {
+  border-color: var(--campo-borde-hover);
+}
+
+#vista-ajustes input[type='number']:focus,
+#vista-ajustes select:focus {
+  outline: none;
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  box-shadow: 0 0 0 3px var(--acento-suave);
+}
+
+#vista-ajustes input[type='range'] {
+  flex: 1;
+  accent-color: var(--acento);
+}
+
+.unidad {
+  min-width: 30px;
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.casilla {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.casilla input {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  accent-color: var(--acento);
+}
+
+/* Los siete límites por día: una fila de cajitas con su letra encima */
+.dias {
+  margin: 2px 0 6px;
+  animation: aparecer 0.35s var(--suave) both;
+}
+
+.dias[hidden] {
+  display: none;
+}
+
+.dias-fila {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--texto-suave);
+}
+
+#vista-ajustes .dia input[type='number'] {
+  width: 100%;
+  padding: 5px 1px;
+  text-align: center;
+  font-size: 12px;
+}
+
+/* Botones */
+.boton-primario,
+.boton-secundario {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: transform 0.2s var(--suave), box-shadow 0.2s ease, filter 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.boton-primario {
+  color: #fff;
+  background: linear-gradient(180deg, #ee9873, #d97757);
+  border: none;
+  padding: 7px 20px;
+  box-shadow: 0 4px 14px rgba(217, 119, 87, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.boton-primario:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.boton-primario:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.boton-secundario {
+  color: var(--texto);
+  background: var(--campo-fondo);
+  border: 1px solid var(--campo-borde);
+  padding: 6px 12px;
+}
+
+.boton-secundario:hover {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+}
+
+.boton-primario:focus-visible,
+.boton-secundario:focus-visible,
+#vista-ajustes input:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+}
+
+.mensaje-chico {
+  display: block;
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--texto-suave);
+}
+
+.mensaje-chico.ok { color: #3fbf72; }
+.mensaje-chico.error { color: var(--aviso); }
+
+/* Pie fijo con el mensaje y el botón Guardar */
+.ajustes-pie {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+  margin-top: 6px;
+  border-top: 1px solid var(--separador);
+}
+
+#mensaje-ajustes {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+#mensaje-ajustes.ok {
+  color: #3fbf72;
+  animation: aparecer 0.35s var(--suave) both;
+}
+
+#mensaje-ajustes.error {
+  color: var(--aviso);
+  animation: aparecer 0.35s var(--suave) both;
+}
+
+/* ----- Ajustes en dos columnas (la ventana se ensancha cuando este panel se abre) ----- */
+
+.ajustes-columnas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+  align-items: start;
+}
+
+.ajustes-columna {
+  min-width: 0;
+}
+
+/* Si por alguna razón no hay ancho suficiente, vuelve a una sola columna */
+@media (max-width: 430px) {
+  .ajustes-columnas {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tamaños rápidos de la escala de la interfaz */
+.escalas-rapidas {
+  display: flex;
+  gap: 5px;
+  margin: 2px 0 6px;
+}
+
+.boton-chico {
+  flex: 1;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--texto);
+  background: var(--campo-fondo);
+  border: 1px solid var(--campo-borde);
+  border-radius: 7px;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s var(--suave);
+}
+
+.boton-chico:hover {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  transform: translateY(-1px);
+}
+
+.boton-chico:active {
+  transform: scale(0.95);
+}
+
+/* Límite y aviso previo, lado a lado: cajas y unidad un poco más angostas para que no se salgan de su espacio */
+.ajustes-doble {
+  gap: 8px;
+}
+
+.ajustes-doble .campo-entrada {
+  gap: 4px;
+}
+
+#vista-ajustes .ajustes-doble input[type='number'] {
+  width: 56px;
+}
+
+.ajustes-doble .unidad {
+  min-width: 0;
+}
+
+/* ----- Panel de cuentas ----- */
+
+#vista-cuentas {
+  -webkit-app-region: no-drag;
+}
+
+#vista-cuentas.activa {
+  display: flex;
+  flex-direction: column;
+}
+
+.cuentas-lista {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.cuentas-lista::-webkit-scrollbar { width: 6px; }
+.cuentas-lista::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 3px; }
+.cuentas-lista::-webkit-scrollbar-track { background: transparent; }
+
+.cuenta-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  padding: 3px 4px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+}
+
+.cuenta-fila.activa {
+  background: var(--acento-suave);
+  border-color: color-mix(in srgb, var(--acento) 40%, transparent);
+}
+
+/* El botón redondo de la izquierda: lleno y naranja en la cuenta que se muestra */
+.cuenta-radio {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--texto-suave);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cuenta-radio:hover {
+  border-color: var(--acento);
+}
+
+.cuenta-radio[aria-pressed='true'] {
+  border-color: var(--acento);
+  background: radial-gradient(circle, var(--acento) 0 45%, transparent 55%);
+}
+
+.cuenta-nombre {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--texto);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 3px 5px;
+  user-select: text;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.cuenta-nombre:hover {
+  border-color: var(--campo-borde);
+}
+
+.cuenta-nombre:focus {
+  outline: none;
+  border-color: var(--acento);
+  background: var(--campo-fondo);
+}
+
+.cuenta-estado {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.cuenta-accion {
+  flex: none;
+  padding: 3px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.cuenta-eliminar {
+  flex: none;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--cerrar-color);
+  background: var(--cerrar-fondo);
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.cuenta-eliminar:hover,
+.cuenta-eliminar.seguro {
+  background: rgba(236, 90, 95, 0.85);
+  color: #fff;
+}
+
+.cuenta-eliminar[hidden] {
+  display: none;
+}
+
+.cuentas-nueva {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.cuentas-nueva input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--texto);
+  background: var(--campo-fondo);
+  border: 1px solid var(--campo-borde);
+  border-radius: 8px;
+  padding: 5px 8px;
+  user-select: text;
+}
+
+.cuentas-nueva input:focus {
+  outline: none;
+  border-color: var(--acento);
+  background: var(--acento-suave);
+}
+
+.cuentas-mensaje {
+  min-height: 12px;
+  color: var(--aviso);
+}

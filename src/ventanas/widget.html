@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+  <title>Cupo</title>
+  <link rel="stylesheet" href="tema.css">
+  <link rel="stylesheet" href="widget.css">
+  <link rel="stylesheet" href="panel-ajustes.css">
+</head>
+<body>
+  <!-- La "escena" ocupa toda la ventana: el panel desplegable va arriba (o abajo) de la tarjeta -->
+  <div class="escena">
+
+    <!-- Panel desplegable: se abre con los íconos de "Hoy". Muestra el historial, el desglose o la proyección. -->
+    <section class="panel" id="panel" aria-label="Detalle" data-i18n-aria="panel.detalle" aria-hidden="true">
+      <div class="panel-interior">
+        <header class="panel-cabecera">
+          <h2 id="panel-titulo"></h2>
+          <button id="cerrar-panel" class="boton-cerrar" type="button" title="Cerrar" data-i18n-title="panel.cerrar" aria-label="Cerrar el panel" data-i18n-aria="panel.cerrarAria">
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+              <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+            </svg>
+          </button>
+        </header>
+
+        <!-- Vista del historial: columnas de los últimos 7 días (widget.js las dibuja) -->
+        <div class="vista-panel" id="vista-historial">
+          <h4 class="titulo-vista" data-i18n="panel.historial">Últimos 7 días</h4>
+          <div class="grafico">
+            <div class="linea-limite" id="linea-limite"></div>
+            <div class="columnas" id="columnas"></div>
+          </div>
+        </div>
+
+        <!-- Vista del desglose: barra dividida por producto y su lista -->
+        <div class="vista-panel" id="vista-desglose">
+          <h4 class="titulo-vista" data-i18n="panel.desglose">Desglose de la semana</h4>
+          <div class="barra-total" id="barra-total"></div>
+          <ul class="lista" id="lista-desglose"></ul>
+          <p class="nota" id="nota-desglose"></p>
+        </div>
+
+        <!-- Vista de Ajustes: el formulario. La zona del medio se desplaza; Guardar queda fijo abajo. -->
+        <div class="vista-panel" id="vista-ajustes">
+          <form id="formulario-ajustes" novalidate>
+            <div class="ajustes-cuerpo">
+              <div class="ajustes-columnas">
+
+                <!-- Columna 1: cómo se ve el widget -->
+                <div class="ajustes-columna">
+                  <h3 data-i18n="aj.seccion.vista">Vista</h3>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.vista">Vista</span>
+                    <select id="modo">
+                      <option value="normal" data-i18n="aj.vista.normal">Normal</option>
+                      <option value="compacto" data-i18n="aj.vista.compacto">Compacto (una sola línea)</option>
+                      <option value="completo" data-i18n="aj.vista.completo">Completo (todo a la vez)</option>
+                    </select>
+                  </label>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.disposicion">Disposición</span>
+                    <select id="orientacion">
+                      <option value="vertical" data-i18n="aj.disposicion.vertical">Vertical (barras apiladas)</option>
+                      <option value="horizontal" data-i18n="aj.disposicion.horizontal">Horizontal (lado a lado)</option>
+                    </select>
+                  </label>
+                  <p class="campo-ayuda" data-i18n="aj.disposicion.ayuda">La disposición vale para la vista normal. La vista completa siempre es ancha.</p>
+
+                  <h3 data-i18n="aj.seccion.escala">Escala de la interfaz</h3>
+                  <label class="campo">
+                    <span class="campo-entrada">
+                      <input id="escala" type="range" min="70" max="160" step="5">
+                      <span class="unidad" id="escala-valor"></span>
+                    </span>
+                  </label>
+                  <div class="escalas-rapidas" role="group" aria-label="Tamaños rápidos" data-i18n-aria="aj.escala.rapidos">
+                    <button type="button" class="boton-chico" data-escala="70">70%</button>
+                    <button type="button" class="boton-chico" data-escala="85">85%</button>
+                    <button type="button" class="boton-chico" data-escala="100">100%</button>
+                    <button type="button" class="boton-chico" data-escala="125">125%</button>
+                    <button type="button" class="boton-chico" data-escala="150">150%</button>
+                  </div>
+                  <p class="campo-ayuda" data-i18n="aj.escala.ayuda">Agranda o achica todo el widget al instante. También: Ctrl + rueda del mouse, o Ctrl + / Ctrl − (y Ctrl 0 vuelve al 100%).</p>
+
+                  <h3 data-i18n="aj.seccion.apariencia">Apariencia</h3>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.tema">Tema</span>
+                    <select id="tema">
+                      <option value="oscuro" data-i18n="aj.tema.oscuro">Oscuro</option>
+                      <option value="claro" data-i18n="aj.tema.claro">Claro</option>
+                      <option value="auto" data-i18n="aj.tema.auto">Automático (como Windows)</option>
+                    </select>
+                  </label>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.transparencia">Transparencia del fondo</span>
+                    <span class="campo-entrada">
+                      <input id="opacidad" type="range" min="40" max="100" step="5">
+                      <span class="unidad" id="opacidad-valor"></span>
+                    </span>
+                  </label>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.idioma">Idioma</span>
+                    <select id="idioma">
+                      <option value="es">Español</option>
+                      <option value="en">English</option>
+                      <option value="auto" data-i18n="aj.idioma.auto">Automático (como Windows)</option>
+                    </select>
+                  </label>
+                </div>
+
+                <!-- Columna 2: límites, avisos y datos -->
+                <div class="ajustes-columna">
+                  <h3 id="titulo-limite" data-i18n="aj.seccion.limite">Límite diario</h3>
+                  <div class="ajustes-doble">
+                    <label class="campo">
+                      <span class="campo-titulo" data-i18n="aj.limite">Límite</span>
+                      <span class="campo-entrada">
+                        <input id="limiteDiario" type="number" min="1" max="100" step="0.5" inputmode="decimal">
+                        <span class="unidad">%</span>
+                      </span>
+                    </label>
+                    <label class="campo">
+                      <span class="campo-titulo" data-i18n="aj.aviso">Aviso previo</span>
+                      <span class="campo-entrada">
+                        <input id="umbralAviso" type="number" min="1" max="100" step="0.5" inputmode="decimal">
+                        <span class="unidad">%</span>
+                      </span>
+                    </label>
+                  </div>
+                  <p class="campo-ayuda" data-i18n="aj.limite.ayuda">Cuánto de tu cuota semanal quieres usar como máximo al día. El aviso debe ser menor que el límite.</p>
+
+                  <label class="casilla">
+                    <input id="usarLimitesPorDia" type="checkbox">
+                    <span data-i18n="aj.limitesPorDia">Un límite distinto para cada día</span>
+                  </label>
+                  <div class="dias" id="dias" hidden>
+                    <div class="dias-fila" id="dias-fila"></div>
+                    <p class="campo-ayuda" data-i18n="aj.limitesPorDia.ayuda">El aviso previo se ajusta solo, en la misma proporción.</p>
+                  </div>
+
+                  <h3 data-i18n="aj.seccion.sesion">Sesión de 5 horas</h3>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.sesion.aviso">Avisarme al llegar a</span>
+                    <span class="campo-entrada">
+                      <input id="umbralSesion" type="number" min="50" max="99" step="1" inputmode="numeric">
+                      <span class="unidad">%</span>
+                    </span>
+                  </label>
+                  <label class="casilla">
+                    <input id="alertasSesion" type="checkbox">
+                    <span data-i18n="aj.sesion.activar">Activar los avisos de la sesión</span>
+                  </label>
+
+                  <h3 data-i18n="aj.seccion.consulta">Consulta</h3>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.intervalo">Consultar el uso cada</span>
+                    <select id="intervaloMin"></select>
+                  </label>
+                  <p class="campo-ayuda" data-i18n="aj.intervalo.ayuda">El mínimo es 5 minutos.</p>
+
+                  <h3 data-i18n="aj.seccion.sistema">Sistema y datos</h3>
+                  <label class="casilla">
+                    <input id="siempreEncima" type="checkbox">
+                    <span data-i18n="aj.siempreEncima">Siempre encima de otras ventanas</span>
+                  </label>
+                  <label class="casilla">
+                    <input id="arrancarConWindows" type="checkbox">
+                    <span data-i18n="aj.arranque">Abrir el widget al iniciar Windows</span>
+                  </label>
+                  <div class="campo">
+                    <button id="exportar" class="boton-secundario" type="button" data-i18n="aj.exportar">Exportar historial (CSV)…</button>
+                    <span id="mensaje-exportar" class="mensaje-chico" role="status"></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="ajustes-pie">
+              <span id="mensaje-ajustes" role="status"></span>
+              <button id="guardar-ajustes" class="boton-primario" type="submit" data-i18n="aj.guardar">Guardar</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Vista de las cuentas: elegir cuál se muestra, renombrar, entrar / salir, agregar y eliminar -->
+        <div class="vista-panel" id="vista-cuentas">
+          <div class="cuentas-lista" id="cuentas-lista"></div>
+          <form class="cuentas-nueva" id="cuentas-nueva" novalidate>
+            <input id="cuentas-nombre-nueva" type="text" maxlength="20" autocomplete="off" spellcheck="false">
+            <button type="submit" class="boton-secundario" data-i18n="cuentas.agregar">Agregar</button>
+          </form>
+          <p class="nota cuentas-mensaje" id="cuentas-mensaje" role="status"></p>
+          <p class="nota" data-i18n="cuentas.ayuda"></p>
+        </div>
+
+        <!-- Vista de la proyección: "a este ritmo..." de hoy y de la semana -->
+        <div class="vista-panel" id="vista-proyeccion">
+          <h4 class="titulo-vista" data-i18n="panel.proyeccion">Proyección</h4>
+          <div class="proyeccion" id="proyeccion-hoy">
+            <span class="proyeccion-etiqueta" data-i18n="hoy.etiqueta">Hoy</span>
+            <span class="proyeccion-titulo" id="proyeccion-hoy-titulo"></span>
+            <span class="proyeccion-detalle" id="proyeccion-hoy-detalle"></span>
+          </div>
+          <div class="proyeccion" id="proyeccion-semana">
+            <span class="proyeccion-etiqueta" data-i18n="semana.etiqueta">Semana</span>
+            <span class="proyeccion-titulo" id="proyeccion-semana-titulo"></span>
+            <span class="proyeccion-detalle" id="proyeccion-semana-detalle"></span>
+          </div>
+          <p class="nota" data-i18n="proy.nota">Estimaciones según tu ritmo de uso hasta ahora.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vista completa con varias cuentas: una fila por cuenta (Hoy, Sesión y Semana). cuentas.js la dibuja. -->
+    <section class="resumen-cuentas" id="resumen-cuentas" aria-label="Cuentas" data-i18n-aria="panel.cuentas"></section>
+
+    <!-- La tarjeta del widget -->
+    <div class="tarjeta">
+
+      <!-- Pestañita con el nombre de la cuenta que se muestra: al pulsarla se abre el panel de cuentas -->
+      <button id="boton-cuenta" class="cuenta-pestana" data-panel="cuentas" type="button" aria-pressed="false"></button>
+
+      <!-- Vista 1: los medidores de uso (se ve cuando hay sesión) -->
+      <div id="vista-datos" class="vista oculto">
+
+        <!-- Cada medidor tiene una etiqueta, un detalle y una barra. widget.js pone ancho y color. -->
+        <div class="medidor">
+          <div class="medidor-texto">
+            <span class="etiqueta-con-boton">
+              <span class="etiqueta" id="etiqueta-hoy" data-i18n="hoy.etiqueta">Hoy</span>
+              </span>
+            <span class="detalle" id="hoy-detalle"></span>
+          </div>
+          <div class="barra"><div class="barra-relleno" id="relleno-hoy"></div></div>
+        </div>
+
+        <div class="medidor">
+          <div class="medidor-texto">
+            <span class="etiqueta-con-boton">
+              <span class="etiqueta" data-i18n="sesion.etiqueta">Sesión 5 h</span>
+              <span class="porcentaje" id="sesion-porcentaje"></span>
+            </span>
+            <span class="detalle" id="sesion-detalle"></span>
+          </div>
+          <div class="barra"><div class="barra-relleno" id="relleno-sesion"></div></div>
+        </div>
+
+        <div class="medidor">
+          <div class="medidor-texto">
+            <span class="etiqueta-con-boton">
+              <span class="etiqueta" id="etiqueta-semana" data-i18n="semana.etiqueta">Semana</span>
+              <span class="porcentaje" id="semana-porcentaje"></span>
+            </span>
+            <span class="detalle" id="semana-detalle"></span>
+          </div>
+          <div class="barra"><div class="barra-relleno" id="relleno-semana"></div></div>
+        </div>
+
+        <!-- Barra de herramientas: los íconos que despliegan paneles y cambian la vista. No arrastran la ventana, así se pueden pulsar. -->
+        <div class="herramientas">
+          <!-- Cuatro íconos despliegan un panel (historial, desglose, proyección y ajustes); los dos últimos cambian la vista. -->
+              <button id="boton-historial" class="boton-icono" data-panel="historial" type="button" title="Uso de los últimos 7 días" data-i18n-title="boton.historial" aria-label="Ver el uso de los últimos 7 días" data-i18n-aria="boton.historialAria" aria-pressed="false">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <rect x="1.5" y="9" width="3.4" height="6" rx="1" fill="currentColor"></rect>
+                  <rect x="6.3" y="4.5" width="3.4" height="10.5" rx="1" fill="currentColor"></rect>
+                  <rect x="11.1" y="1" width="3.4" height="14" rx="1" fill="currentColor"></rect>
+                </svg>
+              </button>
+              <button id="boton-desglose" class="boton-icono" data-panel="desglose" type="button" title="Desglose de la semana por producto" data-i18n-title="boton.desglose" aria-label="Ver el desglose de la semana por producto" data-i18n-aria="boton.desgloseAria" aria-pressed="false">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+                  <path d="M8 8V1.8A6.2 6.2 0 0 1 14.2 8z" fill="currentColor"></path>
+                </svg>
+              </button>
+              <button id="boton-proyeccion" class="boton-icono" data-panel="proyeccion" type="button" title="Proyección: a este ritmo..." data-i18n-title="boton.proyeccion" aria-label="Ver la proyección de uso" data-i18n-aria="boton.proyeccionAria" aria-pressed="false">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <path d="M1.5 12 6 7.5l3 3 5-5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <path d="M10.5 5h4v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+              <button id="boton-ajustes" class="boton-icono" data-panel="ajustes" type="button" title="Ajustes" data-i18n-title="boton.ajustes" aria-label="Abrir los ajustes" data-i18n-aria="boton.ajustesAria" aria-pressed="false">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <path d="M2 4.5h8M13 4.5h1M2 11.5h1M6 11.5h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+                  <circle cx="11.5" cy="4.5" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                  <circle cx="4.5" cy="11.5" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                </svg>
+              </button>
+              <!-- Botón del modo compacto: cambia entre el widget normal y la versión de una sola línea. -->
+              <button id="boton-compacto" class="boton-icono" type="button" title="Vista compacta (una línea)" data-i18n-title="boton.compacto" aria-label="Cambiar entre la vista compacta y la normal" data-i18n-aria="boton.compactoAria" aria-pressed="false">
+                <!-- Una sola barra = "pasar a una línea" -->
+                <svg class="icono-compactar" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <rect x="2" y="6.2" width="12" height="3.6" rx="1.4" fill="currentColor"></rect>
+                </svg>
+                <!-- Tres barras = "volver al modo completo" -->
+                <svg class="icono-expandir" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <rect x="2" y="2.4" width="12" height="2.6" rx="1.2" fill="currentColor"></rect>
+                  <rect x="2" y="6.7" width="12" height="2.6" rx="1.2" fill="currentColor"></rect>
+                  <rect x="2" y="11" width="12" height="2.6" rx="1.2" fill="currentColor"></rect>
+                </svg>
+              </button>
+              <!-- Vista completa: todos los paneles a la vez. Cuatro cuadritos = "todo junto". -->
+              <button id="boton-completo" class="boton-icono" type="button" title="Vista completa (todo a la vez)" data-i18n-title="boton.completo" aria-label="Cambiar entre la vista completa y la normal" data-i18n-aria="boton.completoAria" aria-pressed="false">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <rect x="1.5" y="1.5" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect>
+                  <rect x="8.9" y="1.5" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect>
+                  <rect x="1.5" y="8.9" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect>
+                  <rect x="8.9" y="8.9" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect>
+                </svg>
+              </button>
+              <!-- Disposición: columnas = "ponerlas lado a lado" (horizontal); filas = "apilarlas" (vertical). Solo en la vista normal. -->
+              <button id="boton-orientacion" class="boton-icono" type="button" title="Cambiar la disposición (vertical / horizontal)" data-i18n-title="boton.orientacion" aria-label="Cambiar entre la disposición vertical y la horizontal" data-i18n-aria="boton.orientacionAria">
+                <svg class="icono-a-horizontal" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+                  <path d="M6 2.6v10.8M10 2.6v10.8" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+                </svg>
+                <svg class="icono-a-vertical" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+                  <path d="M1.6 6.2h12.8M1.6 9.8h12.8" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+                </svg>
+              </button>
+        </div>
+
+      </div>
+
+      <!-- Vista 2: pide iniciar sesión (sin sesión o sesión expirada) -->
+      <div id="vista-sesion" class="vista oculto">
+        <span class="mensaje" id="mensaje-sesion"></span>
+        <button id="boton-sesion" type="button"></button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="colores.js"></script>
+  <script src="tema.js"></script>
+  <script src="panel-ajustes.js"></script>
+  <script src="cuentas.js"></script>
+  <script src="widget.js"></script>
+</body>
+</html>

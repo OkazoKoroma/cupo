@@ -1,0 +1,12 @@
+# Carpeta de dependencias: pesada y se regenera con "npm install"
+node_modules/
+
+# Archivos generados al empaquetar (Fase 6)
+dist/
+out/
+
+# Registros y archivos temporales
+*.log
+
+# Textos para difundir el proyecto (no se suben a GitHub)
+promocion/

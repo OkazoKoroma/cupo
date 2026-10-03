@@ -1,0 +1,994 @@
+/* widget.css: el aspecto del widget (tamaños, esquinas, brillos y animaciones).
+   Los colores están en tema.css, como variables, para poder cambiar de tema. */
+
+:root {
+  /* Estos dos números deben coincidir con PANEL_ALTO y PANEL_SEPARACION en main.js */
+  --panel-alto: 196px;
+  --separacion: 8px;
+  --duracion-panel: 340ms;
+  --suave: cubic-bezier(0.2, 0.8, 0.2, 1);   /* frena suavemente al final */
+}
+
+/* Sin márgenes y con fondo transparente: solo se ven la tarjeta y el panel, con sus sombras. */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  color: var(--texto);
+  /* Permite arrastrar la ventana desde cualquier parte (los botones lo desactivan más abajo) */
+  -webkit-app-region: drag;
+  user-select: none;
+  cursor: default;
+  font-variant-numeric: tabular-nums;   /* los números ocupan el mismo ancho: no "bailan" al cambiar */
+}
+
+/* La escena ocupa toda la ventana. La tarjeta queda abajo y el panel crece hacia arriba. */
+.escena {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 8px;               /* margen transparente donde cabe la sombra (ver MARGEN en main.js) */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* Si no hay espacio arriba, el panel crece hacia abajo: la tarjeta queda arriba. */
+body.abajo .escena {
+  flex-direction: column-reverse;
+}
+
+/* ----- Tarjeta y panel: mismo estilo de "vidrio" ----- */
+
+.tarjeta,
+.panel-interior,
+.resumen-cuentas {
+  box-sizing: border-box;
+  position: relative;
+  /* El fondo usa --op para ser más o menos transparente; el texto y las barras no se ven afectados. */
+  background:
+    radial-gradient(140px 70px at 0% 0%, var(--brillo), transparent 70%),
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--fondo-a) calc(var(--op) * 100%), transparent) 0%,
+      color-mix(in srgb, var(--fondo-b) calc(var(--op) * 100%), transparent) 55%,
+      color-mix(in srgb, var(--fondo-c) calc(var(--op) * 100%), transparent) 100%
+    );
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  box-shadow: var(--sombra), var(--reflejo);
+}
+
+.tarjeta {
+  flex: none;
+  height: 130px;
+  padding: 14px 18px;
+  animation: entrada 0.65s var(--suave) both;
+  transition: height 0.3s var(--suave), padding 0.3s var(--suave); /* 0,3 s = DURACION_TARJETA_MS en main.js */
+}
+
+/* En el modo de prueba (datos inventados) aparece una pestañita "PRUEBA" en el borde de arriba */
+body.prueba .tarjeta::before {
+  content: 'PRUEBA';
+  position: absolute;
+  top: -1px;
+  right: 20px;
+  padding: 1px 7px 2px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+  background: var(--acento);
+  border-radius: 0 0 7px 7px;
+}
+
+/* Al cambiar entre el modo normal y el compacto, el contenido se desvanece un instante (lo maneja widget.js) */
+#vista-datos, #vista-sesion {
+  transition: opacity 0.2s ease;
+}
+
+body.cambiando-modo #vista-datos,
+body.cambiando-modo #vista-sesion {
+  opacity: 0;
+  transition-duration: 0.14s;
+}
+
+/* Cada "vista" ocupa toda la tarjeta; solo una se muestra a la vez */
+.vista {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.oculto {
+  display: none;
+}
+
+/* ----- Medidores (Hoy, Sesión 5 h, Semana) ----- */
+
+.medidor {
+  animation: subir 0.6s var(--suave) both;
+}
+.medidor:nth-child(1) { animation-delay: 0.10s; }
+.medidor:nth-child(2) { animation-delay: 0.18s; }
+.medidor:nth-child(3) { animation-delay: 0.26s; }
+
+.medidor-texto {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 22px;
+  margin-bottom: 3px;
+}
+
+.etiqueta-con-boton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ningún texto del widget se parte en dos líneas: no hay espacio para eso. */
+.etiqueta, .detalle, .porcentaje {
+  white-space: nowrap;
+}
+
+.etiqueta {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--etiqueta);
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+}
+
+.porcentaje {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.detalle {
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+/* Mensaje de error al leer el uso */
+.aviso {
+  color: var(--aviso);
+}
+
+/* Riel de la barra (la parte vacía): un canal hundido */
+.barra {
+  height: 10px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--riel-a), var(--riel-b));
+  box-shadow: inset 0 1px 2px var(--riel-sombra);
+}
+
+/* Parte llena: degradado del color (lo pone widget.js en --c), con un brillo suave alrededor */
+.barra-relleno {
+  --c: #888;
+  position: relative;
+  overflow: hidden;           /* recorta el destello que la recorre */
+  height: 100%;
+  width: 0;
+  border-radius: 6px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 72%, black), var(--c));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--c) 45%, transparent);
+  transition: width 0.8s var(--suave), background 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Un destello que pasa de vez en cuando por encima de la barra */
+.barra-relleno::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.38) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: destello 4s ease-in-out infinite;
+}
+
+/* Barra en rojo: late suavemente para llamar la atención */
+.barra-relleno.critico {
+  animation: pulso 1.5s ease-in-out infinite;
+}
+
+/* ----- Íconos que despliegan el panel ----- */
+
+.boton-icono {
+  -webkit-app-region: no-drag;   /* los botones no deben arrastrar la ventana: si no, no se podría hacer clic */
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--icono);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s var(--suave), box-shadow 0.2s ease;
+}
+
+.boton-icono:hover {
+  color: var(--icono-hover);
+  background: var(--hover-fondo);
+  transform: translateY(-1px) scale(1.1);
+}
+
+.boton-icono:active {
+  transform: scale(0.92);
+}
+
+/* El ícono cuyo panel está abierto queda resaltado en naranja */
+.boton-icono[aria-pressed='true'] {
+  color: var(--acento);
+  background: var(--acento-suave);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento) 45%, transparent);
+}
+
+.boton-icono:focus-visible,
+.boton-cerrar:focus-visible,
+#boton-sesion:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+}
+
+/* El botón del modo compacto: muestra un ícono distinto según el modo */
+#boton-compacto .icono-expandir { display: none; }
+body.compacto #boton-compacto .icono-compactar { display: none; }
+body.compacto #boton-compacto .icono-expandir { display: block; }
+
+/* ----- Barra de herramientas: los íconos de los paneles y de las vistas ----- */
+
+/* En la vista normal vertical va al lado de "HOY", en la primera fila */
+.herramientas {
+  position: absolute;
+  top: 15px;
+  left: var(--herramientas-izq, 58px);   /* widget.js lo ajusta al ancho real de la palabra "Hoy" / "Today" */
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.herramientas .boton-icono {
+  width: 18px;
+  height: 18px;
+}
+
+/* El botón de disposición muestra un ícono según lo que haría: columnas (pasar a horizontal) o filas (pasar a vertical) */
+.icono-a-vertical { display: none; }
+body.horizontal .icono-a-horizontal { display: none; }
+body.horizontal .icono-a-vertical { display: block; }
+
+/* La disposición solo se nota en la vista normal */
+body.compacto #boton-orientacion,
+body.completo #boton-orientacion {
+  display: none;
+}
+
+/* ----- Vista compacta: una sola línea con la barra de Hoy ----- */
+
+body.compacto .tarjeta {
+  height: 44px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+}
+
+/* Las vistas ocupan todo el ancho de la tarjeta (si no, se encogen al tamaño de su contenido) */
+body.compacto .vista,
+body.franja .vista {
+  flex: 1;
+  min-width: 0;
+}
+
+/* (":not(.oculto)" para no mostrar la vista de datos cuando toca mostrar la de inicio de sesión) */
+body.compacto #vista-datos:not(.oculto) {
+  display: grid;
+  grid-template-columns: 1fr auto;   /* el medidor de Hoy | la barra de herramientas */
+  align-items: center;
+  column-gap: 10px;
+}
+
+/* Solo se ve el medidor de Hoy, en una fila: etiqueta | barra | texto */
+body.compacto #vista-datos .medidor:not(:first-child) {
+  display: none;
+}
+
+body.compacto #vista-datos .medidor:first-child {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+}
+
+body.compacto .medidor-texto {
+  display: contents;      /* sus hijos pasan a ser parte de la fila */
+}
+
+body.compacto .etiqueta-con-boton { grid-column: 1; grid-row: 1; }
+body.compacto .barra              { grid-column: 2; grid-row: 1; height: 12px; }
+body.compacto .detalle            { grid-column: 3; grid-row: 1; }
+
+body.compacto .herramientas {
+  position: static;
+}
+
+/* En la vista compacta solo queda el botón para volver a la vista normal */
+body.compacto .herramientas .boton-icono:not(#boton-compacto) {
+  display: none;
+}
+
+body.compacto #vista-sesion {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* ----- Vista en franja (horizontal y completa): las tres barras lado a lado ----- */
+
+body.franja .tarjeta {
+  height: 92px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+}
+
+body.franja #vista-datos:not(.oculto) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;  /* tres medidores | la barra de herramientas */
+  align-items: center;
+  column-gap: 18px;
+}
+
+/* Cada medidor: arriba la etiqueta (y el porcentaje), debajo el detalle, y al final la barra */
+body.franja .medidor-texto {
+  display: grid;
+  height: auto;
+  row-gap: 1px;
+  margin-bottom: 6px;
+}
+
+body.franja .detalle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Para que quepa, se esconde la palabra "Reinicio:" y queda solo la hora */
+body.franja .detalle .prefijo {
+  display: none;
+}
+
+body.franja .barra {
+  height: 9px;
+}
+
+/* Los íconos en una cuadrícula de 3 × 2, a la derecha */
+body.franja .herramientas {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(3, 18px);
+  gap: 3px;
+}
+
+/* ----- Vista completa: las barras arriba y, abajo, los tres paneles juntos ----- */
+
+/* La tarjeta queda arriba y el panel debajo (como cuando un panel crece hacia abajo) */
+body.completo .escena {
+  flex-direction: column-reverse;
+}
+
+/* El panel está siempre abierto: no se despliega ni se cierra. Se repiten las variantes con "abajo" y "panel-abierto"
+   porque esas clases, más específicas, lo subían 12 px (y lo pegaban a la tarjeta) cuando el widget estaba arriba. */
+body.completo .panel,
+body.completo.abajo .panel,
+body.completo.panel-abierto .panel,
+body.completo.abajo.panel-abierto .panel {
+  height: 250px;
+  margin: var(--separacion) 0 0;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition: none;
+  justify-content: flex-start;
+}
+
+body.completo .panel-interior {
+  height: 250px;
+}
+
+/* Los íconos de los paneles sobran: ya están todos a la vista */
+body.completo #boton-historial,
+body.completo #boton-desglose,
+body.completo #boton-proyeccion {
+  display: none;
+}
+
+/* Los tres paneles lado a lado, cada uno con su título */
+.titulo-vista {
+  display: none;
+}
+
+body.completo:not(.ajustes-abierto) .panel-cabecera {
+  display: none;
+}
+
+body.completo:not(.ajustes-abierto) .panel-interior {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 12px 16px;
+}
+
+body.completo:not(.ajustes-abierto) #vista-historial,
+body.completo:not(.ajustes-abierto) #vista-desglose,
+body.completo:not(.ajustes-abierto) #vista-proyeccion {
+  display: block;
+  min-width: 0;
+  animation: none;
+}
+
+body.completo:not(.ajustes-abierto) #vista-ajustes,
+body.completo:not(.ajustes-abierto) #vista-cuentas {
+  display: none;
+}
+
+body.completo:not(.ajustes-abierto) .titulo-vista {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--etiqueta);
+}
+
+/* Con Ajustes abierto, el formulario ocupa el lugar de los tres paneles */
+body.completo.ajustes-abierto #vista-historial,
+body.completo.ajustes-abierto #vista-desglose,
+body.completo.ajustes-abierto #vista-proyeccion {
+  display: none;
+}
+
+body.completo.ajustes-abierto #vista-ajustes.activa {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Columnas del historial un poco más juntas (y con alto propio: aquí el contenedor no se estira solo), y textos
+   de la proyección con permiso para usar dos líneas */
+body.completo .grafico {
+  height: 150px;
+}
+
+body.completo .columnas {
+  gap: 4px;
+}
+
+body.completo .proyeccion-titulo,
+body.completo .proyeccion-detalle {
+  white-space: normal;
+}
+
+body.completo .proyeccion {
+  padding: 5px 10px;
+}
+
+/* ----- Cuentas ----- */
+
+/* La pestañita con el nombre de la cuenta: cuelga del borde de arriba de la tarjeta (como la de PRUEBA, pero a la izquierda) */
+.cuenta-pestana {
+  -webkit-app-region: no-drag;
+  position: absolute;
+  top: -1px;
+  left: 20px;
+  z-index: 3;
+  max-width: 140px;
+  padding: 1px 8px 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: inherit;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+  background: var(--fondo-c);
+  border: 1px solid var(--borde);
+  border-top: none;
+  border-radius: 0 0 7px 7px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.cuenta-pestana:hover {
+  color: var(--texto);
+}
+
+.cuenta-pestana[aria-pressed='true'] {
+  color: var(--acento);
+  background: color-mix(in srgb, var(--fondo-c) 85%, var(--acento));
+}
+
+.cuenta-pestana:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+}
+
+/* El resumen de todas las cuentas solo existe en la vista completa, y solo si hay más de una */
+.resumen-cuentas {
+  display: none;
+  flex: none;
+}
+
+body.completo.con-resumen .resumen-cuentas {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: calc(16px + 22px * var(--resumen-n, 2));   /* debe coincidir con RESUMEN_RELLENO y RESUMEN_FILA en main.js */
+  margin-top: var(--separacion);
+  padding: 0 18px;
+  animation: aparecer 0.4s var(--suave) both;
+}
+
+.resumen-fila {
+  display: grid;
+  grid-template-columns: 96px repeat(3, minmax(0, 1fr));
+  column-gap: 14px;
+  align-items: center;
+  height: 22px;
+  border-radius: 7px;
+}
+
+.resumen-fila.activa {
+  background: var(--fila);
+}
+
+.resumen-nombre {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 0 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--texto-suave);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.resumen-nombre::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--texto-suave);
+}
+
+.resumen-fila.activa .resumen-nombre {
+  color: var(--texto);
+}
+
+.resumen-fila.activa .resumen-nombre::before {
+  background: var(--acento);
+  box-shadow: none;
+}
+
+.resumen-medidor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: 6px;
+  align-items: center;
+}
+
+.resumen-etiqueta {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--texto-suave);
+}
+
+.resumen-medidor .barra {
+  height: 6px;
+}
+
+/* Sin el destello ni el brillo de las barras grandes: aquí hay muchas y chicas */
+.resumen-medidor .barra-relleno {
+  box-shadow: none;
+}
+
+.resumen-medidor .barra-relleno::after {
+  display: none;
+}
+
+.resumen-valor {
+  min-width: 34px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.resumen-aviso {
+  display: none;
+  grid-column: 2 / -1;
+  font-size: 11px;
+  color: var(--texto-suave);
+}
+
+.resumen-aviso.error {
+  color: var(--aviso);
+}
+
+.resumen-fila.sin-datos .resumen-medidor {
+  display: none;
+}
+
+.resumen-fila.sin-datos .resumen-aviso {
+  display: block;
+}
+
+/* ----- Panel desplegable ----- */
+
+.panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;     /* anclado a la tarjeta: parece subir desde ella */
+  height: 0;
+  margin: 0;
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    height var(--duracion-panel) var(--suave),
+    margin var(--duracion-panel) var(--suave),
+    opacity 0.26s ease,
+    transform var(--duracion-panel) var(--suave);
+}
+
+body.panel-abierto .panel {
+  height: var(--panel-alto);
+  margin-bottom: var(--separacion);
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* Cuando crece hacia abajo: anclado arriba, con la separación hacia la tarjeta */
+body.abajo .panel {
+  justify-content: flex-start;
+  transform: translateY(-12px) scale(0.98);
+}
+
+body.abajo.panel-abierto .panel {
+  margin-bottom: 0;
+  margin-top: var(--separacion);
+  transform: none;
+}
+
+.panel-interior {
+  flex: none;
+  height: var(--panel-alto);
+  padding: 11px 16px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  margin-bottom: 6px;
+}
+
+.panel-cabecera h2 {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--etiqueta);
+}
+
+.boton-cerrar {
+  -webkit-app-region: no-drag;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--cerrar-fondo);
+  color: var(--cerrar-color);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.25s var(--suave);
+}
+
+.boton-cerrar:hover {
+  background: rgba(236, 90, 95, 0.85);
+  color: #fff;
+  transform: rotate(90deg);
+}
+
+.vista-panel {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.vista-panel.activa {
+  display: block;
+  animation: aparecer 0.4s var(--suave) both;
+}
+
+.nota {
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  color: var(--nota);
+}
+
+/* --- Historial: columnas de 7 días --- */
+
+.grafico {
+  position: relative;
+  height: 100%;
+  padding-top: 4px;
+  box-sizing: border-box;
+}
+
+.linea-limite {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--linea);
+  z-index: 1;
+  transition: bottom 0.6s var(--suave);
+}
+
+.columnas {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  height: 100%;
+}
+
+.columna {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.valor-dia {
+  font-size: 10px;
+  color: var(--texto);
+  margin-bottom: 2px;
+  height: 12px;
+}
+
+.barra-dia {
+  --c: #888;
+  width: 100%;
+  max-width: 28px;
+  height: 0;
+  min-height: 3px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, var(--c), color-mix(in srgb, var(--c) 62%, black));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--c) 35%, transparent);
+  transition: height 0.7s var(--suave);
+}
+
+.barra-dia.sin-dato {
+  background: var(--dia-sin-dato);
+  box-shadow: none;
+}
+
+/* Cuando el límite cambia de un día a otro, cada columna tiene su propia marca del límite */
+.marca-limite {
+  position: absolute;
+  left: 50%;
+  width: 100%;
+  max-width: 34px;
+  transform: translateX(-50%);
+  border-top: 2px solid var(--linea);
+  z-index: 1;
+}
+
+.nombre-dia {
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--texto-suave);
+  text-transform: capitalize;
+  height: 13px;
+}
+
+.nombre-dia.hoy {
+  color: var(--texto);
+  font-weight: 700;
+}
+
+/* --- Desglose: barra dividida y lista --- */
+
+.barra-total {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--tramo-fondo);
+  box-shadow: inset 0 1px 2px var(--riel-sombra);
+}
+
+.tramo {
+  height: 100%;
+  width: 0;
+  min-width: 3px;
+  transition: width 0.9s var(--suave);
+}
+
+.lista {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 0;
+  font-size: 12.5px;
+}
+
+.punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.nombre-producto {
+  flex: 1;
+  color: var(--texto);
+}
+
+.valor-producto {
+  font-weight: 700;
+}
+
+/* --- Proyección --- */
+
+.proyeccion {
+  --tono: #6e6e78;
+  display: grid;
+  gap: 0;
+  margin-bottom: 6px;
+  padding: 5px 12px;
+  border-radius: 11px;
+  background: var(--fila);
+  border-left: 3px solid var(--tono);
+}
+
+.proyeccion-etiqueta {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+.proyeccion-titulo {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.proyeccion-detalle {
+  font-size: 11.5px;
+  color: var(--texto-suave);
+}
+
+/* Un texto de la proyección nunca se parte en dos líneas: si no cabe, se corta con "…" */
+.proyeccion-titulo, .proyeccion-detalle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ----- Vista de inicio de sesión ----- */
+
+#vista-sesion {
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.mensaje {
+  font-size: 14px;
+  color: var(--texto);
+  text-align: center;
+}
+
+#boton-sesion {
+  -webkit-app-region: no-drag;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, #ee9873, #d97757);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 22px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(217, 119, 87, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.2s var(--suave), box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+#boton-sesion:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 6px 18px rgba(217, 119, 87, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+#boton-sesion:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ----- Animaciones ----- */
+
+@keyframes entrada {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes subir {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes destello {
+  0%, 62% { transform: translateX(-100%); }
+  100%    { transform: translateX(100%); }
+}
+
+@keyframes pulso {
+  0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--c) 40%, transparent); }
+  50%      { box-shadow: 0 0 18px color-mix(in srgb, var(--c) 85%, transparent); }
+}
+
+/* Si Windows tiene activada la opción de "reducir animaciones", se respeta */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
