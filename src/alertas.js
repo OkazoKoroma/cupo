@@ -10,15 +10,33 @@ function formatear(numero) {
   return numero.toLocaleString(locale(), { maximumFractionDigits: 1 });
 }
 
-// Muestra una notificación de Windows.
-function mostrar(titulo, mensaje) {
+// "No molestar": hasta este momento (en ms) los avisos no se muestran. 0 = los avisos están activos.
+let silencioHasta = 0;
+
+function silenciarHasta(momento) {
+  silencioHasta = momento;
+}
+
+function estaSilenciado() {
+  return Date.now() < silencioHasta;
+}
+
+// Muestra una notificación de Windows. "opciones": { alHacerClic, siempre } (siempre = aunque estén silenciados,
+// para lo que tú mismo pediste, como exportar el historial).
+function mostrar(titulo, mensaje, opciones = {}) {
+  if (estaSilenciado() && !opciones.siempre) {
+    console.log(`Aviso silenciado: ${titulo} | ${mensaje}`);
+    return;
+  }
   console.log(`Notificación enviada: ${titulo} | ${mensaje}`);
   if (!Notification.isSupported()) return;
-  new Notification({
+  const notificacion = new Notification({
     title: titulo,
     body: mensaje,
     icon: rutaDeAsset('icono.png'),
-  }).show();
+  });
+  if (opciones.alHacerClic) notificacion.on('click', opciones.alHacerClic);
+  notificacion.show();
 }
 
 // Antepone el nombre de la cuenta al título: "[Trabajo] Llegaste a tu límite...". Sin nombre, el título queda igual.
@@ -44,8 +62,14 @@ function enviar(tipo, hoy, limite, cuenta) {
 function enviarExportado(cantidad, ruta) {
   mostrar(
     t('alerta.exportado.titulo'),
-    cantidad === 1 ? t('alerta.exportado.uno', { ruta }) : t('alerta.exportado.varios', { n: cantidad, ruta })
+    cantidad === 1 ? t('alerta.exportado.uno', { ruta }) : t('alerta.exportado.varios', { n: cantidad, ruta }),
+    { siempre: true }
   );
+}
+
+// Avisa que hay una versión nueva de Cupo. Al hacer clic se abre la página para descargarla.
+function enviarVersionNueva(version, alHacerClic) {
+  mostrar(t('alerta.version.titulo'), t('alerta.version.cuerpo', { version }), { alHacerClic, siempre: true });
 }
 
 // Avisa que claude.ai parece haber cambiado su página y el widget ya no entiende los datos.
@@ -70,6 +94,12 @@ function enviarSesion(tipo, porcentaje, reinicioTexto, cuenta) {
       conCuenta(t('alerta.sesionLimite.titulo'), cuenta),
       reinicioTexto ? t('alerta.sesionLimite.conHora', { hora: reinicioTexto }) : t('alerta.sesionLimite.sinHora')
     );
+  } else if (tipo === 'sesion-ritmo') {
+    // "porcentaje" aquí es la hora a la que llegarías al límite (ya escrita), y "reinicioTexto" la hora del reinicio.
+    mostrar(
+      conCuenta(t('alerta.sesionRitmo.titulo'), cuenta),
+      t('alerta.sesionRitmo.cuerpo', { hora: porcentaje, reinicio: reinicioTexto })
+    );
   } else if (tipo === 'sesion-reiniciada') {
     mostrar(conCuenta(t('alerta.sesionReiniciada.titulo'), cuenta), t('alerta.sesionReiniciada.cuerpo'));
   }
@@ -83,4 +113,4 @@ function enviarSemana(porcentaje, reinicioTexto, cuenta) {
   );
 }
 
-module.exports = { enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };
+module.exports = { silenciarHasta, estaSilenciado, enviarVersionNueva, enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };

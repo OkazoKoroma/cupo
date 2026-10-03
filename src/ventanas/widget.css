@@ -67,8 +67,8 @@ body.abajo .escena {
 .tarjeta {
   flex: none;
   /* --extra-alto: lo que estiraste la ventana a lo alto; --n-extras: cuántos límites extra (como Fable) hay, 38 px cada uno */
-  height: calc(130px + 38px * var(--n-extras, 0) + var(--extra-alto, 0px));
-  padding: 14px 18px;
+  height: calc(154px + 38px * var(--n-extras, 0) + var(--extra-alto, 0px));
+  padding: 38px 18px 14px;   /* arriba queda una fila para la cuenta y la barra de íconos */
   animation: entrada 0.65s var(--suave) both;
   transition: height 0.3s var(--suave), padding 0.3s var(--suave); /* 0,3 s = DURACION_TARJETA_MS en main.js */
 }
@@ -251,8 +251,8 @@ body.compacto #boton-compacto .icono-expandir { display: block; }
 /* En la vista normal vertical va al lado de "HOY", en la primera fila */
 .herramientas {
   position: absolute;
-  top: 15px;
-  left: var(--herramientas-izq, 58px);   /* widget.js lo ajusta al ancho real de la palabra "Hoy" / "Today" */
+  top: 9px;
+  right: 12px;               /* en la vista normal vertical: arriba a la derecha, en su propia fila */
   display: flex;
   align-items: center;
   gap: 2px;
@@ -375,7 +375,7 @@ body.franja .barra {
 body.franja .herramientas {
   position: static;
   display: grid;
-  grid-template-columns: repeat(3, 18px);
+  grid-template-columns: repeat(4, 18px);   /* dos filas ordenadas: paneles arriba, vistas abajo */
   gap: 3px;
 }
 
@@ -1193,4 +1193,117 @@ body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion {
 /* En la vista compacta solo se ve Hoy */
 body.compacto .extras {
   display: none;
+}
+
+/* ----- Historial: botones 7 / 30 días y promedio ----- */
+
+.historial-opciones {
+  -webkit-app-region: no-drag;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 18px;
+  margin-bottom: 4px;
+}
+
+.segmentos {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--campo-fondo);
+}
+
+.segmento {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border: none;
+  border-radius: 5px;
+  color: var(--texto-suave);
+  background: transparent;
+  cursor: pointer;
+}
+
+.segmento[aria-pressed='true'] {
+  color: var(--texto);
+  background: var(--acento-suave);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acento) 45%, transparent);
+}
+
+.historial-promedio {
+  font-size: 10.5px;
+  color: var(--texto-suave);
+}
+
+/* 30 días: columnas finas, sin el número encima */
+.grafico.largo .columnas {
+  gap: 2px;
+}
+
+.grafico.largo .valor-dia {
+  visibility: hidden;
+}
+
+.grafico.largo .nombre-dia {
+  font-size: 9.5px;
+  text-transform: none;
+}
+
+.grafico.largo .marca-limite {
+  max-width: 12px;
+}
+
+#vista-historial .grafico {
+  height: calc(100% - 22px);
+}
+
+/* ----- La tarjeta mide lo que mide su vista (aunque la ventana se ensanche para Ajustes) ----- */
+.tarjeta,
+.resumen-cuentas {
+  width: 100%;
+  max-width: var(--ancho-vista, none);
+  align-self: flex-start;
+}
+
+body.ancla-derecha .tarjeta,
+body.ancla-derecha .resumen-cuentas {
+  align-self: flex-end;
+}
+
+/* ----- Barra de íconos: más aire entre ellos y una rayita que separa "paneles" de "vistas" ----- */
+.herramientas {
+  gap: 2px;
+}
+
+.herramientas-separador {
+  width: 1px;
+  height: 12px;
+  margin: 0 2px;
+  background: var(--separador);
+  background: color-mix(in srgb, var(--texto-suave) 35%, transparent);
+}
+
+/* En la vista compacta y en las de franja (cuadrícula de íconos) la rayita sobra */
+body.compacto .herramientas-separador,
+body.franja .herramientas-separador {
+  display: none;
+}
+
+/* Vista normal vertical: la cuenta va arriba a la izquierda, como una etiqueta en la misma fila que los íconos */
+body:not(.compacto):not(.franja) .cuenta-pestana {
+  top: 11px;
+  left: 16px;
+  border-top: 1px solid var(--borde);
+  border-radius: 7px;
+}
+
+/* Vista completa con Ajustes abierto: el panel de abajo crece lo que creció la ventana (--panel-extra) */
+body.completo.ajustes-abierto .panel,
+body.completo.ajustes-abierto.abajo .panel,
+body.completo.ajustes-abierto.panel-abierto .panel,
+body.completo.ajustes-abierto.abajo.panel-abierto .panel,
+body.completo.ajustes-abierto .panel-interior {
+  height: calc(250px + var(--extra-alto, 0px) + var(--panel-extra, 0px));
 }

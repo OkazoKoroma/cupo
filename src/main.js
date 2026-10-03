@@ -2,7 +2,7 @@
 // Aquí se crean la ventana del widget y el ícono de la bandeja del sistema.
 
 const path = require('path');
-const { app, BrowserWindow, Tray, Menu, screen, nativeImage, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, screen, nativeImage, ipcMain, dialog, globalShortcut, shell } = require('electron');
 const almacen = require('./almacen');
 const sesion = require('./sesion');
 const uso = require('./uso');
@@ -13,6 +13,7 @@ const calculo = require('./calculo');
 const alertas = require('./alertas');
 const ajustes = require('./ajustes');
 const exportar = require('./exportar');
+const actualizaciones = require('./actualizaciones');
 const { rutaDeAsset } = require('./rutas');
 
 // Modo de prueba: se activa abriendo la app con "--prueba" (ver "Abrir widget (modo prueba).bat").
@@ -31,7 +32,7 @@ const MARGEN = 1;
 
 // Medidas de la tarjeta (sin el margen) en cada vista, en píxeles.
 const MEDIDAS_DE_VISTA = {
-  'normal-vertical': { ancho: 300, alto: 130 },    // las tres barras, una bajo la otra
+  'normal-vertical': { ancho: 300, alto: 154 },    // las tres barras, una bajo la otra
   'normal-horizontal': { ancho: 540, alto: 92 },   // las tres barras, lado a lado
   compacto: { ancho: 300, alto: 44 },              // una sola línea con la barra de Hoy
   completo: { ancho: 760, alto: 92 + 8 + 250 },    // las barras arriba y, abajo, el historial, el desglose y la proyección juntos
@@ -164,7 +165,11 @@ function medidasDeVista(vista = vistaActual) {
 // Las medidas de una vista sin estirar.
 function medidasBase(vista = vistaActual) {
   const base = MEDIDAS_DE_VISTA[claveDeVista(vista)];
-  if (vista.modo === 'completo') return { ...base, alto: base.alto + altoDelResumen() };
+  // La vista completa: más alta con el resumen de cuentas, y más ancha si alguna cuenta tiene límites extra (una columna por cada uno).
+  if (vista.modo === 'completo') {
+    const columnasExtra = totalDeCuentas >= 2 ? maximoDeLimitesExtra() : 0;
+    return { ancho: base.ancho + ANCHO_COLUMNA_EXTRA_LISTA * columnasExtra, alto: base.alto + altoDelResumen() };
+  }
   // Cada límite extra (por ejemplo Fable) es una barra más: en la vista vertical la tarjeta crece a lo alto, y en la horizontal a lo ancho.
   if (!todasALaVez(vista) && vista.modo === 'normal') {
     return vista.orientacion === 'vertical'
@@ -267,7 +272,8 @@ function calcularPosicionInicial() {
 // Si el panel es más ancho que la vista (Ajustes), la ventana también se ensancha: queda quieto el borde
 // (izquierdo o derecho) más cercano al borde de la pantalla.
 // Devuelve hacia dónde creció, para que la pantalla ponga el panel del lado correcto.
-function ajustarVentanaAlPanel(abierto, altoPanel, anchoPanel) {
+// "preferirAbajo": crecer hacia abajo si cabe (lo usa la vista completa, que tiene la tarjeta arriba).
+function ajustarVentanaAlPanel(abierto, altoPanel, anchoPanel, preferirAbajo = false) {
   const altoPedido = Number.isFinite(altoPanel) ? altoPanel : PANEL_ALTO_NORMAL;
   const actual = ventana.getBounds();
   const area = screen.getDisplayMatching(actual).workArea;
@@ -280,7 +286,7 @@ function ajustarVentanaAlPanel(abierto, altoPanel, anchoPanel) {
     ? Math.min(Math.round(anchoPanel), Math.floor(area.width / escalaActual))
     : 0;
   if (extra === expansion.extra && anchoPedido === expansion.anchoPanel) {
-    return { haciaArriba: expansion.haciaArriba, alto };
+    return { haciaArriba: expansion.haciaArriba, anclaDerecha: expansion.anclaDerecha, alto };
   }
 
   const limiteSuperior = area.y - margen();
@@ -293,7 +299,9 @@ function ajustarVentanaAlPanel(abierto, altoPanel, anchoPanel) {
     const nuevoAlto = actual.height + extra;
     const cabeArriba = actual.y - extra >= limiteSuperior;
     const cabeAbajo = actual.y + nuevoAlto <= limiteInferior;
-    if (cabeArriba) {
+    if (preferirAbajo && cabeAbajo) {
+      expansion.haciaArriba = false;
+    } else if (cabeArriba) {
       expansion.haciaArriba = true;
       y = actual.y - extra;
     } else if (cabeAbajo) {
@@ -328,7 +336,7 @@ function ajustarVentanaAlPanel(abierto, altoPanel, anchoPanel) {
   const xDeseada = expansion.anclaDerecha ? actual.x + actual.width - anchoNuevo : actual.x;
   const x = Math.max(area.x - margen(), Math.min(xDeseada, area.x + area.width + margen() - anchoNuevo));
   ventana.setBounds({ x, y, width: anchoNuevo, height: altoBase() + extra });
-  return { haciaArriba: expansion.haciaArriba, alto };
+  return { haciaArriba: expansion.haciaArriba, anclaDerecha: expansion.anclaDerecha, alto };
 }
 
 // Lo que las pantallas necesitan para escribir sus textos: el idioma activo, su "locale" y todos los textos.
@@ -386,6 +394,9 @@ function aparienciaActual() {
     extra: extrasDeVista(),           // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual)
     redimensionando: Boolean(redimension), // true mientras estás arrastrando un borde
     altoPanel: expansion.alto || null, // alto del panel abierto (puede achicarse si ya no cabe en la pantalla)
+    formatoReinicio: config.formatoReinicio, // 'relativo' (en 2 h 15 min) u 'hora' (15:06)
+    anchoVista: medidasDeVista().ancho, // ancho de la tarjeta: no crece aunque un panel (Ajustes) sea más ancho
+    colores: config.colores,          // colores propios, o null
   };
 }
 
@@ -689,6 +700,12 @@ function ajustesActuales() {
     umbralSesion: config.umbralSesion,
     alertasSemana: config.alertasSemana,
     umbralSemana: config.umbralSemana,
+    avisoRitmo: config.avisoRitmo,
+    iconoDeColor: config.iconoDeColor,
+    atajoGlobal: config.atajoGlobal,
+    buscarActualizaciones: config.buscarActualizaciones,
+    formatoReinicio: config.formatoReinicio,
+    colores: config.colores,
     siempreEncima: config.siempreEncima,
     arrancarConWindows: ajustes.arrancaConWindows(),
     tema: config.tema,
@@ -721,6 +738,12 @@ function guardarAjustes(datos) {
     umbralSesion: nuevos.umbralSesion,
     alertasSemana: nuevos.alertasSemana,
     umbralSemana: nuevos.umbralSemana,
+    avisoRitmo: nuevos.avisoRitmo,
+    iconoDeColor: nuevos.iconoDeColor,
+    atajoGlobal: nuevos.atajoGlobal,
+    buscarActualizaciones: nuevos.buscarActualizaciones,
+    formatoReinicio: nuevos.formatoReinicio,
+    colores: nuevos.colores,
     siempreEncima: nuevos.siempreEncima,
     tema: nuevos.tema,
     idioma: nuevos.idioma,
@@ -757,6 +780,11 @@ function guardarAjustes(datos) {
   // Intervalo: la próxima consulta se reprograma con el valor nuevo.
   programarProximaConsulta();
 
+  // Ícono de la bandeja, atajo de teclado y búsqueda de actualizaciones: al instante.
+  actualizarIconoDeBandeja();
+  aplicarAtajoGlobal();
+  if (nuevos.buscarActualizaciones) buscarVersionNueva();
+
   // Límite y aviso: se recalcula con el último dato, para que la barra y las alertas
   // reflejen el nuevo límite de inmediato (sin esperar a la próxima consulta).
   const lectura = lecturaDe(cuenta.id);
@@ -774,7 +802,8 @@ function guardarAjustes(datos) {
 }
 
 // Datos para el gráfico: el uso de cada uno de los últimos 7 días (null si ese día no hay registro).
-function datosDelHistorial() {
+function datosDelHistorial(cantidadDeDias = 7) {
+  const cantidad = cantidadDeDias === 30 ? 30 : 7;
   const config = almacen.cuentaActiva();
   const porDia = new Map(config.historial.map((entrada) => [entrada.dia, entrada]));
 
@@ -786,7 +815,7 @@ function datosDelHistorial() {
     ahora: new Date(`${dia}T15:00:00Z`), // mediodía en Chile: así la zona horaria no cambia el día
   }).limite;
 
-  const dias = calculo.ultimosDias(fechaActual(), 7).map((dia) => {
+  const dias = calculo.ultimosDias(fechaActual(), cantidad).map((dia) => {
     const registro = porDia.get(dia);
     return {
       dia,
@@ -830,12 +859,90 @@ async function exportarHistorial(ventanaPadre) {
   }
 }
 
+// ----- Ícono de la bandeja de color -----
+// Verde, amarillo o rojo según cuánto llevas de tu límite de hoy (en la cuenta que se muestra), igual que la barra de Hoy;
+// gris si la última lectura falló, y el naranja de siempre si no hay datos o si apagaste esta opción.
+let iconoActual = null;
+
+function colorDelIcono() {
+  if (!almacen.leer().iconoDeColor) return 'normal';
+  const { uso: datos, error } = lecturaDe(cuentaActivaId());
+  if (error) return 'gris';
+  if (!datos || !datos.limiteDiario) return 'normal';
+  const proporcion = datos.hoy / datos.limiteDiario;
+  if (proporcion < 0.7) return 'verde';
+  if (proporcion < 1) return 'amarillo';
+  return 'rojo';
+}
+
+function actualizarIconoDeBandeja() {
+  if (!bandeja) return;
+  const color = colorDelIcono();
+  if (color === iconoActual) return;
+  iconoActual = color;
+  bandeja.setImage(nativeImage.createFromPath(rutaDeAsset(`bandeja-${color}.png`)));
+}
+
+// ----- No molestar: silenciar los avisos por un rato -----
+let temporizadorSilencio = null;
+
+function silenciarAvisos(hasta) {
+  almacen.guardar({ silencioHasta: hasta });
+  alertas.silenciarHasta(hasta);
+  clearTimeout(temporizadorSilencio);
+  // Cuando termina el silencio, el menú vuelve a decir "Silenciar avisos".
+  if (hasta > Date.now()) temporizadorSilencio = setTimeout(() => { if (bandeja) construirMenu(); }, hasta - Date.now() + 1000);
+  if (bandeja) construirMenu();
+}
+
+// La medianoche que viene (hora de tu computador): "hasta mañana".
+function proximaMedianoche() {
+  const manana = new Date();
+  manana.setHours(24, 0, 0, 0);
+  return manana.getTime();
+}
+
+// ----- Atajo de teclado global: Ctrl + Alt + C muestra u oculta el widget desde cualquier programa -----
+const ATAJO = 'CommandOrControl+Alt+C';
+
+function aplicarAtajoGlobal() {
+  const quiere = almacen.leer().atajoGlobal;
+  const registrado = globalShortcut.isRegistered(ATAJO);
+  if (quiere && !registrado) {
+    if (!globalShortcut.register(ATAJO, mostrarOcultar)) console.log('El atajo Ctrl + Alt + C ya lo usa otro programa');
+  } else if (!quiere && registrado) {
+    globalShortcut.unregister(ATAJO);
+  }
+}
+
+// ----- Versión nueva en GitHub -----
+let versionNueva = null; // { version, url } si hay una versión más nueva que la instalada
+let temporizadorActualizaciones = null;
+const UN_DIA_MS = 24 * 60 * 60 * 1000;
+
+async function buscarVersionNueva() {
+  clearTimeout(temporizadorActualizaciones);
+  temporizadorActualizaciones = setTimeout(buscarVersionNueva, UN_DIA_MS); // se vuelve a revisar una vez al día
+  if (!almacen.leer().buscarActualizaciones) return;
+  const ultima = await actualizaciones.ultimaVersion();
+  if (!ultima || actualizaciones.compararVersiones(ultima.version, app.getVersion()) <= 0) return;
+  versionNueva = ultima;
+  if (bandeja) construirMenu();
+  // Se avisa una sola vez por cada versión nueva.
+  if (almacen.leer().versionAvisada !== ultima.version) {
+    almacen.guardar({ versionAvisada: ultima.version });
+    alertas.enviarVersionNueva(ultima.version, () => shell.openExternal(ultima.url));
+  }
+}
+
 // Crea el ícono junto al reloj y su menú (clic derecho).
 function crearBandeja() {
-  const icono = nativeImage.createFromPath(rutaDeAsset('icono.ico'));
+  const icono = nativeImage.createFromPath(rutaDeAsset('bandeja-normal.png'));
   bandeja = new Tray(icono);
+  iconoActual = 'normal';
   actualizarTooltip();
   construirMenu();
+  actualizarIconoDeBandeja();
 
   // Un clic normal sobre el ícono también muestra u oculta el widget.
   bandeja.on('click', mostrarOcultar);
@@ -849,7 +956,11 @@ function construirMenu() {
   const hayConexion = hayAlgunaConectada();
   const activaConectada = sesion.estadoDe(activa.id) === 'conectado';
 
+  const silenciado = alertas.estaSilenciado();
   const menu = Menu.buildFromTemplate([
+    ...(versionNueva
+      ? [{ label: t('tray.versionNueva', { version: versionNueva.version }), click: () => shell.openExternal(versionNueva.url) }, { type: 'separator' }]
+      : []),
     { label: t('tray.actualizar'), enabled: hayConexion, click: () => actualizarUso() },
     { label: t('tray.mostrarOcultar'), click: mostrarOcultar },
     {
@@ -884,6 +995,15 @@ function construirMenu() {
         { type: 'separator' },
         { label: t('tray.disposicion.vertical'), type: 'radio', checked: vistaActual.orientacion === 'vertical', click: () => cambiarVista({ orientacion: 'vertical' }) },
         { label: t('tray.disposicion.horizontal'), type: 'radio', checked: vistaActual.orientacion === 'horizontal', click: () => cambiarVista({ orientacion: 'horizontal' }) },
+      ],
+    },
+    {
+      label: silenciado ? t('tray.silencio.hasta', { hora: textoDeHora(new Date(almacen.leer().silencioHasta)) }) : t('tray.silencio'),
+      submenu: [
+        { label: t('tray.silencio.unaHora'), click: () => silenciarAvisos(Date.now() + 60 * 60 * 1000) },
+        { label: t('tray.silencio.manana'), click: () => silenciarAvisos(proximaMedianoche()) },
+        { type: 'separator' },
+        { label: t('tray.silencio.reactivar'), enabled: silenciado, click: () => silenciarAvisos(0) },
       ],
     },
     { label: t('tray.exportar'), click: () => exportarHistorial(ventana) },
@@ -1050,6 +1170,7 @@ function registrarSesion(cuenta, sesion5h) {
     sesion5h,
     umbral: config.umbralSesion,
     ahora: fechaActual(),
+    avisoRitmo: config.avisoRitmo !== false,
   });
 
   // Igual que con el límite diario: se guarda PRIMERO, y después se avisa.
@@ -1057,7 +1178,13 @@ function registrarSesion(cuenta, sesion5h) {
   const porcentaje = sesion5h ? sesion5h.porcentaje : null;
   const reinicioTexto = sesion5h ? textoDeHora(redondearAlMinuto(sesion5h.reinicio)) : null;
   for (const tipo of resultado.alertas) {
-    alertas.enviarSesion(tipo, porcentaje, reinicioTexto, nombreSiHayVarias(cuenta));
+    if (tipo === 'sesion-ritmo') {
+      // En el aviso de ritmo va la hora a la que llegarías al límite.
+      const llegada = textoDeHora(redondearAlMinuto(new Date(resultado.estado.llegadaMs)));
+      alertas.enviarSesion(tipo, llegada, reinicioTexto, nombreSiHayVarias(cuenta));
+    } else {
+      alertas.enviarSesion(tipo, porcentaje, reinicioTexto, nombreSiHayVarias(cuenta));
+    }
   }
 }
 
@@ -1194,6 +1321,7 @@ function datosParaLaPantalla() {
 
 // Manda a la pantalla del widget el último dato (o el último error).
 function enviarUso() {
+  actualizarIconoDeBandeja();
   // Si la cuenta que se muestra tiene límites extra (o dejó de tenerlos), la tarjeta cambia de tamaño.
   const extrasAhora = (lecturaDe(cuentaActivaId()).uso || {}).limitesExtra;
   const cantidad = extrasAhora ? extrasAhora.length : 0;
@@ -1202,7 +1330,7 @@ function enviarUso() {
     reajustarLaVentana();
   }
   // En la vista normal vertical con todas las cuentas, el alto de la ventana depende de cuáles tienen datos.
-  if (todasALaVez()) reajustarLaVentana();
+  if (todasALaVez() || vistaActual.modo === 'completo') reajustarLaVentana();
   if (ventana && !ventana.isDestroyed()) {
     ventana.webContents.send('datos-uso', datosParaLaPantalla());
   }
@@ -1425,10 +1553,10 @@ if (!app.requestSingleInstanceLock()) {
       aplicarEscala(Math.max(ajustes.ESCALA_MINIMA, Math.min(nueva, ajustes.ESCALA_MAXIMA)));
     });
     ipcMain.handle('exportar-historial', (evento) => exportarHistorial(BrowserWindow.fromWebContents(evento.sender)));
-    ipcMain.handle('ajustar-ventana', (evento, abierto, alto, anchoPanel) => ajustarVentanaAlPanel(Boolean(abierto), alto, anchoPanel));
+    ipcMain.handle('ajustar-ventana', (evento, abierto, alto, anchoPanel, preferirAbajo) => ajustarVentanaAlPanel(Boolean(abierto), alto, anchoPanel, Boolean(preferirAbajo)));
     ipcMain.handle('obtener-ajustes', () => ajustesActuales());
     ipcMain.handle('guardar-ajustes', (evento, datos) => guardarAjustes(datos));
-    ipcMain.handle('obtener-historial', () => datosDelHistorial());
+    ipcMain.handle('obtener-historial', (evento, dias) => datosDelHistorial(dias));
     if (MODO_PRUEBA) ipcMain.handle('prueba', (evento, nombre) => accionDePrueba(nombre));
 
     // Primero averiguamos si ya hay sesión guardada, luego mostramos todo.
@@ -1450,6 +1578,12 @@ if (!app.requestSingleInstanceLock()) {
     crearVentana();
     crearBandeja();
 
+    // "No molestar" que había quedado activo, el atajo de teclado y, al rato, la búsqueda de una versión nueva.
+    const silencioGuardado = almacen.leer().silencioHasta || 0;
+    if (silencioGuardado > Date.now()) silenciarAvisos(silencioGuardado);
+    aplicarAtajoGlobal();
+    setTimeout(buscarVersionNueva, 15 * 1000);
+
     // Si ya había sesión guardada de otras veces, leemos el uso al arrancar.
     actualizarUso();
   });
@@ -1459,4 +1593,9 @@ if (!app.requestSingleInstanceLock()) {
 // Solo se cierra del todo con "Salir".
 app.on('window-all-closed', () => {
   app.quit();
+});
+
+// Al salir, se suelta el atajo de teclado (para que otro programa lo pueda usar).
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });

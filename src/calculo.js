@@ -226,7 +226,24 @@ function reinicioRedondeado(fecha) {
 //   ahora    → fecha y hora de esta lectura
 //
 // Devuelve { estado, alertas }, igual que procesarLectura.
-function procesarSesion({ estado, sesion5h, umbral, ahora }) {
+const CINCO_HORAS_MS = 5 * 60 * 60 * 1000;
+const RITMO_MINIMO_TRANSCURRIDO_MS = 20 * 60 * 1000; // antes de 20 minutos de sesión es muy pronto para estimar
+const RITMO_PORCENTAJE_MINIMO = 20;                  // y con menos de 20% usado, también
+const RITMO_MARGEN_MS = 10 * 60 * 1000;              // solo se avisa si llegarías al límite al menos 10 min antes del reinicio
+
+// ¿A este ritmo llegarías al límite de la sesión antes de que se reinicie? Devuelve la hora (ms) en que llegarías, o null.
+// La sesión dura 5 horas: empezó 5 horas antes de su hora de reinicio.
+function llegadaAlLimiteDeSesion(porcentaje, reinicioMs, ahoraMs) {
+  if (porcentaje >= 100 || porcentaje < RITMO_PORCENTAJE_MINIMO) return null;
+  const transcurrido = ahoraMs - (reinicioMs - CINCO_HORAS_MS);
+  if (transcurrido < RITMO_MINIMO_TRANSCURRIDO_MS) return null;
+  const llegada = ahoraMs + ((100 - porcentaje) * transcurrido) / porcentaje;
+  return llegada < reinicioMs - RITMO_MARGEN_MS ? llegada : null;
+}
+
+// "avisoRitmo": si es true, también avisa (una vez por sesión) cuando a este ritmo llegarías al límite antes del reinicio.
+// En ese caso el estado guarda "llegadaMs": la hora estimada.
+function procesarSesion({ estado, sesion5h, umbral, ahora, avisoRitmo = false }) {
   const alertas = [];
   let nuevo = estado ? { ...estado } : null;
   const reinicioActual = sesion5h ? reinicioRedondeado(sesion5h.reinicio) : null;
@@ -259,6 +276,16 @@ function procesarSesion({ estado, sesion5h, umbral, ahora }) {
       if (!nuevo.avisoEnviado) alertas.push('sesion-aviso');
       nuevo.avisoEnviado = true;
     }
+
+    // Aviso de ritmo: una vez por sesión, solo si todavía no se llegó al límite.
+    if (avisoRitmo && !nuevo.ritmoAvisado && !nuevo.limiteEnviado) {
+      const llegada = llegadaAlLimiteDeSesion(sesion5h.porcentaje, reinicioActual, ahora.getTime());
+      if (llegada !== null) {
+        alertas.push('sesion-ritmo');
+        nuevo.ritmoAvisado = true;
+        nuevo.llegadaMs = llegada;
+      }
+    }
   }
 
   return { estado: nuevo, alertas };
@@ -282,6 +309,7 @@ function procesarSemana({ estado, semana, reinicio, umbral }) {
 }
 
 module.exports = {
+  llegadaAlLimiteDeSesion,
   procesarSemana,
   procesarLectura,
   diaDeLaSemana,

@@ -1,9 +1,18 @@
 // colores.js: funciones que comparten las pantallas del widget,
 // para que los colores y el formato de números sean siempre los mismos.
 
-const VERDE = '#3fbf72';
-const AMARILLO = '#f2b84b';
-const ROJO = '#ec5a5f';
+// Los colores de siempre. Se pueden cambiar en Ajustes (ver fijarColores).
+const COLORES_DE_SIEMPRE = { acento: '#e8895f', verde: '#3fbf72', amarillo: '#f2b84b', rojo: '#ec5a5f' };
+let VERDE = COLORES_DE_SIEMPRE.verde;
+let AMARILLO = COLORES_DE_SIEMPRE.amarillo;
+let ROJO = COLORES_DE_SIEMPRE.rojo;
+
+// Usa los colores elegidos en Ajustes para las barras ({ verde, amarillo, rojo }), o los de siempre si es null.
+function fijarColores(colores) {
+  VERDE = (colores && colores.verde) || COLORES_DE_SIEMPRE.verde;
+  AMARILLO = (colores && colores.amarillo) || COLORES_DE_SIEMPRE.amarillo;
+  ROJO = (colores && colores.rojo) || COLORES_DE_SIEMPRE.rojo;
+}
 
 // Número según el idioma: coma para los decimales en español (12,5) y punto en inglés (12.5);
 // sin decimales si es entero (9). "localeActual" viene de i18n.js.

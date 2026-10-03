@@ -1,6 +1,6 @@
 // idiomas.js: el idioma de la app y sus textos.
 //
-// Los textos de cada idioma están en la carpeta "idiomas" (es.js, en.js). Aquí se elige el idioma activo y se
+// Los textos de cada idioma están en la carpeta "idiomas" (es.js, en.js, pt.js, fr.js, de.js). Aquí se elige el idioma activo y se
 // entrega cada texto con t('clave', { valores }). Si a un idioma le falta un texto, se usa el del español
 // (y si tampoco existe, se muestra la clave, para que el error se note).
 //
@@ -11,6 +11,9 @@ const { app } = require('electron');
 const IDIOMAS = {
   es: require('./idiomas/es'),
   en: require('./idiomas/en'),
+  pt: require('./idiomas/pt'),
+  fr: require('./idiomas/fr'),
+  de: require('./idiomas/de'),
 };
 
 // Los valores que se pueden elegir en Ajustes: cada idioma disponible, o "auto" (el idioma de Windows).

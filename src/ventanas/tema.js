@@ -27,6 +27,22 @@ function aplicarApariencia(apariencia) {
   document.body.classList.toggle('horizontal', horizontal);
   document.body.classList.toggle('franja', horizontal || modo === 'completo');
   aplicarExtra(apariencia);
+  aplicarColores(apariencia.colores);
+  // La tarjeta mide lo que mide su vista, aunque la ventana se ensanche para un panel más ancho (como Ajustes).
+  if (apariencia.anchoVista) document.documentElement.style.setProperty('--ancho-vista', `${apariencia.anchoVista}px`);
+}
+
+// Colores propios (Ajustes): el acento cambia en todo el widget; los de las barras los usa colores.js.
+// Se ponen en el cuerpo de la página para que valgan en el tema oscuro y en el claro.
+function aplicarColores(colores) {
+  fijarColores(colores);
+  if (colores && colores.acento) {
+    document.body.style.setProperty('--acento', colores.acento);
+    document.body.style.setProperty('--acento-suave', `color-mix(in srgb, ${colores.acento} 16%, transparent)`);
+  } else {
+    document.body.style.removeProperty('--acento');
+    document.body.style.removeProperty('--acento-suave');
+  }
 }
 
 // Cuánto estiraste la ventana (alto extra en píxeles): la tarjeta o el panel de abajo crecen lo mismo.

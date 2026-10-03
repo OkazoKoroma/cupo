@@ -20,6 +20,14 @@ const VALORES_INICIALES = {
   escala: 100,         // tamaño del widget en %: 100 = normal, 70 = más chico, 160 = más grande
   alertasSesion: true, // avisar por la sesión de 5 horas (al llegar al umbral, al límite y al reiniciarse)
   umbralSesion: 80,    // % de la sesión de 5 horas en que llega el aviso
+  avisoRitmo: true,    // avisar si a este ritmo te quedarías sin sesión antes de que se reinicie
+  formatoReinicio: 'relativo', // cómo se muestra el reinicio: 'relativo' (en 2 h 15 min) u 'hora' (15:06)
+  colores: null,       // colores propios: { acento, verde, amarillo, rojo } ('#rrggbb'); null = los de siempre
+  iconoDeColor: true,  // el ícono de la bandeja cambia de color según el uso de hoy
+  atajoGlobal: true,   // Ctrl + Alt + C muestra u oculta el widget desde cualquier programa
+  buscarActualizaciones: true, // revisar en GitHub si hay una versión nueva
+  versionAvisada: null, // la última versión nueva de la que ya se avisó (para no avisar dos veces)
+  silencioHasta: 0,    // "no molestar": hasta cuándo (ms) los avisos están silenciados
   alertasSemana: true, // avisar cuando la cuota semanal llega a un porcentaje
   umbralSemana: 85,    // % de la cuota semanal en que llega el aviso
   todasLasCuentas: true, // en la vista normal y la compacta, mostrar todas las cuentas a la vez (si hay más de una)

@@ -26,7 +26,14 @@
 
         <!-- Vista del historial: columnas de los últimos 7 días (widget.js las dibuja) -->
         <div class="vista-panel" id="vista-historial">
-          <h4 class="titulo-vista" data-i18n="panel.historial">Últimos 7 días</h4>
+          <h4 class="titulo-vista" data-i18n="panel.historial">Historial</h4>
+          <div class="historial-opciones">
+            <div class="segmentos" role="group" aria-label="Días" data-i18n-aria="historial.dias">
+              <button type="button" class="segmento" data-dias="7" data-i18n="historial.7">7 días</button>
+              <button type="button" class="segmento" data-dias="30" data-i18n="historial.30">30 días</button>
+            </div>
+            <span class="historial-promedio" id="historial-promedio"></span>
+          </div>
           <div class="grafico">
             <div class="linea-limite" id="linea-limite"></div>
             <div class="columnas" id="columnas"></div>
@@ -49,6 +56,7 @@
 
                 <!-- Columna 1: cómo se ve el widget -->
                 <div class="ajustes-columna">
+                  <section class="ajustes-grupo">
                   <h3 data-i18n="aj.seccion.vista">Vista</h3>
                   <label class="campo">
                     <span class="campo-titulo" data-i18n="aj.vista">Vista</span>
@@ -72,7 +80,8 @@
                     <span data-i18n="aj.todas">Mostrar todas las cuentas a la vez</span>
                   </label>
                   <p class="campo-ayuda" data-i18n="aj.todas.ayuda">En la vista normal y la compacta, cuando hay más de una cuenta.</p>
-
+                  </section>
+                  <section class="ajustes-grupo">
                   <h3 data-i18n="aj.seccion.escala">Escala de la interfaz</h3>
                   <label class="campo">
                     <span class="campo-entrada">
@@ -88,7 +97,20 @@
                     <button type="button" class="boton-chico" data-escala="150">150%</button>
                   </div>
                   <p class="campo-ayuda" data-i18n="aj.escala.ayuda">Agranda o achica todo el widget al instante. También: Ctrl + rueda del mouse, o Ctrl + / Ctrl − (y Ctrl 0 vuelve al 100%).</p>
+                  </section>
+                  <section class="ajustes-grupo">
+                  <h3 data-i18n="aj.seccion.consulta">Consulta</h3>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.intervalo">Consultar el uso cada</span>
+                    <select id="intervaloMin"></select>
+                  </label>
+                  <p class="campo-ayuda" data-i18n="aj.intervalo.ayuda">El mínimo es 5 minutos.</p>
+                  </section>
+                </div>
 
+                <!-- Columna 2: apariencia, consulta y sistema -->
+                <div class="ajustes-columna">
+                  <section class="ajustes-grupo">
                   <h3 data-i18n="aj.seccion.apariencia">Apariencia</h3>
                   <label class="campo">
                     <span class="campo-titulo" data-i18n="aj.tema">Tema</span>
@@ -106,17 +128,66 @@
                     </span>
                   </label>
                   <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.reinicio">Mostrar el reinicio como</span>
+                    <select id="formatoReinicio">
+                      <option value="relativo" data-i18n="aj.reinicio.relativo">Cuenta regresiva (en 2 h 15 min)</option>
+                      <option value="hora" data-i18n="aj.reinicio.hora">Hora (15:06)</option>
+                    </select>
+                  </label>
+                  <div class="campo">
+                    <span class="campo-titulo" data-i18n="aj.colores">Colores</span>
+                    <div class="colores">
+                      <label class="color" data-i18n-title="aj.colores.acento"><input id="color-acento" type="color"><span data-i18n="aj.colores.acento">Acento</span></label>
+                      <label class="color" data-i18n-title="aj.colores.bajo"><input id="color-verde" type="color"><span data-i18n="aj.colores.bajo">Bajo</span></label>
+                      <label class="color" data-i18n-title="aj.colores.medio"><input id="color-amarillo" type="color"><span data-i18n="aj.colores.medio">Medio</span></label>
+                      <label class="color" data-i18n-title="aj.colores.alto"><input id="color-rojo" type="color"><span data-i18n="aj.colores.alto">Alto</span></label>
+                      <button id="colores-restablecer" class="boton-chico" type="button" data-i18n="aj.colores.restablecer">Restablecer</button>
+                    </div>
+                  </div>
+                  <label class="casilla">
+                    <input id="iconoDeColor" type="checkbox">
+                    <span data-i18n="aj.iconoDeColor">Ícono de la bandeja con el color de tu uso de hoy</span>
+                  </label>
+                  <label class="campo">
                     <span class="campo-titulo" data-i18n="aj.idioma">Idioma</span>
                     <select id="idioma">
                       <option value="es">Español</option>
                       <option value="en">English</option>
+                      <option value="pt">Português (Brasil)</option>
+                      <option value="fr">Français</option>
+                      <option value="de">Deutsch</option>
                       <option value="auto" data-i18n="aj.idioma.auto">Automático (como Windows)</option>
                     </select>
                   </label>
+                  </section>
+                  <section class="ajustes-grupo">
+                  <h3 data-i18n="aj.seccion.sistema">Sistema y datos</h3>
+                  <label class="casilla">
+                    <input id="siempreEncima" type="checkbox">
+                    <span data-i18n="aj.siempreEncima">Siempre encima de otras ventanas</span>
+                  </label>
+                  <label class="casilla">
+                    <input id="arrancarConWindows" type="checkbox">
+                    <span data-i18n="aj.arranque">Abrir el widget al iniciar Windows</span>
+                  </label>
+                  <label class="casilla">
+                    <input id="atajoGlobal" type="checkbox">
+                    <span data-i18n="aj.atajo">Ctrl + Alt + C muestra u oculta el widget</span>
+                  </label>
+                  <label class="casilla">
+                    <input id="buscarActualizaciones" type="checkbox">
+                    <span data-i18n="aj.actualizaciones">Avisarme cuando haya una versión nueva</span>
+                  </label>
+                  <div class="campo">
+                    <button id="exportar" class="boton-secundario" type="button" data-i18n="aj.exportar">Exportar historial (CSV)…</button>
+                    <span id="mensaje-exportar" class="mensaje-chico" role="status"></span>
+                  </div>
+                  </section>
                 </div>
 
-                <!-- Columna 2: límites, avisos y datos -->
+                <!-- Columna 3: límites y avisos -->
                 <div class="ajustes-columna">
+                  <section class="ajustes-grupo">
                   <h3 id="titulo-limite" data-i18n="aj.seccion.limite">Límite diario</h3>
                   <div class="ajustes-doble">
                     <label class="campo">
@@ -144,7 +215,8 @@
                     <div class="dias-fila" id="dias-fila"></div>
                     <p class="campo-ayuda" data-i18n="aj.limitesPorDia.ayuda">El aviso previo se ajusta solo, en la misma proporción.</p>
                   </div>
-
+                  </section>
+                  <section class="ajustes-grupo">
                   <h3 data-i18n="aj.seccion.sesion">Sesión de 5 horas</h3>
                   <label class="campo">
                     <span class="campo-titulo" data-i18n="aj.sesion.aviso">Avisarme al llegar a</span>
@@ -157,7 +229,12 @@
                     <input id="alertasSesion" type="checkbox">
                     <span data-i18n="aj.sesion.activar">Activar los avisos de la sesión</span>
                   </label>
-
+                  <label class="casilla">
+                    <input id="avisoRitmo" type="checkbox">
+                    <span data-i18n="aj.sesion.ritmo">Avisarme si a este ritmo me quedaré sin sesión</span>
+                  </label>
+                  </section>
+                  <section class="ajustes-grupo">
                   <h3 data-i18n="aj.seccion.semana">Cuota semanal</h3>
                   <label class="campo">
                     <span class="campo-titulo" data-i18n="aj.semana.aviso">Avisarme al llegar a</span>
@@ -170,27 +247,7 @@
                     <input id="alertasSemana" type="checkbox">
                     <span data-i18n="aj.semana.activar">Activar el aviso de la semana</span>
                   </label>
-
-                  <h3 data-i18n="aj.seccion.consulta">Consulta</h3>
-                  <label class="campo">
-                    <span class="campo-titulo" data-i18n="aj.intervalo">Consultar el uso cada</span>
-                    <select id="intervaloMin"></select>
-                  </label>
-                  <p class="campo-ayuda" data-i18n="aj.intervalo.ayuda">El mínimo es 5 minutos.</p>
-
-                  <h3 data-i18n="aj.seccion.sistema">Sistema y datos</h3>
-                  <label class="casilla">
-                    <input id="siempreEncima" type="checkbox">
-                    <span data-i18n="aj.siempreEncima">Siempre encima de otras ventanas</span>
-                  </label>
-                  <label class="casilla">
-                    <input id="arrancarConWindows" type="checkbox">
-                    <span data-i18n="aj.arranque">Abrir el widget al iniciar Windows</span>
-                  </label>
-                  <div class="campo">
-                    <button id="exportar" class="boton-secundario" type="button" data-i18n="aj.exportar">Exportar historial (CSV)…</button>
-                    <span id="mensaje-exportar" class="mensaje-chico" role="status"></span>
-                  </div>
+                  </section>
                 </div>
 
               </div>
@@ -239,24 +296,24 @@
         <h2 data-i18n="panel.cuentas">Cuentas</h2>
         <div class="resumen-herramientas">
           <button class="boton-icono" data-panel="cuentas" type="button" title="Cuentas" data-i18n-title="panel.cuentas" aria-label="Cuentas" data-i18n-aria="panel.cuentas" aria-pressed="false">
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="5.2" r="2.8" fill="none" stroke="currentColor" stroke-width="1.6"></circle><path d="M2.4 14c.5-3 2.8-4.4 5.6-4.4s5.1 1.4 5.6 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg>
-          </button>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5.5" r="2.7"/><path d="M2.8 14c.6-2.8 2.7-4.2 5.2-4.2s4.6 1.4 5.2 4.2"/></svg>
+              </button>
           <button class="boton-icono" data-panel="ajustes" type="button" title="Ajustes" data-i18n-title="boton.ajustes" aria-label="Abrir los ajustes" data-i18n-aria="boton.ajustesAria" aria-pressed="false">
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M2 4.5h8M13 4.5h1M2 11.5h1M6 11.5h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path><circle cx="11.5" cy="4.5" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"></circle><circle cx="4.5" cy="11.5" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"></circle></svg>
-          </button>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>
+              </button>
           <button class="boton-icono" data-alternar="compacto" type="button" title="Vista compacta (una línea)" data-i18n-title="boton.compacto" aria-label="Cambiar entre la vista compacta y la normal" data-i18n-aria="boton.compactoAria" aria-pressed="false">
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="6.2" width="12" height="3.6" rx="1.4" fill="currentColor"></rect></svg>
-          </button>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8h11"/></svg>
+              </button>
           <button class="boton-icono" data-alternar="completo" type="button" title="Vista completa (todo a la vez)" data-i18n-title="boton.completo" aria-label="Cambiar entre la vista completa y la normal" data-i18n-aria="boton.completoAria" aria-pressed="false">
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="1.5" y="1.5" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect><rect x="8.9" y="1.5" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect><rect x="1.5" y="8.9" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect><rect x="8.9" y="8.9" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect></svg>
-          </button>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>
+              </button>
           <button class="boton-icono boton-lista-orientacion" data-alternar="orientacion" type="button" title="Cambiar la disposición (vertical / horizontal)" data-i18n-title="boton.orientacion" aria-label="Cambiar entre la disposición vertical y la horizontal" data-i18n-aria="boton.orientacionAria">
-            <svg class="icono-a-horizontal" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect><path d="M6 2.6v10.8M10 2.6v10.8" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg>
-            <svg class="icono-a-vertical" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect><path d="M1.6 6.2h12.8M1.6 9.8h12.8" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg>
-          </button>
+                <svg class="icono-a-horizontal" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10M10 3v10"/></svg>
+                <svg class="icono-a-vertical" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6.3h12M2 9.7h12"/></svg>
+              </button>
           <button class="boton-icono boton-lista-volver" data-alternar="cuentas" type="button" title="Volver a la vista normal" data-i18n-title="boton.vistaNormal" aria-label="Volver a la vista normal" data-i18n-aria="boton.vistaNormal">
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="2.4" width="12" height="2.6" rx="1.2" fill="currentColor"></rect><rect x="2" y="6.7" width="12" height="2.6" rx="1.2" fill="currentColor"></rect><rect x="2" y="11" width="12" height="2.6" rx="1.2" fill="currentColor"></rect></svg>
-          </button>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg>
+              </button>
         </div>
       </div>
     </section>
@@ -310,63 +367,31 @@
         <div class="herramientas">
           <!-- Cuatro íconos despliegan un panel (historial, desglose, proyección y ajustes); los dos últimos cambian la vista. -->
               <button id="boton-historial" class="boton-icono" data-panel="historial" type="button" title="Uso de los últimos 7 días" data-i18n-title="boton.historial" aria-label="Ver el uso de los últimos 7 días" data-i18n-aria="boton.historialAria" aria-pressed="false">
-                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <rect x="1.5" y="9" width="3.4" height="6" rx="1" fill="currentColor"></rect>
-                  <rect x="6.3" y="4.5" width="3.4" height="10.5" rx="1" fill="currentColor"></rect>
-                  <rect x="11.1" y="1" width="3.4" height="14" rx="1" fill="currentColor"></rect>
-                </svg>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 13.5v-4M8 13.5v-8M12.5 13.5v-11"/></svg>
               </button>
               <button id="boton-desglose" class="boton-icono" data-panel="desglose" type="button" title="Desglose de la semana por producto" data-i18n-title="boton.desglose" aria-label="Ver el desglose de la semana por producto" data-i18n-aria="boton.desgloseAria" aria-pressed="false">
-                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
-                  <path d="M8 8V1.8A6.2 6.2 0 0 1 14.2 8z" fill="currentColor"></path>
-                </svg>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.8"/><path d="M8 2.2V8h5.8"/></svg>
               </button>
               <button id="boton-proyeccion" class="boton-icono" data-panel="proyeccion" type="button" title="Proyección: a este ritmo..." data-i18n-title="boton.proyeccion" aria-label="Ver la proyección de uso" data-i18n-aria="boton.proyeccionAria" aria-pressed="false">
-                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <path d="M1.5 12 6 7.5l3 3 5-5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
-                  <path d="M10.5 5h4v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
-                </svg>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12l4-4 2.8 2.8L14 5.5"/><path d="M10.5 5.5H14V9"/></svg>
               </button>
               <button id="boton-ajustes" class="boton-icono" data-panel="ajustes" type="button" title="Ajustes" data-i18n-title="boton.ajustes" aria-label="Abrir los ajustes" data-i18n-aria="boton.ajustesAria" aria-pressed="false">
-                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <path d="M2 4.5h8M13 4.5h1M2 11.5h1M6 11.5h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
-                  <circle cx="11.5" cy="4.5" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
-                  <circle cx="4.5" cy="11.5" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
-                </svg>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>
               </button>
+              <span class="herramientas-separador" aria-hidden="true"></span>
               <!-- Botón del modo compacto: cambia entre el widget normal y la versión de una sola línea. -->
               <button id="boton-compacto" class="boton-icono" type="button" title="Vista compacta (una línea)" data-i18n-title="boton.compacto" aria-label="Cambiar entre la vista compacta y la normal" data-i18n-aria="boton.compactoAria" aria-pressed="false">
-                <!-- Una sola barra = "pasar a una línea" -->
-                <svg class="icono-compactar" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <rect x="2" y="6.2" width="12" height="3.6" rx="1.4" fill="currentColor"></rect>
-                </svg>
-                <!-- Tres barras = "volver al modo completo" -->
-                <svg class="icono-expandir" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <rect x="2" y="2.4" width="12" height="2.6" rx="1.2" fill="currentColor"></rect>
-                  <rect x="2" y="6.7" width="12" height="2.6" rx="1.2" fill="currentColor"></rect>
-                  <rect x="2" y="11" width="12" height="2.6" rx="1.2" fill="currentColor"></rect>
-                </svg>
+                <svg class="icono-compactar" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8h11"/></svg>
+                <svg class="icono-expandir" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg>
               </button>
               <!-- Vista completa: todos los paneles a la vez. Cuatro cuadritos = "todo junto". -->
               <button id="boton-completo" class="boton-icono" type="button" title="Vista completa (todo a la vez)" data-i18n-title="boton.completo" aria-label="Cambiar entre la vista completa y la normal" data-i18n-aria="boton.completoAria" aria-pressed="false">
-                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <rect x="1.5" y="1.5" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect>
-                  <rect x="8.9" y="1.5" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect>
-                  <rect x="1.5" y="8.9" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect>
-                  <rect x="8.9" y="8.9" width="5.6" height="5.6" rx="1.2" fill="currentColor"></rect>
-                </svg>
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>
               </button>
               <!-- Disposición: columnas = "ponerlas lado a lado" (horizontal); filas = "apilarlas" (vertical). Solo en la vista normal. -->
               <button id="boton-orientacion" class="boton-icono" type="button" title="Cambiar la disposición (vertical / horizontal)" data-i18n-title="boton.orientacion" aria-label="Cambiar entre la disposición vertical y la horizontal" data-i18n-aria="boton.orientacionAria">
-                <svg class="icono-a-horizontal" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
-                  <path d="M6 2.6v10.8M10 2.6v10.8" fill="none" stroke="currentColor" stroke-width="1.5"></path>
-                </svg>
-                <svg class="icono-a-vertical" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
-                  <path d="M1.6 6.2h12.8M1.6 9.8h12.8" fill="none" stroke="currentColor" stroke-width="1.5"></path>
-                </svg>
+                <svg class="icono-a-horizontal" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10M10 3v10"/></svg>
+                <svg class="icono-a-vertical" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6.3h12M2 9.7h12"/></svg>
               </button>
         </div>
 

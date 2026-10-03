@@ -12,6 +12,7 @@ const ESCALA_MINIMA = 70;
 const ESCALA_MAXIMA = 160;
 
 // Vistas del widget y su orientación (la orientación vale para la vista normal).
+const OPCIONES_FORMATO_REINICIO = ['relativo', 'hora'];
 const OPCIONES_MODO = ['normal', 'compacto', 'completo', 'cuentas'];
 const OPCIONES_ORIENTACION = ['vertical', 'horizontal'];
 
@@ -50,6 +51,28 @@ function validar(datos) {
   if (datos.alertasSemana !== undefined && typeof datos.alertasSemana !== 'boolean') {
     return { ok: false, error: t('err.opcion') };
   }
+  // Opciones nuevas: si no vienen, se usan los valores de siempre.
+  const siNoViene = (valor, porDefecto) => (valor === undefined ? porDefecto : valor);
+  const avisoRitmo = siNoViene(datos.avisoRitmo, true);
+  const iconoDeColor = siNoViene(datos.iconoDeColor, true);
+  const atajoGlobal = siNoViene(datos.atajoGlobal, true);
+  const buscarActualizaciones = siNoViene(datos.buscarActualizaciones, true);
+  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones].some((valor) => typeof valor !== 'boolean')) {
+    return { ok: false, error: t('err.opcion') };
+  }
+  const formatoReinicio = siNoViene(datos.formatoReinicio, 'relativo');
+  if (!OPCIONES_FORMATO_REINICIO.includes(formatoReinicio)) {
+    return { ok: false, error: t('err.opcion') };
+  }
+  // Colores propios: null (los de siempre) o los cuatro en formato #rrggbb.
+  let colores = null;
+  if (datos.colores !== null && datos.colores !== undefined) {
+    const esColor = (valor) => typeof valor === 'string' && /^#[0-9a-fA-F]{6}$/.test(valor);
+    const { acento, verde, amarillo, rojo } = datos.colores;
+    if (![acento, verde, amarillo, rojo].every(esColor)) return { ok: false, error: t('err.colores') };
+    colores = { acento: acento.toLowerCase(), verde: verde.toLowerCase(), amarillo: amarillo.toLowerCase(), rojo: rojo.toLowerCase() };
+  }
+
   if (
     typeof datos.siempreEncima !== 'boolean' ||
     typeof datos.arrancarConWindows !== 'boolean' ||
@@ -104,6 +127,12 @@ function validar(datos) {
       alertasSesion: datos.alertasSesion,
       umbralSesion: Math.round(umbralSesion),
       alertasSemana: datos.alertasSemana !== false,
+      avisoRitmo,
+      iconoDeColor,
+      atajoGlobal,
+      buscarActualizaciones,
+      formatoReinicio,
+      colores,
       umbralSemana: Math.round(umbralSemana),
       siempreEncima: datos.siempreEncima,
       arrancarConWindows: datos.arrancarConWindows,

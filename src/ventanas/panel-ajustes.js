@@ -16,6 +16,22 @@ const panelAjustes = (() => {
   const campoAlertasSesion = document.getElementById('alertasSesion');
   const campoUmbralSesion = document.getElementById('umbralSesion');
   const campoAlertasSemana = document.getElementById('alertasSemana');
+  const campoAvisoRitmo = document.getElementById('avisoRitmo');
+  const campoFormatoReinicio = document.getElementById('formatoReinicio');
+  const campoIconoDeColor = document.getElementById('iconoDeColor');
+  const campoAtajo = document.getElementById('atajoGlobal');
+  const campoActualizaciones = document.getElementById('buscarActualizaciones');
+  const camposDeColor = {
+    acento: document.getElementById('color-acento'),
+    verde: document.getElementById('color-verde'),
+    amarillo: document.getElementById('color-amarillo'),
+    rojo: document.getElementById('color-rojo'),
+  };
+  let coloresPropios = false; // true si cambiaste algún color (si no, se guardan los de siempre)
+
+  function mostrarColores(colores) {
+    for (const [clave, campo] of Object.entries(camposDeColor)) campo.value = (colores || COLORES_DE_SIEMPRE)[clave];
+  }
   const campoUmbralSemana = document.getElementById('umbralSemana');
   const campoTema = document.getElementById('tema');
   const campoIdioma = document.getElementById('idioma');
@@ -134,6 +150,13 @@ const panelAjustes = (() => {
     campoAlertasSesion.checked = actuales.alertasSesion;
     campoUmbralSesion.value = actuales.umbralSesion;
     campoAlertasSemana.checked = actuales.alertasSemana;
+    campoAvisoRitmo.checked = actuales.avisoRitmo;
+    campoFormatoReinicio.value = actuales.formatoReinicio;
+    campoIconoDeColor.checked = actuales.iconoDeColor;
+    campoAtajo.checked = actuales.atajoGlobal;
+    campoActualizaciones.checked = actuales.buscarActualizaciones;
+    coloresPropios = Boolean(actuales.colores);
+    mostrarColores(actuales.colores);
     campoUmbralSemana.value = actuales.umbralSemana;
     campoTema.value = actuales.tema;
     campoIdioma.value = actuales.idioma;
@@ -157,6 +180,14 @@ const panelAjustes = (() => {
     decir('', '');
     mensajeExportar.textContent = '';
   }
+
+  // Colores: al tocar uno, pasan a ser "propios"; Restablecer vuelve a los de siempre (se aplica al pulsar Guardar).
+  for (const campo of Object.values(camposDeColor)) campo.addEventListener('input', () => { coloresPropios = true; });
+  document.getElementById('colores-restablecer').addEventListener('click', () => {
+    coloresPropios = false;
+    mostrarColores(null);
+    decir('', '');
+  });
 
   campoUsarLimitesPorDia.addEventListener('change', () => {
     mostrarCajitasDeDias(campoUsarLimitesPorDia.checked);
@@ -186,6 +217,14 @@ const panelAjustes = (() => {
       alertasSesion: campoAlertasSesion.checked,
       umbralSesion: aNumero(campoUmbralSesion.value),
       alertasSemana: campoAlertasSemana.checked,
+      avisoRitmo: campoAvisoRitmo.checked,
+      formatoReinicio: campoFormatoReinicio.value,
+      iconoDeColor: campoIconoDeColor.checked,
+      atajoGlobal: campoAtajo.checked,
+      buscarActualizaciones: campoActualizaciones.checked,
+      colores: coloresPropios
+        ? Object.fromEntries(Object.entries(camposDeColor).map(([clave, campo]) => [clave, campo.value]))
+        : null,
       umbralSemana: aNumero(campoUmbralSemana.value),
       tema: campoTema.value,
       idioma: campoIdioma.value,

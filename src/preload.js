@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('widget', {
   // Hace crecer la ventana del widget para mostrar un panel de ese alto (true) o la devuelve a su tamaño (false).
   // Responde { haciaArriba }: hacia dónde creció, para poner el panel del lado correcto.
   // Si ya había un panel abierto y el nuevo no cabe en la pantalla, responde también { noCabe: true }.
-  ajustarVentana: (abierto, alto, ancho) => ipcRenderer.invoke('ajustar-ventana', abierto, alto, ancho),
+  ajustarVentana: (abierto, alto, ancho, preferirAbajo) => ipcRenderer.invoke('ajustar-ventana', abierto, alto, ancho, preferirAbajo),
 
   // Registra una función que se llama cuando el menú de la bandeja pide abrir un panel
   // ('historial', 'desglose', 'proyeccion' o 'ajustes').
@@ -75,7 +75,7 @@ contextBridge.exposeInMainWorld('widget', {
   guardarAjustes: (datos) => ipcRenderer.invoke('guardar-ajustes', datos),
 
   // Historial: el uso de cada uno de los últimos 7 días.
-  obtenerHistorial: () => ipcRenderer.invoke('obtener-historial'),
+  obtenerHistorial: (dias) => ipcRenderer.invoke('obtener-historial', dias),
 
   // Solo sirve en el modo de prueba (en el modo normal la app no responde a esto).
   prueba: (accion) => ipcRenderer.invoke('prueba', accion),

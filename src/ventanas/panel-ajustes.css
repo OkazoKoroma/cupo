@@ -267,8 +267,8 @@
 
 .ajustes-columnas {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 28px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 24px;
   align-items: start;
 }
 
@@ -501,4 +501,71 @@
 
 .cuenta-plan:empty {
   display: none;
+}
+
+/* Colores propios: cuatro selectores de color en una fila y el botón para volver a los de siempre */
+.colores {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.color {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--texto-suave);
+  cursor: pointer;
+}
+
+.color input[type='color'] {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--campo-borde);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
+.color input[type='color']::-webkit-color-swatch-wrapper { padding: 2px; }
+.color input[type='color']::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+/* ----- Ajustes ordenado: tres columnas, cada sección en su recuadro ----- */
+.ajustes-grupo {
+  margin-bottom: 8px;
+  padding: 8px 12px 2px;
+  border-radius: 12px;
+  background: var(--fila);
+  border: 1px solid var(--separador);
+}
+
+#vista-ajustes .ajustes-grupo h3 {
+  margin: 0 0 7px;
+}
+
+.ajustes-grupo .campo-ayuda:last-child,
+.ajustes-grupo .casilla:last-child {
+  margin-bottom: 6px;
+}
+
+/* Campos de número con su unidad, del mismo ancho en todas las secciones */
+#vista-ajustes input[type='number'] {
+  width: 58px;
+}
+
+/* Los colores en una sola fila: solo los cuadritos (su nombre aparece al pasar el mouse) y Restablecer al lado */
+.color span {
+  display: none;
+}
+
+.colores {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+#colores-restablecer {
+  margin-left: auto;
 }

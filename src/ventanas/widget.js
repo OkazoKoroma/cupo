@@ -24,20 +24,55 @@ function pintarBarra(idRelleno, porcentaje, colorDe = colorSemanal) {
 // Escribe el texto pequeño de un medidor; "esAviso" lo pinta en amarillo (para errores).
 function escribirDetalle(id, texto, esAviso = false) {
   const elemento = document.getElementById(id);
+  delete elemento.dataset.reinicio; // ya no es un "Reinicio: ..." (no se actualiza solo)
   elemento.textContent = texto;
   elemento.classList.toggle('aviso', esAviso);
 }
 
-// Escribe "Reinicio: <hora>" en un detalle. La palabra "Reinicio:" va en su propio trozo para poder esconderla
-// en la vista horizontal, donde no hay espacio y basta con la hora.
-function escribirReinicio(id, hora) {
-  const elemento = document.getElementById(id);
+// ----- Reinicio: como cuenta regresiva ("en 2 h 15 min") o como hora ("15:06"), según Ajustes -----
+
+let formatoReinicio = 'relativo'; // lo manda la app con la apariencia
+
+// Cuánto falta para una fecha, en palabras cortas: "en 45 min", "en 2 h 15 min", "en 3 d 4 h".
+function textoQueFalta(fechaMs) {
+  const minutos = Math.round((fechaMs - Date.now()) / 60000);
+  if (minutos <= 0) return t('tiempo.ahora');
+  if (minutos < 60) return t('tiempo.min', { m: minutos });
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  if (horas < 24) return resto ? t('tiempo.horasMin', { h: horas, m: resto }) : t('tiempo.horas', { h: horas });
+  const dias = Math.floor(horas / 24);
+  const horasResto = horas % 24;
+  return horasResto ? t('tiempo.diasHoras', { d: dias, h: horasResto }) : t('tiempo.dias', { d: dias });
+}
+
+// Vuelve a escribir un "Reinicio: ..." con lo que falta ahora (o la hora), y deja la otra forma al pasar el mouse.
+function pintarReinicio(elemento) {
+  const fechaMs = Number(elemento.dataset.reinicio);
+  const hora = elemento.dataset.hora;
+  const falta = textoQueFalta(fechaMs);
   const prefijo = document.createElement('span');
   prefijo.className = 'prefijo';
   prefijo.textContent = t('reinicio.prefijo');
-  elemento.classList.remove('aviso');
-  elemento.replaceChildren(prefijo, hora);
+  elemento.replaceChildren(prefijo, formatoReinicio === 'hora' ? hora : falta);
+  elemento.title = formatoReinicio === 'hora' ? falta : hora;
 }
+
+// Escribe "Reinicio: ..." en un detalle. La palabra "Reinicio:" va en su propio trozo para poder esconderla
+// en la vista horizontal, donde no hay espacio. "fecha" es cuándo se reinicia (para la cuenta regresiva).
+function escribirReinicio(id, hora, fecha) {
+  const elemento = document.getElementById(id);
+  elemento.classList.remove('aviso');
+  elemento.dataset.hora = hora;
+  elemento.dataset.reinicio = String(fecha instanceof Date ? fecha.getTime() : new Date(fecha).getTime());
+  pintarReinicio(elemento);
+}
+
+// La cuenta regresiva avanza sola: cada 30 segundos se vuelven a escribir todos los "Reinicio: ...".
+function actualizarReinicios() {
+  for (const elemento of document.querySelectorAll('[data-reinicio]')) pintarReinicio(elemento);
+}
+setInterval(actualizarReinicios, 30 * 1000);
 
 // Muestra un número que "sube" (o baja) suavemente hasta su valor nuevo, en vez de saltar de golpe.
 // "formato" convierte el número en el texto que se ve, ej. (v) => `${formatear(v)}%`.
@@ -101,7 +136,7 @@ function dibujarLimitesExtra(extras) {
     animarNumero(`extra-${i}-porcentaje`, extra.porcentaje, (v) => `${formatear(v)}%`);
     // Los límites por modelo muestran cuándo se reinician; el crédito extra, cuánto se gastó ("US$16 / US$50")
     if (extra.detalleTexto !== undefined) escribirDetalle(`extra-${i}-detalle`, extra.detalleTexto);
-    else escribirReinicio(`extra-${i}-detalle`, extra.reinicioTexto);
+    else escribirReinicio(`extra-${i}-detalle`, extra.reinicioTexto, extra.reinicio);
   });
 }
 
@@ -153,13 +188,13 @@ function mostrarUso(datos) {
   // Semana: la barra, el porcentaje en número (junto a la etiqueta) y la hora de reinicio.
   pintarBarra('relleno-semana', uso.semana);
   animarNumero('semana-porcentaje', uso.semana, (v) => `${formatear(v)}%`);
-  escribirReinicio('semana-detalle', uso.reinicioTexto);
+  escribirReinicio('semana-detalle', uso.reinicioTexto, uso.reinicio);
 
   // Sesión de 5 horas (si claude.ai no la entrega, la barra queda vacía)
   if (uso.sesion5h) {
     pintarBarra('relleno-sesion', uso.sesion5h.porcentaje);
     animarNumero('sesion-porcentaje', uso.sesion5h.porcentaje, (v) => `${formatear(v)}%`);
-    escribirReinicio('sesion-detalle', uso.sesion5h.reinicioTexto);
+    escribirReinicio('sesion-detalle', uso.sesion5h.reinicioTexto, uso.sesion5h.reinicio);
   } else {
     pintarBarra('relleno-sesion', null);
     document.getElementById('sesion-porcentaje').textContent = '';
@@ -186,10 +221,10 @@ const TITULOS_DE_PANEL = {
 };
 // Tamaño que pide cada panel, en píxeles: el alto, y el ancho solo si es más ancho que la vista (Ajustes lo es).
 const TAMANOS_DE_PANEL = {
-  historial: { alto: 196 },
+  historial: { alto: 222 },
   desglose: { alto: 196 },
   proyeccion: { alto: 196 },
-  ajustes: { alto: 700, ancho: 476 },
+  ajustes: { alto: 700, ancho: 720 },
   cuentas: { alto: 250 },
 };
 const DURACION_PANEL_MS = 340; // debe coincidir con --duracion-panel en widget.css
@@ -202,6 +237,15 @@ let temporizadorCierre = null; // espera a que termine la animación antes de en
 
 // En la vista completa los paneles (historial, desglose y proyección) están siempre a la vista.
 const esCompleto = () => document.body.classList.contains('completo');
+
+// Alto del lugar de los tres paneles en la vista completa (igual que en widget.css), y la separación entre la tarjeta y un panel.
+const ALTO_PANELES_COMPLETO = 250;
+const SEPARACION_PANEL = 8;
+
+// Lo que creció la ventana en la vista completa para que quepa Ajustes: el panel de abajo crece lo mismo.
+function ponerAltoExtraCompleto(alto) {
+  document.documentElement.style.setProperty('--panel-extra', `${alto}px`);
+}
 
 // Ajustes y Cuentas, en la vista completa, ocupan el lugar de esos tres paneles.
 const PANELES_EN_LUGAR = ['ajustes', 'cuentas'];
@@ -243,6 +287,15 @@ async function abrirPanel(nombre) {
     document.body.classList.add('ajustes-abierto');
     marcarIconoActivo();
     mostrarVistaDelPanel(nombre);
+    // Si el panel necesita más alto que el lugar de los tres paneles (Ajustes sí), la ventana crece hacia abajo.
+    const falta = TAMANOS_DE_PANEL[nombre].alto - ALTO_PANELES_COMPLETO - extraAlto;
+    if (falta > 0) {
+      const { alto } = await window.widget.ajustarVentana(true, falta - SEPARACION_PANEL, 0, true);
+      if (panelActual === nombre) ponerAltoExtraCompleto(alto + SEPARACION_PANEL);
+    } else {
+      ponerAltoExtraCompleto(0);
+      await window.widget.ajustarVentana(false);
+    }
     return;
   }
 
@@ -255,7 +308,8 @@ async function abrirPanel(nombre) {
 
   if (estabaCerrado) {
     // 1. La ventana crece. 2. Recién entonces se anima el panel (así la animación se ve completa).
-    const { haciaArriba, alto: altoReal } = await pedirTamanoDeVentana(alto, ancho);
+    const { haciaArriba, anclaDerecha, alto: altoReal } = await pedirTamanoDeVentana(alto, ancho);
+    document.body.classList.toggle('ancla-derecha', Boolean(anclaDerecha)); // si la ventana se ensancha, la tarjeta queda en su lado
     ponerAltoDelPanel(altoReal);
     anchoDelPanel = ancho;
     document.body.classList.toggle('abajo', !haciaArriba);
@@ -291,7 +345,8 @@ function cerrarPanel() {
     document.body.classList.remove('ajustes-abierto');
     marcarIconoActivo();
     refrescarPanel();
-    return Promise.resolve();
+    ponerAltoExtraCompleto(0);
+    return window.widget.ajustarVentana(false);
   }
 
   panelActual = null;
@@ -360,9 +415,40 @@ function nombreDelDia(fechaTexto) {
   return fecha.toLocaleDateString(localeActual, { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
 }
 
+// Cuántos días muestra el historial: 7 o 30 (se recuerda en esta computadora).
+let diasDelHistorial = 7;
+try {
+  if (localStorage.getItem('diasDelHistorial') === '30') diasDelHistorial = 30;
+} catch (error) { /* sin almacenamiento: se queda en 7 */ }
+
+function marcarDiasDelHistorial() {
+  for (const boton of document.querySelectorAll('[data-dias]')) {
+    boton.setAttribute('aria-pressed', String(Number(boton.dataset.dias) === diasDelHistorial));
+  }
+}
+
+for (const boton of document.querySelectorAll('[data-dias]')) {
+  boton.addEventListener('click', () => {
+    diasDelHistorial = Number(boton.dataset.dias) === 30 ? 30 : 7;
+    try { localStorage.setItem('diasDelHistorial', String(diasDelHistorial)); } catch (error) { /* no importa */ }
+    marcarDiasDelHistorial();
+    dibujarHistorial();
+  });
+}
+marcarDiasDelHistorial();
+
 async function dibujarHistorial() {
-  const { dias, limiteDiario, hoy } = await window.widget.obtenerHistorial();
+  const { dias, limiteDiario, hoy } = await window.widget.obtenerHistorial(diasDelHistorial);
   const ALTO_BARRAS = altoDeBarras();
+  const largo = dias.length > 7;           // 30 días: columnas finas, sin el número encima, y solo algunas fechas
+  document.querySelector('#vista-historial .grafico').classList.toggle('largo', largo);
+
+  // Promedio de los días con registro
+  const conDato = dias.filter((d) => d.uso !== null);
+  const promedio = conDato.length ? conDato.reduce((suma, d) => suma + d.uso, 0) / conDato.length : null;
+  document.getElementById('historial-promedio').textContent = promedio === null
+    ? ''
+    : t('historial.promedio', { valor: formatear(Math.round(promedio * 10) / 10) });
   if (!panelVisible('historial')) return; // se cerró (o cambió) mientras esperábamos los datos
 
   // Cada día trae su propio límite (puede cambiar de un día a otro si usas límites distintos por día).
@@ -408,7 +494,14 @@ async function dibujarHistorial() {
 
     const etiqueta = document.createElement('span');
     etiqueta.className = dia === hoy ? 'nombre-dia hoy' : 'nombre-dia';
-    etiqueta.textContent = dia === hoy ? t('historial.hoy') : nombreDelDia(dia);
+    if (!largo) {
+      etiqueta.textContent = dia === hoy ? t('historial.hoy') : nombreDelDia(dia);
+    } else {
+      // 30 días: solo el número del día, cada 5 días contando desde hoy (y "hoy" se marca con un punto)
+      const desdeHoy = dias.length - 1 - posicion;
+      etiqueta.textContent = dia === hoy ? '•' : (desdeHoy % 5 === 0 ? String(Number(dia.slice(8))) : '');
+      columna.title = `${dia}: ${uso === null ? '—' : formatear(uso) + '%'}`;
+    }
 
     columna.append(valor, barra, etiqueta);
 
@@ -627,8 +720,14 @@ function aplicarAparienciaAnimada(apariencia) {
   // Si solo cambió cuánto se estiró la ventana (se llama muchas veces por segundo mientras se arrastra un borde),
   // basta con actualizar eso, sin repintar el resto.
   const antes = aparienciaMostrada;
-  const soloTamano = antes !== null && ['tema', 'opacidad', 'modo', 'orientacion', 'escala', 'todas']
+  const coloresIguales = antes !== null && JSON.stringify(apariencia.colores || null) === JSON.stringify(antes.colores || null);
+  const soloTamano = antes !== null && coloresIguales && ['tema', 'opacidad', 'modo', 'orientacion', 'escala', 'todas', 'formatoReinicio']
     .every((clave) => apariencia[clave] === antes[clave]);
+  // El formato del reinicio: se aplica al instante a todos los "Reinicio: ...".
+  if (apariencia.formatoReinicio && apariencia.formatoReinicio !== formatoReinicio) {
+    formatoReinicio = apariencia.formatoReinicio;
+    actualizarReinicios();
+  }
   const altoAnterior = extraAlto;
   extraAlto = (apariencia.extra && apariencia.extra.alto) || 0;
   if (soloTamano) {
@@ -662,6 +761,8 @@ function aplicarAparienciaAnimada(apariencia) {
   const cambiar = () => {
     const eraCompleto = esCompleto();
     aplicarApariencia(apariencia);
+    // Con colores nuevos, las barras se vuelven a pintar.
+    if (!coloresIguales && ultimosDatos) mostrarUso(ultimosDatos);
     // Al salir de la vista completa con Ajustes (o Cuentas) abierto, ese panel se cierra (ya no está en su lugar).
     // (se vuelve a abrir en la vista nueva, como pasa con los otros cambios de vista)
     if (eraCompleto && !esCompleto() && PANELES_EN_LUGAR.includes(panelActual)) {

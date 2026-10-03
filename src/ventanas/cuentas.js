@@ -16,7 +16,7 @@ const panelCuentas = (() => {
   const filas = new Map();          // id → los elementos de su fila en el panel
   const filasDelResumen = new Map(); // id → los elementos de su fila en el resumen
 
-  const COLORES_DE_ESTADO = { conectado: VERDE, expirada: AMARILLO, 'sin-sesion': '#8a8a95' };
+  const colorDeEstado = (estado) => ({ conectado: VERDE, expirada: AMARILLO }[estado] || '#8a8a95');
   const CLAVES_DE_ESTADO = {
     conectado: 'cuentas.estado.conectado',
     expirada: 'cuentas.estado.expirada',
@@ -130,7 +130,7 @@ const panelCuentas = (() => {
       elementos.nombre.setAttribute('aria-label', t('cuentas.nombre'));
       elementos.plan.textContent = cuenta.plan || '';
       elementos.plan.title = cuenta.plan ? t('plan.titulo', { plan: cuenta.plan }) : '';
-      elementos.punto.style.backgroundColor = COLORES_DE_ESTADO[cuenta.estado];
+      elementos.punto.style.backgroundColor = colorDeEstado(cuenta.estado);
       elementos.punto.title = t(CLAVES_DE_ESTADO[cuenta.estado]);
       const conectada = cuenta.estado === 'conectado';
       elementos.accion.textContent = t(conectada ? 'cuentas.cerrarSesion' : 'cuentas.iniciarSesion');
