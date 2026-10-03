@@ -191,11 +191,14 @@ const panelCuentas = (() => {
     const aviso = crear('span', 'resumen-aviso');
     fila.append(nombre, hoy.medidor, sesion.medidor, semana.medidor, aviso);
     resumen.appendChild(fila);
-    return { fila, nombre, nombreTexto, planTexto, hoy, sesion, semana, aviso };
+    return { fila, nombre, nombreTexto, planTexto, hoy, sesion, semana, aviso, extras: [] };
   }
 
   function dibujarResumen(cuentas, activa) {
     resumen.style.setProperty('--resumen-n', String(cuentas.length));
+    // Columnas de las filas anchas: Hoy, Sesión, Semana y una más por cada límite extra (Fable...) de la cuenta que más tenga
+    const maximoExtras = cuentas.reduce((mayor, c) => Math.max(mayor, (c.extras || []).length), 0);
+    resumen.style.setProperty('--n-cols-lista', String(3 + maximoExtras));
     document.body.classList.toggle('con-resumen', cuentas.length >= 2);
 
     for (const [id, elementos] of filasDelResumen) {
@@ -237,6 +240,21 @@ const panelCuentas = (() => {
       }
       pintarMini(e.semana.relleno, datos.semana, colorSemanal);
       e.semana.valor.textContent = `${formatear(datos.semana)}%`;
+
+      // Los límites extra por modelo (Fable...): un medidor más por cada uno
+      const extras = cuenta.extras || [];
+      while (e.extras.length < extras.length) {
+        const nuevo = crearMedidorDelResumen('');
+        e.fila.insertBefore(nuevo.medidor, e.aviso);
+        e.extras.push(nuevo);
+      }
+      while (e.extras.length > extras.length) e.extras.pop().medidor.remove();
+      extras.forEach((extra, i) => {
+        e.extras[i].etiqueta.textContent = extra.nombre;
+        pintarMini(e.extras[i].relleno, extra.porcentaje, colorSemanal);
+        e.extras[i].valor.textContent = `${formatear(extra.porcentaje)}%`;
+      });
+      e.fila.style.setProperty('--n-extras-fila', String(extras.length));
     }
   }
 

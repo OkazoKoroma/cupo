@@ -20,6 +20,8 @@ const VALORES_INICIALES = {
   escala: 100,         // tamaño del widget en %: 100 = normal, 70 = más chico, 160 = más grande
   alertasSesion: true, // avisar por la sesión de 5 horas (al llegar al umbral, al límite y al reiniciarse)
   umbralSesion: 80,    // % de la sesión de 5 horas en que llega el aviso
+  alertasSemana: true, // avisar cuando la cuota semanal llega a un porcentaje
+  umbralSemana: 85,    // % de la cuota semanal en que llega el aviso
   todasLasCuentas: true, // en la vista normal y la compacta, mostrar todas las cuentas a la vez (si hay más de una)
   tamanos: {},         // cuánto estiraste la ventana de cada vista: { 'normal-vertical': { ancho, alto }, ... }
   cuentas: [],         // las cuentas de Claude (ver CAMPOS_DE_CUENTA)
@@ -33,6 +35,7 @@ const CAMPOS_DE_CUENTA = {
   umbralAviso: 10,     // % de uso diario en que llega el aviso previo
   limitesPorDia: null, // null = el mismo límite todos los días; o 7 números [lun ... dom]
   estadoSesion: null,  // estado de la sesión de 5 horas en curso (lo maneja calculo.js)
+  estadoSemana: null,  // estado del aviso de la cuota semanal (lo maneja calculo.js)
   diario: null,        // estado del día en curso (lo maneja calculo.js)
   historial: [],       // uso de cada día, últimos 30 días: [{ dia: '2026-10-02', uso: 9, limite: 14 }, ...]
 };

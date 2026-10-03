@@ -14,6 +14,9 @@
 - **Te avisa** (notificaciones de Windows) cuando te acercas al límite del día, cuando lo alcanzas y cuando se acaba o se reinicia la sesión de 5 horas.
 - **Varias cuentas de Claude**, cada una con su nombre, sus límites y su historial. Cambias de cuenta con un clic, o las ves **todas a la vez** (vista "Cuentas", normal apilada o compacta con una línea por cuenta).
 - **Tipo de plan** de cada cuenta (Pro, Max, Team…) junto a su nombre.
+- **Plan Max:** muestra además la ventana semanal de **Fable** (y otros límites por modelo que claude.ai informe). En Pro no aparece.
+- **Uso extra:** si tienes crédito extra activado con tope mensual, una barra con lo gastado (por ejemplo US$16 / US$50).
+- **Aviso de la cuota semanal:** una notificación al llegar al porcentaje que elijas (85% por defecto), una vez por semana.
 - **Ventana estirable:** arrastra los bordes para cambiar su forma; las letras no cambian de tamaño.
 - **Vista completa:** historial de 7 días, desglose por producto (Claude Code, Chats, Cowork…), proyección ("a este ritmo llegarías al límite a las 18:40") y el resumen de todas tus cuentas juntas.
 - **Límite distinto por día de la semana**, historial exportable a CSV (se abre en Excel).

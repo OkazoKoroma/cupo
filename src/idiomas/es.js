@@ -245,4 +245,12 @@ module.exports = {
   'boton.vistaNormal': 'Volver a la vista normal',
   'plan.free': 'Gratis',
   'plan.titulo': 'Plan {plan}',
+  'extra.etiqueta': 'Uso extra',
+  'aj.seccion.semana': 'Cuota semanal',
+  'aj.semana.aviso': 'Avisarme al llegar a',
+  'aj.semana.activar': 'Activar el aviso de la semana',
+  'err.umbralSemana': 'El aviso de la cuota semanal debe estar entre 50% y 99%.',
+  'alerta.semanaAviso.titulo': 'Vas alto en tu cuota semanal',
+  'alerta.semanaAviso.cuerpo': 'Llevas {porcentaje}% de la cuota de la semana.',
+  'alerta.semanaAviso.reinicia': ' Se reinicia {cuando}.',
 };

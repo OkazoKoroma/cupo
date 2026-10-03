@@ -66,6 +66,45 @@ function animarNumero(id, destino, formato) {
   cuadrosPendientes[id] = requestAnimationFrame(paso);
 }
 
+// ----- Límites extra por modelo (por ejemplo Fable, en el plan Max) -----
+
+// Una barra por cada límite extra, debajo de Semana. Se crean con la misma forma que los otros medidores.
+function dibujarLimitesExtra(extras) {
+  const lista = extras || [];
+  const contenedor = document.getElementById('extras');
+  document.documentElement.style.setProperty('--n-extras', String(lista.length));
+  document.documentElement.style.setProperty('--n-medidores', String(3 + lista.length));
+
+  // Si cambió la cantidad o los nombres, se arman de nuevo; si no, solo se actualizan los valores (así los números se animan).
+  const firma = lista.map((e) => e.nombre).join('|');
+  if (contenedor.dataset.firma !== firma) {
+    contenedor.dataset.firma = firma;
+    contenedor.replaceChildren();
+    lista.forEach((extra, i) => {
+      const medidor = document.createElement('div');
+      medidor.className = 'medidor';
+      medidor.innerHTML = `
+        <div class="medidor-texto">
+          <span class="etiqueta-con-boton">
+            <span class="etiqueta"></span>
+            <span class="porcentaje" id="extra-${i}-porcentaje"></span>
+          </span>
+          <span class="detalle" id="extra-${i}-detalle"></span>
+        </div>
+        <div class="barra"><div class="barra-relleno" id="extra-${i}-relleno"></div></div>`;
+      medidor.querySelector('.etiqueta').textContent = extra.nombre;
+      contenedor.appendChild(medidor);
+    });
+  }
+  lista.forEach((extra, i) => {
+    pintarBarra(`extra-${i}-relleno`, extra.porcentaje);
+    animarNumero(`extra-${i}-porcentaje`, extra.porcentaje, (v) => `${formatear(v)}%`);
+    // Los límites por modelo muestran cuándo se reinician; el crédito extra, cuánto se gastó ("US$16 / US$50")
+    if (extra.detalleTexto !== undefined) escribirDetalle(`extra-${i}-detalle`, extra.detalleTexto);
+    else escribirReinicio(`extra-${i}-detalle`, extra.reinicioTexto);
+  });
+}
+
 // ----- Datos de uso -----
 
 let ultimosDatos = null; // lo último recibido: { uso, error, prueba, activa, cuentas }
@@ -86,6 +125,8 @@ function mostrarUso(datos) {
 
   // En el modo de prueba el uso es inventado: una pestañita "PRUEBA" lo avisa para no confundirnos.
   document.body.classList.toggle('prueba', Boolean(prueba));
+
+  dibujarLimitesExtra(error || !uso ? null : uso.limitesExtra);
 
   if (error || !uso) {
     // Con error (o mientras carga) las barras quedan vacías y se explica qué pasa.
@@ -148,7 +189,7 @@ const TAMANOS_DE_PANEL = {
   historial: { alto: 196 },
   desglose: { alto: 196 },
   proyeccion: { alto: 196 },
-  ajustes: { alto: 640, ancho: 476 },
+  ajustes: { alto: 700, ancho: 476 },
   cuentas: { alto: 250 },
 };
 const DURACION_PANEL_MS = 340; // debe coincidir con --duracion-panel en widget.css

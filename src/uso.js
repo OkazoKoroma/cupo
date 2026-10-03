@@ -99,11 +99,40 @@ function interpretar(datos) {
     if (validas.length > 0) desglose = validas;
   }
 
+  // Límites semanales extra de un modelo (por ejemplo "Fable" en el plan Max). Vienen en la lista "limits" con el nombre del modelo.
+  // También es un dato extra: si no hay, queda en null. Se ignora lo que no tiene nombre (no sabríamos qué es).
+  const limitesExtra = [];
+  if (Array.isArray(datos.limits)) {
+    for (const limite of datos.limits) {
+      if (!limite || limite.group !== 'weekly' || limite.kind === 'weekly_all' || typeof limite.percent !== 'number') continue;
+      const modelo = limite.scope && limite.scope.model && limite.scope.model.display_name;
+      const reinicioExtra = new Date(limite.resets_at);
+      if (typeof modelo !== 'string' || !modelo.trim() || Number.isNaN(reinicioExtra.getTime())) continue;
+      limitesExtra.push({ nombre: modelo.trim(), porcentaje: limite.percent, reinicio: reinicioExtra });
+    }
+  }
+
+  // Crédito extra (uso extra / créditos de uso): solo si está activado y tiene un tope mensual (si no, no hay porcentaje que mostrar).
+  // Los montos vienen en la unidad más chica de la moneda (centavos) con su "exponent": 1600 con exponent 2 = 16,00.
+  const dinero = (monto) => (monto && typeof monto === 'object' && typeof monto.amount_minor === 'number'
+    ? { minor: monto.amount_minor, moneda: typeof monto.currency === 'string' ? monto.currency : 'USD', exponente: Number.isInteger(monto.exponent) ? monto.exponent : 2 }
+    : null);
+  let creditos = null;
+  const gasto = datos.spend;
+  const adicional = datos.extra_usage;
+  if (gasto && gasto.enabled === true && typeof gasto.percent === 'number' && dinero(gasto.limit) && dinero(gasto.limit).minor > 0) {
+    creditos = { porcentaje: gasto.percent, usado: dinero(gasto.used), limite: dinero(gasto.limit) };
+  } else if (adicional && adicional.is_enabled === true && typeof adicional.utilization === 'number' && adicional.monthly_limit) {
+    creditos = { porcentaje: adicional.utilization, usado: null, limite: null }; // sin montos: no se sabe con certeza su unidad
+  }
+
   return {
     semana: semana.utilization, // % de la cuota semanal usado (ej. 6 = 6%)
     reinicio,                   // fecha y hora en que la cuota semanal vuelve a cero
     sesion5h,                   // { porcentaje, reinicio } de la ventana de 5 horas, o null
     desglose,                   // [{ clave, nombre, porcentaje }] por producto, o null
+    creditos,                   // { porcentaje, usado, limite } del crédito extra del mes, o null si no está activado o no tiene tope
+    limitesExtra: limitesExtra.length > 0 ? limitesExtra : null, // [{ nombre, porcentaje, reinicio }] por modelo (ej. Fable), o null
   };
 }
 

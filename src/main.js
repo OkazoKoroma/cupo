@@ -91,9 +91,27 @@ let verTodasLasCuentas = true; // ajuste: en la vista normal y la compacta, most
 
 // Cuando se muestran todas las cuentas a la vez, la tarjeta de siempre se reemplaza por una lista (una fila o un bloque por cuenta).
 // Estas medidas deben coincidir con widget.css (body.todas).
+// Los límites extra (por ejemplo Fable) de la cuenta que se muestra: cada uno es una barra más en la tarjeta.
+const ALTO_POR_LIMITE_EXTRA = 38;   // vista vertical (debe coincidir con widget.css)
+const ANCHO_POR_LIMITE_EXTRA = 110; // vista horizontal
+let limitesExtraActivos = 0;
+
 const LISTA_CABECERA = 24; // el título con sus botones
 const LISTA_BLOQUE = 84;   // una cuenta con sus tres barras una bajo la otra (vista normal vertical)
 const LISTA_BLOQUE_SIN_DATOS = 28; // una cuenta sin sesión o sin datos: una sola línea
+const LISTA_FILA_EXTRA = 19;       // cada límite extra (Fable...) de una cuenta: una barra más en su bloque
+const ANCHO_COLUMNA_EXTRA_LISTA = 183; // cada límite extra: una columna más en las filas anchas
+
+// Los límites extra (por modelo) de una cuenta, según lo último leído.
+function limitesExtraDe(id) {
+  const lista = lecturaDe(id).uso && lecturaDe(id).uso.limitesExtra;
+  return Array.isArray(lista) ? lista : [];
+}
+
+// La mayor cantidad de límites extra que tiene una sola cuenta.
+function maximoDeLimitesExtra() {
+  return idsDeCuentas.reduce((mayor, id) => Math.max(mayor, limitesExtraDe(id).length), 0);
+}
 let idsDeCuentas = ['c1']; // los ids de las cuentas, en orden (se actualiza junto con totalDeCuentas)
 
 function actualizarTotalDeCuentas() {
@@ -106,7 +124,7 @@ function alturaDeLosBloques() {
   return idsDeCuentas.reduce((suma, id) => {
     const lectura = lecturaDe(id);
     const conDatos = sesion.estadoDe(id) === 'conectado' && lectura.uso && !lectura.error;
-    return suma + (conDatos ? LISTA_BLOQUE : LISTA_BLOQUE_SIN_DATOS);
+    return suma + (conDatos ? LISTA_BLOQUE + LISTA_FILA_EXTRA * limitesExtraDe(id).length : LISTA_BLOQUE_SIN_DATOS);
   }, 0);
 }
 
@@ -147,11 +165,18 @@ function medidasDeVista(vista = vistaActual) {
 function medidasBase(vista = vistaActual) {
   const base = MEDIDAS_DE_VISTA[claveDeVista(vista)];
   if (vista.modo === 'completo') return { ...base, alto: base.alto + altoDelResumen() };
+  // Cada límite extra (por ejemplo Fable) es una barra más: en la vista vertical la tarjeta crece a lo alto, y en la horizontal a lo ancho.
+  if (!todasALaVez(vista) && vista.modo === 'normal') {
+    return vista.orientacion === 'vertical'
+      ? { ...base, alto: base.alto + ALTO_POR_LIMITE_EXTRA * limitesExtraActivos }
+      : { ...base, ancho: base.ancho + ANCHO_POR_LIMITE_EXTRA * limitesExtraActivos };
+  }
   if (todasALaVez(vista)) {
     const cabecera = RESUMEN_RELLENO + LISTA_CABECERA;
     if (vista.modo === 'compacto') return { ancho: 300, alto: cabecera + RESUMEN_FILA * totalDeCuentas };
     if (vista.modo === 'normal' && vista.orientacion === 'vertical') return { ancho: 300, alto: cabecera + alturaDeLosBloques() };
-    return { ancho: 760, alto: cabecera + RESUMEN_FILA * totalDeCuentas }; // horizontal y la vista "Cuentas": una fila por cuenta
+    // horizontal y la vista "Cuentas": una fila por cuenta, con una columna más por cada límite extra (Fable...) que tenga alguna cuenta
+    return { ancho: 760 + ANCHO_COLUMNA_EXTRA_LISTA * maximoDeLimitesExtra(), alto: cabecera + RESUMEN_FILA * totalDeCuentas };
   }
   return base;
 }
@@ -321,6 +346,10 @@ function refrescarTextosDeFechas() {
     const uso = lectura.uso;
     if (!uso) continue;
     uso.reinicioTexto = textoDeReinicio(uso.reinicio);
+    for (const extra of uso.limitesExtra || []) {
+      if (extra.credito) escribirTextosDelCredito(extra);
+      else extra.reinicioTexto = textoDeReinicio(extra.reinicio);
+    }
     if (uso.sesion5h) {
       uso.sesion5h.reinicioTexto = textoDeHora(redondearAlMinuto(uso.sesion5h.reinicio));
     }
@@ -658,6 +687,8 @@ function ajustesActuales() {
     limitesPorDia: cuenta.limitesPorDia,
     alertasSesion: config.alertasSesion,
     umbralSesion: config.umbralSesion,
+    alertasSemana: config.alertasSemana,
+    umbralSemana: config.umbralSemana,
     siempreEncima: config.siempreEncima,
     arrancarConWindows: ajustes.arrancaConWindows(),
     tema: config.tema,
@@ -688,6 +719,8 @@ function guardarAjustes(datos) {
     intervaloMin: nuevos.intervaloMin,
     alertasSesion: nuevos.alertasSesion,
     umbralSesion: nuevos.umbralSesion,
+    alertasSemana: nuevos.alertasSemana,
+    umbralSemana: nuevos.umbralSemana,
     siempreEncima: nuevos.siempreEncima,
     tema: nuevos.tema,
     idioma: nuevos.idioma,
@@ -930,6 +963,10 @@ function lecturaSimulada(indiceDeCuenta = 0) {
     reinicio: simulacion.reinicio || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
     sesion5h: { porcentaje: Math.min(100, simulacion.sesion + indiceDeCuenta * 15), reinicio: simulacion.reinicioSesion },
     plan: indiceDeCuenta === 0 ? { clave: 'pro', multiplo: null } : { clave: 'max', multiplo: 5 }, // inventado, para ver cómo se muestra
+    limitesExtra: [{ nombre: 'Fable', porcentaje: 12 + indiceDeCuenta * 20, reinicio: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) }], // inventado
+    creditos: indiceDeCuenta === 1
+      ? { porcentaje: 32, usado: { minor: 1600, moneda: 'USD', exponente: 2 }, limite: { minor: 5000, moneda: 'USD', exponente: 2 } }
+      : null, // inventado
     desglose: [
       { clave: 'cowork', nombre: 'Cowork', porcentaje: 45 },
       { clave: 'claude_code', nombre: 'Claude Code', porcentaje: 40 },
@@ -1024,6 +1061,17 @@ function registrarSesion(cuenta, sesion5h) {
   }
 }
 
+// Revisa la cuota semanal y avisa una vez por semana al llegar al porcentaje elegido (si lo tienes activado en Ajustes).
+function registrarSemana(cuenta, semana, reinicio) {
+  const config = almacen.leer();
+  if (!config.alertasSemana) return;
+  const resultado = calculo.procesarSemana({ estado: cuenta.estadoSemana, semana, reinicio, umbral: config.umbralSemana });
+  almacen.guardarCuenta(cuenta.id, { estadoSemana: resultado.estado });
+  for (const tipo of resultado.alertas) {
+    if (tipo === 'semana-aviso') alertas.enviarSemana(semana, textoDeReinicio(reinicio), nombreSiHayVarias(cuenta));
+  }
+}
+
 // Se llama cada vez que cambia el estado de la sesión de una cuenta:
 // avisa a la pantalla del widget (si es la cuenta que se muestra) y actualiza el menú de la bandeja.
 function alCambiarSesion(id, estado) {
@@ -1080,6 +1128,42 @@ function textoDePlan(plan) {
   return { pro: 'Pro', team: 'Team', enterprise: 'Enterprise' }[plan.clave] || null;
 }
 
+// Un monto de dinero como texto: "US$16", "US$ 50"... según el idioma.
+function textoDeDinero(dinero) {
+  const valor = dinero.minor / Math.pow(10, dinero.exponente);
+  try {
+    return new Intl.NumberFormat(idiomas.locale(), {
+      style: 'currency', currency: dinero.moneda, minimumFractionDigits: 0, maximumFractionDigits: dinero.exponente,
+    }).format(valor);
+  } catch (error) {
+    return `${valor} ${dinero.moneda}`;
+  }
+}
+
+// Las barras extra de una cuenta, a partir de una lectura:
+//   - los límites semanales por modelo (Fable...), solo si el plan no es Pro ni Gratis;
+//   - el crédito extra del mes, si lo tiene activado y con tope (en cualquier plan).
+function armarLimitesExtra(resultado) {
+  const lista = [];
+  const esPlanBasico = resultado.plan && ['pro', 'free'].includes(resultado.plan.clave);
+  if (!esPlanBasico && resultado.limitesExtra) {
+    for (const extra of resultado.limitesExtra) lista.push({ ...extra, reinicioTexto: textoDeReinicio(extra.reinicio) });
+  }
+  if (resultado.creditos) {
+    const extra = { credito: resultado.creditos, porcentaje: resultado.creditos.porcentaje };
+    escribirTextosDelCredito(extra);
+    lista.push(extra);
+  }
+  return lista.length > 0 ? lista : null;
+}
+
+// El nombre y el detalle de la barra del crédito extra ("US$16 / US$50"), en el idioma elegido.
+function escribirTextosDelCredito(extra) {
+  extra.nombre = t('extra.etiqueta');
+  const { usado, limite } = extra.credito;
+  extra.detalleTexto = usado && limite ? `${textoDeDinero(usado)} / ${textoDeDinero(limite)}` : '';
+}
+
 // Un resumen de cada cuenta (para la lista de cuentas y para la vista completa).
 function resumenDeCuentas() {
   return almacen.leer().cuentas.map((cuenta) => {
@@ -1090,6 +1174,7 @@ function resumenDeCuentas() {
       estado: sesion.estadoDe(cuenta.id),
       error: error ? t(error) : null,
       plan: datos ? textoDePlan(datos.plan) : null,
+      extras: limitesExtraDe(cuenta.id).map((extra) => ({ nombre: extra.nombre, porcentaje: extra.porcentaje })),
       uso: datos && {
         hoy: datos.hoy,
         limiteDiario: datos.limiteDiario,
@@ -1109,8 +1194,15 @@ function datosParaLaPantalla() {
 
 // Manda a la pantalla del widget el último dato (o el último error).
 function enviarUso() {
+  // Si la cuenta que se muestra tiene límites extra (o dejó de tenerlos), la tarjeta cambia de tamaño.
+  const extrasAhora = (lecturaDe(cuentaActivaId()).uso || {}).limitesExtra;
+  const cantidad = extrasAhora ? extrasAhora.length : 0;
+  if (cantidad !== limitesExtraActivos) {
+    limitesExtraActivos = cantidad;
+    reajustarLaVentana();
+  }
   // En la vista normal vertical con todas las cuentas, el alto de la ventana depende de cuáles tienen datos.
-  if (vistaActual.modo === 'normal' && vistaActual.orientacion === 'vertical' && todasALaVez()) reajustarLaVentana();
+  if (todasALaVez()) reajustarLaVentana();
   if (ventana && !ventana.isDestroyed()) {
     ventana.webContents.send('datos-uso', datosParaLaPantalla());
   }
@@ -1128,6 +1220,7 @@ async function leerCuenta(cuenta, indice) {
     const hoy = registrarLectura(almacen.cuenta(cuenta.id), resultado.semana, lectura.inicioSemana);
     lectura.inicioHoyMs = hoy.inicioMs;
     registrarSesion(almacen.cuenta(cuenta.id), resultado.sesion5h);
+    registrarSemana(almacen.cuenta(cuenta.id), resultado.semana, resultado.reinicio);
     lectura.uso = {
       semana: resultado.semana,
       hoy: hoy.hoy,                   // % usado hoy
@@ -1142,6 +1235,7 @@ async function leerCuenta(cuenta, indice) {
       },
       desglose: resultado.desglose, // reparto de la semana por producto (puede ser null)
       plan: resultado.plan,         // { clave, multiplo } del plan de esta cuenta (puede ser null)
+      limitesExtra: armarLimitesExtra(resultado), // barras extra: límites por modelo (Fable...) y crédito extra (puede ser null)
       actualizado: ahora,
     };
     lectura.uso.proyeccion = calcularProyecciones(cuenta.id); // "a este ritmo..." de hoy y de la semana

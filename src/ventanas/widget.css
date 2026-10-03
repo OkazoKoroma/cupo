@@ -66,7 +66,8 @@ body.abajo .escena {
 
 .tarjeta {
   flex: none;
-  height: calc(130px + var(--extra-alto, 0px));   /* --extra-alto: lo que estiraste la ventana a lo alto */
+  /* --extra-alto: lo que estiraste la ventana a lo alto; --n-extras: cuántos límites extra (como Fable) hay, 38 px cada uno */
+  height: calc(130px + 38px * var(--n-extras, 0) + var(--extra-alto, 0px));
   padding: 14px 18px;
   animation: entrada 0.65s var(--suave) both;
   transition: height 0.3s var(--suave), padding 0.3s var(--suave); /* 0,3 s = DURACION_TARJETA_MS en main.js */
@@ -343,7 +344,7 @@ body.franja .tarjeta {
 
 body.franja #vista-datos:not(.oculto) {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;  /* tres medidores | la barra de herramientas */
+  grid-template-columns: repeat(var(--n-medidores, 3), minmax(0, 1fr)) auto;  /* los medidores (tres, más los límites extra) | la barra de herramientas */
   align-items: center;
   column-gap: 18px;
 }
@@ -604,7 +605,7 @@ body.compacto .boton-lista-orientacion {
 body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-fila {
   grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: 19px;
-  height: 78px;
+  height: calc(78px + 19px * var(--n-extras-fila, 0));   /* un bloque: el nombre y sus barras, una más por cada límite extra (Fable...) */
   margin-bottom: 6px;
   align-content: start;
 }
@@ -632,7 +633,7 @@ body.todas.compacto .resumen-medidor:nth-of-type(n + 2) {
 
 .resumen-fila {
   display: grid;
-  grid-template-columns: 140px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 140px repeat(var(--n-cols-lista, 3), minmax(0, 1fr));
   column-gap: 14px;
   align-items: center;
   height: 22px;
@@ -1182,4 +1183,14 @@ body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion {
   flex: 1;
   align-content: center;
   max-height: 120px;
+}
+
+/* Los límites extra (como Fable) son medidores más: su contenedor no cuenta como caja, para que se acomoden con los demás */
+.extras {
+  display: contents;
+}
+
+/* En la vista compacta solo se ve Hoy */
+body.compacto .extras {
+  display: none;
 }

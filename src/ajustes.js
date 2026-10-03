@@ -42,6 +42,14 @@ function validar(datos) {
   if (!Number.isFinite(umbralSesion) || umbralSesion < 50 || umbralSesion > 99) {
     return { ok: false, error: t('err.umbralSesion') };
   }
+  // Aviso de la cuota semanal (si no viene, se usan los valores de siempre)
+  const umbralSemana = datos.umbralSemana === undefined ? 85 : Number(datos.umbralSemana);
+  if (!Number.isFinite(umbralSemana) || umbralSemana < 50 || umbralSemana > 99) {
+    return { ok: false, error: t('err.umbralSemana') };
+  }
+  if (datos.alertasSemana !== undefined && typeof datos.alertasSemana !== 'boolean') {
+    return { ok: false, error: t('err.opcion') };
+  }
   if (
     typeof datos.siempreEncima !== 'boolean' ||
     typeof datos.arrancarConWindows !== 'boolean' ||
@@ -95,6 +103,8 @@ function validar(datos) {
       intervaloMin,
       alertasSesion: datos.alertasSesion,
       umbralSesion: Math.round(umbralSesion),
+      alertasSemana: datos.alertasSemana !== false,
+      umbralSemana: Math.round(umbralSemana),
       siempreEncima: datos.siempreEncima,
       arrancarConWindows: datos.arrancarConWindows,
       modo: datos.modo,

@@ -15,6 +15,8 @@ const panelAjustes = (() => {
   const campoIntervalo = document.getElementById('intervaloMin');
   const campoAlertasSesion = document.getElementById('alertasSesion');
   const campoUmbralSesion = document.getElementById('umbralSesion');
+  const campoAlertasSemana = document.getElementById('alertasSemana');
+  const campoUmbralSemana = document.getElementById('umbralSemana');
   const campoTema = document.getElementById('tema');
   const campoIdioma = document.getElementById('idioma');
   const campoEscala = document.getElementById('escala');
@@ -131,6 +133,8 @@ const panelAjustes = (() => {
     campoIntervalo.value = String(actuales.intervaloMin);
     campoAlertasSesion.checked = actuales.alertasSesion;
     campoUmbralSesion.value = actuales.umbralSesion;
+    campoAlertasSemana.checked = actuales.alertasSemana;
+    campoUmbralSemana.value = actuales.umbralSemana;
     campoTema.value = actuales.tema;
     campoIdioma.value = actuales.idioma;
     campoOpacidad.value = actuales.opacidad;
@@ -181,6 +185,8 @@ const panelAjustes = (() => {
       limitesPorDia: campoUsarLimitesPorDia.checked ? camposDeDias.map((c) => aNumero(c.value)) : null,
       alertasSesion: campoAlertasSesion.checked,
       umbralSesion: aNumero(campoUmbralSesion.value),
+      alertasSemana: campoAlertasSemana.checked,
+      umbralSemana: aNumero(campoUmbralSemana.value),
       tema: campoTema.value,
       idioma: campoIdioma.value,
       opacidad: Number(campoOpacidad.value),

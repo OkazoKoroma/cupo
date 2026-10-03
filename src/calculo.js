@@ -264,7 +264,25 @@ function procesarSesion({ estado, sesion5h, umbral, ahora }) {
   return { estado: nuevo, alertas };
 }
 
+// Procesa una lectura de la cuota semanal: avisa UNA vez por semana al llegar al porcentaje elegido.
+//   estado   → lo guardado la vez anterior (o null): { reinicioMs, avisoEnviado }
+//   semana   → % usado de la cuota semanal
+//   reinicio → fecha en que se reinicia la cuota semanal (cada semana es distinta)
+//   umbral   → % en que llega el aviso (ej. 85)
+// Devuelve { estado, alertas } con alertas = [] o ['semana-aviso'].
+function procesarSemana({ estado, semana, reinicio, umbral }) {
+  const reinicioMs = reinicioRedondeado(reinicio);
+  let nuevo = estado && estado.reinicioMs === reinicioMs ? { ...estado } : { reinicioMs, avisoEnviado: false };
+  const alertas = [];
+  if (semana >= umbral && !nuevo.avisoEnviado) {
+    alertas.push('semana-aviso');
+    nuevo.avisoEnviado = true;
+  }
+  return { estado: nuevo, alertas };
+}
+
 module.exports = {
+  procesarSemana,
   procesarLectura,
   diaDeLaSemana,
   limitesDelDia,

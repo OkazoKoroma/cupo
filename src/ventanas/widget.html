@@ -158,6 +158,19 @@
                     <span data-i18n="aj.sesion.activar">Activar los avisos de la sesión</span>
                   </label>
 
+                  <h3 data-i18n="aj.seccion.semana">Cuota semanal</h3>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.semana.aviso">Avisarme al llegar a</span>
+                    <span class="campo-entrada">
+                      <input id="umbralSemana" type="number" min="50" max="99" step="1" inputmode="numeric">
+                      <span class="unidad">%</span>
+                    </span>
+                  </label>
+                  <label class="casilla">
+                    <input id="alertasSemana" type="checkbox">
+                    <span data-i18n="aj.semana.activar">Activar el aviso de la semana</span>
+                  </label>
+
                   <h3 data-i18n="aj.seccion.consulta">Consulta</h3>
                   <label class="campo">
                     <span class="campo-titulo" data-i18n="aj.intervalo">Consultar el uso cada</span>
@@ -289,6 +302,9 @@
           </div>
           <div class="barra"><div class="barra-relleno" id="relleno-semana"></div></div>
         </div>
+
+        <!-- Los límites semanales extra por modelo (por ejemplo Fable en el plan Max): widget.js agrega aquí una barra por cada uno -->
+        <div class="extras" id="extras"></div>
 
         <!-- Barra de herramientas: los íconos que despliegan paneles y cambian la vista. No arrastran la ventana, así se pueden pulsar. -->
         <div class="herramientas">

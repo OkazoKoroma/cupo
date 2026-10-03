@@ -75,4 +75,12 @@ function enviarSesion(tipo, porcentaje, reinicioTexto, cuenta) {
   }
 }
 
-module.exports = { enviar, enviarSesion, enviarProblemaDeFormato, enviarExportado };
+// Avisa que la cuota semanal va alta.
+function enviarSemana(porcentaje, reinicioTexto, cuenta) {
+  mostrar(
+    conCuenta(t('alerta.semanaAviso.titulo'), cuenta),
+    t('alerta.semanaAviso.cuerpo', { porcentaje: formatear(porcentaje) }) + (reinicioTexto ? t('alerta.semanaAviso.reinicia', { cuando: reinicioTexto }) : '')
+  );
+}
+
+module.exports = { enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };

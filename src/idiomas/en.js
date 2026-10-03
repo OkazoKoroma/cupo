@@ -244,4 +244,12 @@ module.exports = {
   'boton.vistaNormal': 'Back to the normal view',
   'plan.free': 'Free',
   'plan.titulo': '{plan} plan',
+  'extra.etiqueta': 'Extra use',
+  'aj.seccion.semana': 'Weekly quota',
+  'aj.semana.aviso': 'Warn me when it reaches',
+  'aj.semana.activar': 'Turn on the weekly warning',
+  'err.umbralSemana': 'The weekly quota warning must be between 50% and 99%.',
+  'alerta.semanaAviso.titulo': "You're high on your weekly quota",
+  'alerta.semanaAviso.cuerpo': "You've used {porcentaje}% of this week's quota.",
+  'alerta.semanaAviso.reinicia': ' It resets {cuando}.',
 };
