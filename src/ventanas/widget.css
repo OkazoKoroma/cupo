@@ -32,7 +32,7 @@ body {
 .escena {
   box-sizing: border-box;
   height: 100%;
-  padding: 8px;               /* margen transparente donde cabe la sombra (ver MARGEN en main.js) */
+  padding: 1px;               /* margen transparente donde cabe la sombra (ver MARGEN en main.js) */
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -558,7 +558,9 @@ body.todas .resumen-cuentas {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  height: calc(40px + 22px * var(--resumen-n, 2));   /* una fila por cuenta */
+  flex: 1 1 auto;       /* ocupa lo que mide la ventana: main.js calcula su alto según las cuentas */
+  min-height: 0;
+  overflow: hidden;
   margin: 0;
   padding: 8px 18px;
   animation: none;
@@ -599,10 +601,6 @@ body.compacto .boton-lista-orientacion {
 }
 
 /* Vista normal vertical: cada cuenta es un bloque con sus tres barras una bajo la otra */
-body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-cuentas {
-  height: calc(40px + 84px * var(--resumen-n, 2));
-}
-
 body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-fila {
   grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: 19px;
@@ -611,13 +609,21 @@ body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-fila {
   align-content: start;
 }
 
+/* Una cuenta sin sesión o sin datos: una sola línea, con el aviso al lado del nombre */
+body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-fila.sin-datos {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  height: 22px;
+  margin-bottom: 6px;
+}
+
 body.todas:not(.compacto):not(.horizontal):not(.vista-cuentas) .resumen-aviso {
-  grid-column: 1;
+  grid-column: 2;
 }
 
 /* Vista compacta: una línea por cuenta, solo con la barra de Hoy */
 body.todas.compacto .resumen-fila {
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: 118px minmax(0, 1fr);
 }
 
 body.todas.compacto .resumen-medidor:nth-of-type(n + 2) {
@@ -626,7 +632,7 @@ body.todas.compacto .resumen-medidor:nth-of-type(n + 2) {
 
 .resumen-fila {
   display: grid;
-  grid-template-columns: 96px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 140px repeat(3, minmax(0, 1fr));
   column-gap: 14px;
   align-items: center;
   height: 22px;
@@ -1078,7 +1084,7 @@ body.abajo.panel-abierto .panel {
   }
 }
 
-/* ----- Estirar la ventana: bordes y esquinas (en el margen transparente de 8 px) ----- */
+/* ----- Estirar la ventana: bordes y esquinas (en el margen transparente de 3 px y un poco hacia adentro) ----- */
 
 .agarre {
   position: fixed;
@@ -1087,14 +1093,14 @@ body.abajo.panel-abierto .panel {
   touch-action: none;
 }
 
-.agarre-n  { top: 0;    left: 12px;  right: 12px;  height: 8px; cursor: ns-resize; }
-.agarre-s  { bottom: 0; left: 12px;  right: 12px;  height: 8px; cursor: ns-resize; }
-.agarre-e  { right: 0;  top: 12px;   bottom: 12px; width: 8px;  cursor: ew-resize; }
-.agarre-w  { left: 0;   top: 12px;   bottom: 12px; width: 8px;  cursor: ew-resize; }
-.agarre-ne { top: 0;    right: 0;    width: 12px;  height: 12px; cursor: nesw-resize; }
-.agarre-sw { bottom: 0; left: 0;     width: 12px;  height: 12px; cursor: nesw-resize; }
-.agarre-nw { top: 0;    left: 0;     width: 12px;  height: 12px; cursor: nwse-resize; }
-.agarre-se { bottom: 0; right: 0;    width: 12px;  height: 12px; cursor: nwse-resize; }
+.agarre-n  { top: 0;    left: 10px;  right: 10px;  height: 6px; cursor: ns-resize; }
+.agarre-s  { bottom: 0; left: 10px;  right: 10px;  height: 6px; cursor: ns-resize; }
+.agarre-e  { right: 0;  top: 10px;   bottom: 10px; width: 6px;  cursor: ew-resize; }
+.agarre-w  { left: 0;   top: 10px;   bottom: 10px; width: 6px;  cursor: ew-resize; }
+.agarre-ne { top: 0;    right: 0;    width: 10px;  height: 10px; cursor: nesw-resize; }
+.agarre-sw { bottom: 0; left: 0;     width: 10px;  height: 10px; cursor: nesw-resize; }
+.agarre-nw { top: 0;    left: 0;     width: 10px;  height: 10px; cursor: nwse-resize; }
+.agarre-se { bottom: 0; right: 0;    width: 10px;  height: 10px; cursor: nwse-resize; }
 
 /* Con un panel desplegado no se estira. La vista compacta y las listas de cuentas solo se estiran a lo ancho. */
 body.panel-abierto .agarre,
@@ -1108,4 +1114,72 @@ body.redimensionando .tarjeta,
 body.redimensionando .panel,
 body.redimensionando .barra-relleno {
   transition: none;
+}
+
+/* El nombre de la cuenta y, al lado, su plan (Pro, Max 5x...) */
+.resumen-nombre-texto {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resumen-plan {
+  flex: none;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--acento);
+}
+
+.resumen-plan:empty {
+  display: none;
+}
+
+/* En la vista compacta (angosta) no hay espacio para la palabra "Hoy": solo el nombre, la barra y el número */
+body.todas.compacto .resumen-medidor {
+  grid-template-columns: minmax(0, 1fr) 46px;
+}
+
+body.todas.compacto .resumen-etiqueta {
+  display: none;
+}
+
+/* Vista compacta: la barra de Hoy ocupa su lugar en el medidor (las reglas de la tarjeta compacta no valen aquí) */
+body.todas.compacto .resumen-medidor .barra {
+  grid-column: auto;
+  grid-row: auto;
+  height: 6px;
+}
+
+/* Vista completa estirada a lo alto: el contenido de los tres paneles se reparte para llenar el espacio */
+body.completo:not(.ajustes-abierto) #vista-historial,
+body.completo:not(.ajustes-abierto) #vista-desglose,
+body.completo:not(.ajustes-abierto) #vista-proyeccion {
+  display: flex;
+  flex-direction: column;
+}
+
+body.completo:not(.ajustes-abierto) #vista-historial .grafico {
+  flex: 1;
+  height: auto;
+  min-height: 150px;
+}
+
+body.completo:not(.ajustes-abierto) .lista {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+body.completo:not(.ajustes-abierto) #vista-desglose .nota,
+body.completo:not(.ajustes-abierto) #vista-proyeccion .nota {
+  margin-top: auto;
+}
+
+body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion {
+  flex: 1;
+  align-content: center;
+  max-height: 120px;
 }

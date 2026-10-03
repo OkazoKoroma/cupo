@@ -1,4 +1,4 @@
-// widget.js: dibuja el widget (barras, números animados y paneles desplegables).
+﻿// widget.js: dibuja el widget (barras, números animados y paneles desplegables).
 // Los datos de uso los lee y calcula la app principal (uso.js y calculo.js) y los manda hasta aquí.
 // (Las funciones formatear, colorSemanal, colorDiario y las constantes de colores están en colores.js.)
 
@@ -148,7 +148,7 @@ const TAMANOS_DE_PANEL = {
   historial: { alto: 196 },
   desglose: { alto: 196 },
   proyeccion: { alto: 196 },
-  ajustes: { alto: 660, ancho: 476 },
+  ajustes: { alto: 640, ancho: 476 },
   cuentas: { alto: 250 },
 };
 const DURACION_PANEL_MS = 340; // debe coincidir con --duracion-panel en widget.css

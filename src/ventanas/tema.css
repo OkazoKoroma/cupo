@@ -17,7 +17,7 @@
   --fondo-c: #16161a;
   --brillo: rgba(232, 137, 95, 0.12);        /* resplandor naranja en la esquina */
   --borde: rgba(255, 255, 255, 0.09);
-  --sombra: 0 12px 28px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --sombra: 0 0 2px rgba(0, 0, 0, 0.6);
   --reflejo: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 
   --riel-a: rgba(0, 0, 0, 0.38);             /* el canal hundido de las barras */
@@ -59,7 +59,7 @@ body[data-tema='claro'] {
   --fondo-c: #e9ebf1;
   --brillo: rgba(232, 137, 95, 0.18);
   --borde: rgba(0, 0, 0, 0.1);
-  --sombra: 0 12px 28px rgba(30, 30, 60, 0.22), 0 2px 6px rgba(30, 30, 60, 0.14);
+  --sombra: 0 0 2px rgba(30, 30, 60, 0.35);
   --reflejo: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
   --riel-a: rgba(0, 0, 0, 0.1);

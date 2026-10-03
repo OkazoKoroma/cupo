@@ -27,7 +27,7 @@ app.setAppUserModelId(app.isPackaged ? 'cl.widget-uso-claude' : 'Cupo');
 
 // La ventana es un poco más grande que la tarjeta (un margen transparente alrededor) para que quepa
 // la sombra suave que la hace "flotar".
-const MARGEN = 8;
+const MARGEN = 1;
 
 // Medidas de la tarjeta (sin el margen) en cada vista, en píxeles.
 const MEDIDAS_DE_VISTA = {
@@ -35,7 +35,7 @@ const MEDIDAS_DE_VISTA = {
   'normal-horizontal': { ancho: 540, alto: 92 },   // las tres barras, lado a lado
   compacto: { ancho: 300, alto: 44 },              // una sola línea con la barra de Hoy
   completo: { ancho: 640, alto: 92 + 8 + 250 },    // las barras arriba y, abajo, el historial, el desglose y la proyección juntos
-  cuentas: { ancho: 600, alto: 0 },                // todas las cuentas a la vez, una fila por cuenta (el alto depende de cuántas haya)
+  cuentas: { ancho: 760, alto: 0 },                // todas las cuentas a la vez, una fila por cuenta (el alto depende de cuántas haya)
 };
 
 // Tamaño del widget (se elige en Ajustes, o con Ctrl + rueda del mouse): todas las medidas de la ventana
@@ -93,6 +93,22 @@ let verTodasLasCuentas = true; // ajuste: en la vista normal y la compacta, most
 // Estas medidas deben coincidir con widget.css (body.todas).
 const LISTA_CABECERA = 24; // el título con sus botones
 const LISTA_BLOQUE = 84;   // una cuenta con sus tres barras una bajo la otra (vista normal vertical)
+const LISTA_BLOQUE_SIN_DATOS = 28; // una cuenta sin sesión o sin datos: una sola línea
+let idsDeCuentas = ['c1']; // los ids de las cuentas, en orden (se actualiza junto con totalDeCuentas)
+
+function actualizarTotalDeCuentas() {
+  idsDeCuentas = almacen.leer().cuentas.map((c) => c.id);
+  totalDeCuentas = idsDeCuentas.length;
+}
+
+// El alto de la lista en la vista normal vertical: cada cuenta con datos es un bloque de tres barras; las demás, una línea.
+function alturaDeLosBloques() {
+  return idsDeCuentas.reduce((suma, id) => {
+    const lectura = lecturaDe(id);
+    const conDatos = sesion.estadoDe(id) === 'conectado' && lectura.uso && !lectura.error;
+    return suma + (conDatos ? LISTA_BLOQUE : LISTA_BLOQUE_SIN_DATOS);
+  }, 0);
+}
 
 function todasALaVez(vista = vistaActual) {
   if (vista.modo === 'cuentas') return true;
@@ -134,8 +150,8 @@ function medidasBase(vista = vistaActual) {
   if (todasALaVez(vista)) {
     const cabecera = RESUMEN_RELLENO + LISTA_CABECERA;
     if (vista.modo === 'compacto') return { ancho: 300, alto: cabecera + RESUMEN_FILA * totalDeCuentas };
-    if (vista.modo === 'normal' && vista.orientacion === 'vertical') return { ancho: 300, alto: cabecera + LISTA_BLOQUE * totalDeCuentas };
-    return { ancho: 600, alto: cabecera + RESUMEN_FILA * totalDeCuentas }; // horizontal y la vista "Cuentas": una fila por cuenta
+    if (vista.modo === 'normal' && vista.orientacion === 'vertical') return { ancho: 300, alto: cabecera + alturaDeLosBloques() };
+    return { ancho: 760, alto: cabecera + RESUMEN_FILA * totalDeCuentas }; // horizontal y la vista "Cuentas": una fila por cuenta
   }
   return base;
 }
@@ -1093,6 +1109,8 @@ function datosParaLaPantalla() {
 
 // Manda a la pantalla del widget el último dato (o el último error).
 function enviarUso() {
+  // En la vista normal vertical con todas las cuentas, el alto de la ventana depende de cuáles tienen datos.
+  if (vistaActual.modo === 'normal' && vistaActual.orientacion === 'vertical' && todasALaVez()) reajustarLaVentana();
   if (ventana && !ventana.isDestroyed()) {
     ventana.webContents.send('datos-uso', datosParaLaPantalla());
   }
@@ -1237,7 +1255,7 @@ async function agregarCuenta(nombre) {
   const nueva = almacen.agregarCuenta(nombre);
   if (!nueva) return { ok: false, error: t('cuentas.err.maximo', { n: almacen.MAXIMO_DE_CUENTAS }) };
   await sesion.registrar(nueva, MODO_PRUEBA);
-  totalDeCuentas = almacen.leer().cuentas.length;
+  actualizarTotalDeCuentas();
   reajustarLaVentana();
   activarCuenta(nueva.id);
   if (sesion.estadoDe(nueva.id) === 'conectado') actualizarUso({ solo: nueva.id }); // (solo pasa en el modo de prueba)
@@ -1261,7 +1279,7 @@ async function eliminarCuenta(id) {
   await sesion.olvidar(id);
   almacen.quitarCuenta(id);
   lecturas.delete(id);
-  totalDeCuentas = almacen.leer().cuentas.length;
+  actualizarTotalDeCuentas();
   if (id === config.cuentaActiva && ventana && !ventana.isDestroyed()) {
     ventana.webContents.send('estado-sesion', sesion.estadoDe(cuentaActivaId()));
   }
@@ -1321,7 +1339,7 @@ if (!app.requestSingleInstanceLock()) {
 
     // Primero averiguamos si ya hay sesión guardada, luego mostramos todo.
     const cuentasGuardadas = almacen.leer().cuentas;
-    totalDeCuentas = cuentasGuardadas.length;
+    actualizarTotalDeCuentas();
     verTodasLasCuentas = almacen.leer().todasLasCuentas !== false;
     tamanosGuardados = almacen.leer().tamanos || {};
     await sesion.iniciar(cuentasGuardadas, alCambiarSesion, MODO_PRUEBA);

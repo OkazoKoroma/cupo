@@ -182,13 +182,16 @@ const panelCuentas = (() => {
     const nombre = crear('button', 'resumen-nombre');
     nombre.type = 'button';
     nombre.addEventListener('click', () => window.widget.activarCuenta(cuenta.id));
+    const nombreTexto = crear('span', 'resumen-nombre-texto');
+    const planTexto = crear('span', 'resumen-plan');
+    nombre.append(nombreTexto, planTexto);
     const hoy = crearMedidorDelResumen('hoy.etiqueta');
     const sesion = crearMedidorDelResumen('sesion.etiqueta');
     const semana = crearMedidorDelResumen('semana.etiqueta');
     const aviso = crear('span', 'resumen-aviso');
     fila.append(nombre, hoy.medidor, sesion.medidor, semana.medidor, aviso);
     resumen.appendChild(fila);
-    return { fila, nombre, hoy, sesion, semana, aviso };
+    return { fila, nombre, nombreTexto, planTexto, hoy, sesion, semana, aviso };
   }
 
   function dibujarResumen(cuentas, activa) {
@@ -206,7 +209,8 @@ const panelCuentas = (() => {
       const e = filasDelResumen.get(cuenta.id);
       resumen.appendChild(e.fila);
       e.fila.classList.toggle('activa', cuenta.id === activa);
-      e.nombre.textContent = cuenta.nombre;
+      e.nombreTexto.textContent = cuenta.nombre;
+      e.planTexto.textContent = cuenta.plan || '';
       e.nombre.title = t('cuentas.usar') + (cuenta.plan ? ' — ' + t('plan.titulo', { plan: cuenta.plan }) : '');
 
       const datos = cuenta.uso;
