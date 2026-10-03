@@ -659,7 +659,7 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
 
   const svg = elementoSvg('svg', { class: 'grafico-dia', width: anchoTotal, height: altoTotal });
   const defs = elementoSvg('defs', {}, svg);
-  const degradado = elementoSvg('linearGradient', { id: 'relleno-hoy', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  const degradado = elementoSvg('linearGradient', { id: `degradado-${contenedor.id}`, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
   elementoSvg('stop', { offset: '0%', 'stop-color': 'var(--acento)', 'stop-opacity': 0.35 }, degradado);
   elementoSvg('stop', { offset: '100%', 'stop-color': 'var(--acento)', 'stop-opacity': 0 }, degradado);
 
@@ -715,7 +715,7 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
       const d = curvaSuave(tramo.map(([px, py]) => [px, py]));
       if (serie.relleno && tramo.length > 1) {
         const ultimo = tramo[tramo.length - 1];
-        elementoSvg('path', { d: `${d} L${ultimo[0].toFixed(1)} ${(4 + alto).toFixed(1)} L${tramo[0][0].toFixed(1)} ${(4 + alto).toFixed(1)} Z`, fill: 'url(#relleno-hoy)', stroke: 'none' }, svg);
+        elementoSvg('path', { d: `${d} L${ultimo[0].toFixed(1)} ${(4 + alto).toFixed(1)} L${tramo[0][0].toFixed(1)} ${(4 + alto).toFixed(1)} Z`, fill: `url(#degradado-${contenedor.id})`, stroke: 'none' }, svg);
       }
       elementoSvg('path', { d, class: 'serie', stroke: serie.color }, svg);
       if (conPuntos) for (const [px, py] of tramo) elementoSvg('circle', { cx: px, cy: py, r: 2.2, fill: serie.color }, svg);

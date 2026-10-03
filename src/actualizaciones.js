@@ -6,9 +6,9 @@
 
 const { app, net, shell } = require('electron');
 
-// El repositorio en GitHub (todavía con el nombre anterior de la app). Si se renombra a 'headroom', GitHub redirige
-// las consultas al nombre nuevo, así que esto sigue funcionando; por eso se aceptan enlaces con los dos nombres.
-const REPOSITORIO = 'OkazoKoroma/cupo';
+// El repositorio en GitHub. Antes se llamaba 'cupo' (el nombre anterior de la app): GitHub redirige ese nombre al nuevo,
+// y por eso se aceptan enlaces con los dos nombres.
+const REPOSITORIO = 'OkazoKoroma/headroom';
 const PAGINAS_VALIDAS = ['https://github.com/OkazoKoroma/cupo/', 'https://github.com/OkazoKoroma/headroom/'];
 const DIRECCION = `https://api.github.com/repos/${REPOSITORIO}/releases/latest`;
 const PAGINA_DEL_PROYECTO = `https://github.com/${REPOSITORIO}/`;
