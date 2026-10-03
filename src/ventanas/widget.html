@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
-  <title>Cupo</title>
+  <title>Headroom</title>
   <link rel="stylesheet" href="tema.css">
   <link rel="stylesheet" href="widget.css">
   <link rel="stylesheet" href="panel-ajustes.css">
@@ -17,6 +17,9 @@
       <div class="panel-interior">
         <header class="panel-cabecera">
           <h2 id="panel-titulo"></h2>
+          <button id="separar-panel" class="boton-cerrar boton-separar" type="button" title="Sacar a su propia ventana" data-i18n-title="parte.separar" aria-label="Sacar a su propia ventana" data-i18n-aria="parte.separar">
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/></svg>
+          </button>
           <button id="cerrar-panel" class="boton-cerrar" type="button" title="Cerrar" data-i18n-title="panel.cerrar" aria-label="Cerrar el panel" data-i18n-aria="panel.cerrarAria">
             <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
               <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
@@ -29,6 +32,7 @@
           <h4 class="titulo-vista" data-i18n="panel.historial">Historial</h4>
           <div class="historial-opciones">
             <div class="segmentos" role="group" aria-label="Días" data-i18n-aria="historial.dias">
+              <button type="button" class="segmento" data-dias="1" data-i18n="historial.dia">Hoy</button>
               <button type="button" class="segmento" data-dias="7" data-i18n="historial.7">7 días</button>
               <button type="button" class="segmento" data-dias="30" data-i18n="historial.30">30 días</button>
             </div>
@@ -46,6 +50,24 @@
           <div class="barra-total" id="barra-total"></div>
           <ul class="lista" id="lista-desglose"></ul>
           <p class="nota" id="nota-desglose"></p>
+          <button type="button" class="enlace-panel" id="ver-productos" data-i18n="productos.ver">A lo largo del tiempo ›</button>
+        </div>
+
+        <!-- Uso por producto a lo largo del tiempo (widget.js lo dibuja) -->
+        <div class="vista-panel" id="vista-productos">
+          <div class="historial-opciones">
+            <div class="segmentos" role="group" aria-label="Días" data-i18n-aria="historial.dias">
+              <button type="button" class="segmento" data-productos-dias="1" data-i18n="historial.dia">Hoy</button>
+              <button type="button" class="segmento" data-productos-dias="semana" data-i18n="productos.semana">Esta semana</button>
+              <button type="button" class="segmento" data-productos-dias="30" data-i18n="historial.30">30 días</button>
+              <button type="button" class="segmento" data-productos-dias="semanas" data-i18n="productos.semanas">Semanas</button>
+            </div>
+            <span class="historial-promedio" id="productos-leyenda"></span>
+          </div>
+          <div class="grafico grafico-productos" id="productos-grafico">
+            <div class="columnas" id="productos-columnas"></div>
+          </div>
+          <p class="nota" data-i18n="productos.nota">En % de tu cuota semanal: cuánto usó cada producto.</p>
         </div>
 
         <!-- Vista de Ajustes: el formulario. La zona del medio se desplaza; Guardar queda fijo abajo. -->
@@ -65,6 +87,7 @@
                       <option value="compacto" data-i18n="aj.vista.compacto">Compacto (una sola línea)</option>
                       <option value="completo" data-i18n="aj.vista.completo">Completo (todo a la vez)</option>
                       <option value="cuentas" data-i18n="aj.vista.cuentas">Cuentas (todas a la vez)</option>
+                      <option value="mini" data-i18n="aj.vista.mini">Mínimo (un círculo)</option>
                     </select>
                   </label>
                   <label class="campo">
@@ -172,6 +195,10 @@
                     <span data-i18n="aj.atajo">Ctrl + Alt + C muestra u oculta el widget</span>
                   </label>
                   <label class="casilla">
+                    <input id="resumenes" type="checkbox">
+                    <span data-i18n="aj.resumenes">Resumen de ayer y de la semana</span>
+                  </label>
+                  <label class="casilla">
                     <input id="buscarActualizaciones" type="checkbox">
                     <span data-i18n="aj.actualizaciones">Avisarme cuando haya una versión nueva</span>
                   </label>
@@ -205,6 +232,11 @@
                   <p class="campo-ayuda" data-i18n="aj.limite.ayuda">Cuánto de tu cuota semanal quieres usar como máximo al día. El aviso debe ser menor que el límite.</p>
 
                   <label class="casilla">
+                    <input id="limiteAutomatico" type="checkbox">
+                    <span data-i18n="aj.limiteAuto">Límite automático</span>
+                  </label>
+                  <p class="campo-ayuda" id="ayuda-limite-auto" data-i18n="aj.limiteAuto.ayuda">Reparte lo que te queda de la semana entre los días que faltan para el reinicio.</p>
+                  <label class="casilla" id="casilla-limites-por-dia">
                     <input id="usarLimitesPorDia" type="checkbox">
                     <span data-i18n="aj.limitesPorDia">Un límite distinto para cada día</span>
                   </label>
@@ -287,7 +319,7 @@
                       <option value="1m">1M</option>
                     </select>
                   </label>
-                  <p class="campo-ayuda" data-i18n="aj.contexto.ayuda">Solo funciona si usas Claude Code en este mismo computador, y solo con una cuenta en Cupo. No ve los chats de claude.ai (en la web o en la app), ni los de otros equipos. Muestra los chats de las últimas 3 horas (hasta 5).</p>
+                  <p class="campo-ayuda" data-i18n="aj.contexto.ayuda">Solo funciona si usas Claude Code en este mismo computador, y solo con una cuenta en Headroom. No ve los chats de claude.ai (en la web o en la app), ni los de otros equipos. Muestra los chats de las últimas 3 horas (hasta 5).</p>
                   </section>
                 </div>
 
@@ -312,6 +344,18 @@
           </form>
           <p class="nota cuentas-mensaje" id="cuentas-mensaje" role="status"></p>
           <p class="nota" data-i18n="cuentas.ayuda"></p>
+        </div>
+
+        <!-- Bienvenida: qué es cada cosa (la primera vez, o desde el menú "Cómo funciona") -->
+        <div class="vista-panel" id="vista-bienvenida">
+          <ul class="bienvenida-lista">
+            <li><b data-i18n="bienvenida.hoy.titulo">Hoy</b> <span data-i18n="bienvenida.hoy">lo que llevas usado hoy contra tu límite diario. El límite lo eliges tú en Ajustes, o deja que se calcule solo.</span></li>
+            <li><b data-i18n="bienvenida.plan.titulo">Sesión 5 h y Semana</b> <span data-i18n="bienvenida.plan">los límites de tu plan de Claude, y cuánto falta para que se reinicien.</span></li>
+            <li><b data-i18n="bienvenida.clic.titulo">Clic en el nombre de una barra</b> <span data-i18n="bienvenida.clic">abre el detalle oficial en claude.ai.</span></li>
+            <li><b data-i18n="bienvenida.cuentas.titulo">Varias cuentas</b> <span data-i18n="bienvenida.cuentas">clic en la etiqueta con el nombre de la cuenta, arriba a la izquierda.</span></li>
+            <li><b data-i18n="bienvenida.mover.titulo">Moverlo y ocultarlo</b> <span data-i18n="bienvenida.mover">arrástralo a donde quieras; Ctrl + Alt + C lo oculta o lo muestra.</span></li>
+          </ul>
+          <button type="button" class="boton-primario" id="bienvenida-listo" data-i18n="bienvenida.listo">Entendido</button>
         </div>
 
         <!-- Vista de la proyección: "a este ritmo..." de hoy y de la semana -->
@@ -367,6 +411,15 @@
       <!-- Pestañita con el nombre de la cuenta que se muestra: al pulsarla se abre el panel de cuentas -->
       <button id="boton-cuenta" class="cuenta-pestana" data-panel="cuentas" type="button" aria-pressed="false"></button>
 
+      <!-- Modo mínimo: un anillo con el uso de hoy (contra tu límite) y el % en el centro. Clic en el centro: vista normal. -->
+      <div class="mini-circulo" id="mini">
+        <svg class="mini-anillo" viewBox="0 0 64 64" aria-hidden="true">
+          <circle class="mini-riel" cx="32" cy="32" r="26"></circle>
+          <circle class="mini-relleno" id="mini-relleno" cx="32" cy="32" r="26"></circle>
+        </svg>
+        <button type="button" class="mini-boton" id="mini-boton" data-alternar="mini"><span id="mini-valor">—</span></button>
+      </div>
+
       <!-- Vista 1: los medidores de uso (se ve cuando hay sesión) -->
       <div id="vista-datos" class="vista oculto">
 
@@ -418,6 +471,9 @@
               <button id="boton-proyeccion" class="boton-icono" data-panel="proyeccion" type="button" title="Proyección: a este ritmo..." data-i18n-title="boton.proyeccion" aria-label="Ver la proyección de uso" data-i18n-aria="boton.proyeccionAria" aria-pressed="false">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12l4-4 2.8 2.8L14 5.5"/><path d="M10.5 5.5H14V9"/></svg>
               </button>
+              <button id="boton-productos" class="boton-icono" data-panel="productos" type="button" title="Uso por producto a lo largo del tiempo" data-i18n-title="boton.productos" aria-label="Ver el uso por producto a lo largo del tiempo" data-i18n-aria="boton.productos" aria-pressed="false">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5h12"/><path d="M2.5 10.5c2-3 3.5-3.5 5-1.5s3 1 6-4"/><path d="M2.5 12c2.5-1.5 4-1.5 5.5-.5s3.5.5 5.5-1.5" opacity=".55"/></svg>
+              </button>
               <button id="boton-ajustes" class="boton-icono" data-panel="ajustes" type="button" title="Ajustes" data-i18n-title="boton.ajustes" aria-label="Abrir los ajustes" data-i18n-aria="boton.ajustesAria" aria-pressed="false">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>
               </button>
@@ -450,7 +506,15 @@
 
     <!-- Chats de Claude Code: cuánto de su ventana de contexto lleva cada uno (widget.js los dibuja) -->
     <section class="chats" id="chats" aria-label="Ventana de contexto de Claude Code" data-i18n-aria="chats.titulo">
-      <h3 class="chats-titulo" data-i18n="chats.titulo">Ventana de contexto de Claude Code</h3>
+      <div class="chats-cabecera">
+        <h3 class="chats-titulo" data-i18n="chats.titulo">Ventana de contexto de Claude Code</h3>
+        <button id="separar-chats" class="boton-cerrar boton-separar" type="button" title="Sacar a su propia ventana" data-i18n-title="parte.separar" aria-label="Sacar a su propia ventana" data-i18n-aria="parte.separar">
+          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"/></svg>
+        </button>
+        <button id="juntar-chats" class="boton-cerrar" type="button" title="Volver al widget" data-i18n-title="parte.juntar" aria-label="Volver al widget" data-i18n-aria="parte.juntar">
+          <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
+        </button>
+      </div>
       <div class="chats-lista" id="chats-lista"></div>
     </section>
   </div>

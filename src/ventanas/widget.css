@@ -560,7 +560,8 @@ body.todas .resumen-cuentas {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  flex: 1 1 auto;       /* ocupa lo que mide la ventana: main.js calcula su alto según las cuentas */
+  flex: none;
+  height: var(--alto-lista, auto); /* lo que calcula main.js según las cuentas (no se estira cuando la ventana crece para un panel) */
   min-height: 0;
   overflow: hidden;
   margin: 0;
@@ -1496,3 +1497,370 @@ body.abajo .panel, body.completo .panel { order: 0; }
 }
 /* Sin tarjeta (todas las cuentas a la vez), la lista de cuentas ocupa su lugar: arriba de los chats */
 body.abajo.todas .resumen-cuentas { order: 3; }
+
+/* El nombre de cada barra de la tarjeta se puede pulsar: abre el uso en claude.ai (el resto de la tarjeta sigue arrastrando la ventana) */
+.tarjeta .medidor-texto {
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+}
+
+.tarjeta .medidor-texto:hover .etiqueta {
+  color: var(--acento);
+}
+
+/* ----- Bienvenida ----- */
+#vista-bienvenida.activa {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bienvenida-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--texto-suave);
+}
+
+.bienvenida-lista b {
+  display: block;
+  color: var(--texto);
+  font-size: 12.5px;
+}
+
+#bienvenida-listo {
+  align-self: flex-end;
+  -webkit-app-region: no-drag;
+}
+
+/* ----- Gráfico del día ----- */
+.grafico.del-dia .columnas {
+  display: block;
+  position: relative;
+}
+
+.grafico-dia {
+  display: block;
+  overflow: visible;
+}
+
+.grafico-dia .rejilla {
+  stroke: var(--linea);
+  stroke-width: 1;
+  opacity: 0.25;
+}
+
+.grafico-dia .rejilla-limite {
+  stroke: var(--linea);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+.grafico-dia .rejilla-ahora {
+  stroke: var(--texto-suave);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.6;
+}
+
+.grafico-dia .marca-hora {
+  stroke: var(--texto-suave);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.grafico-dia .serie {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.grafico-dia .serie.punteada {
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
+  opacity: 0.9;
+}
+
+.grafico-dia .punto-final {
+  stroke: var(--fondo-a, #1d1d22);
+  stroke-width: 1.5;
+}
+
+.grafico-dia .valor-final {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.grafico-dia .hora,
+.grafico-dia .escala {
+  fill: var(--texto-suave);
+  font-size: 9px;
+}
+
+.grafico-dia .hora {
+  text-anchor: middle;
+}
+
+.grafico-dia .escala {
+  text-anchor: end;
+}
+
+.grafico-vacio {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--texto-suave);
+  text-align: center;
+  padding: 0 12px;
+}
+
+/* ----- Modo mínimo: un círculo con el anillo de Hoy ----- */
+.mini-circulo {
+  display: none;
+}
+
+body.mini .tarjeta {
+  height: 62px;
+  width: 62px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+body.mini .tarjeta > :not(.mini-circulo),
+body.mini .chats,
+body.mini .resumen-cuentas,
+body.mini .panel,
+body.mini .agarre {
+  display: none !important;
+}
+
+body.mini .mini-circulo {
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.mini-anillo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.mini-riel,
+.mini-relleno {
+  fill: none;
+  stroke-width: 6;
+}
+
+.mini-riel {
+  stroke: var(--riel, rgba(255, 255, 255, 0.08));
+}
+
+.mini-relleno {
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.7s var(--suave), stroke 0.4s ease;
+}
+
+/* El centro es un botón (vuelve a la vista normal); el anillo de alrededor sirve para arrastrar el círculo */
+.mini-boton {
+  -webkit-app-region: no-drag;
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mini-boton:hover {
+  background: var(--acento-suave);
+}
+
+/* ----- Partes separadas en su propia ventana ----- */
+.boton-separar {
+  margin-left: auto;
+  margin-right: 4px;
+}
+
+.chats-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+}
+
+.chats-cabecera .boton-cerrar {
+  width: 18px;
+  height: 18px;
+  -webkit-app-region: no-drag;
+}
+
+#juntar-chats,
+body.parte #separar-chats,
+body.parte #separar-panel {
+  display: none;
+}
+
+body.parte-chats #juntar-chats {
+  display: grid;
+}
+
+/* La ventana de una parte muestra solo esa parte, ocupando toda la ventana */
+body.parte .tarjeta,
+body.parte .resumen-cuentas,
+body.parte .agarre {
+  display: none !important;
+}
+
+body.parte:not(.parte-chats) .chats {
+  display: none !important;
+}
+
+body.parte-chats .panel {
+  display: none !important;
+}
+
+body.parte-chats .chats {
+  display: flex;
+  flex: 1 1 auto;
+  height: auto;
+  margin: 0;
+}
+
+body.parte .panel,
+body.parte.panel-abierto .panel {
+  flex: 1 1 auto;
+  height: auto;
+  margin: 0;
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+body.parte .panel-interior {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+body.parte #vista-historial .grafico {
+  height: calc(150px + var(--extra-alto, 0px));
+}
+
+.grafico-dia .nombre-limite {
+  text-anchor: start;
+  opacity: 0.8;
+}
+
+.grafico-dia .hora.destacada {
+  fill: var(--texto);
+  font-weight: 700;
+}
+
+/* ----- Uso por producto ----- */
+#vista-productos.activa {
+  display: flex;
+  flex-direction: column;
+}
+
+.grafico-productos {
+  flex: 1 1 auto;
+  min-height: 150px;
+}
+
+.grafico-productos .columnas {
+  height: 100%;
+}
+
+/* "A lo largo del tiempo ›": un enlace dentro del desglose */
+.enlace-panel {
+  -webkit-app-region: no-drag;
+  align-self: flex-end;
+  margin-top: 4px;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: var(--acento);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.enlace-panel:hover {
+  text-decoration: underline;
+}
+
+body.parte .enlace-panel {
+  display: none;
+}
+
+/* El aviso de "muy pocas lecturas" va abajo, sin tapar el punto */
+.grafico-vacio.grafico-pocos {
+  inset: auto 0 22px 0;
+  font-size: 10.5px;
+  opacity: 0.85;
+}
+
+/* La línea, un poco más gruesa y suave */
+.grafico-dia .serie {
+  stroke-width: 2.4;
+}
+
+/* Los botones de días nunca se parten en dos líneas; si la leyenda no cabe al lado (vista completa), se corta con "…" */
+.segmento {
+  white-space: nowrap;
+}
+
+.segmentos {
+  flex: none;
+}
+
+.historial-opciones .historial-promedio {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  flex-wrap: nowrap;
+  justify-content: flex-start; /* si no cabe, se corta al final (y no al principio) */
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+/* Tarjeta vertical (la más angosta): íconos un poco más juntos para que la etiqueta de la cuenta no choque con ellos */
+body:not(.compacto):not(.franja) .herramientas {
+  gap: 0;
+  right: 10px;
+}
+
+body:not(.compacto):not(.franja) .herramientas .boton-icono {
+  width: 17px;
+}
+
+body:not(.compacto):not(.franja) .cuenta-pestana {
+  max-width: 112px;
+}
+
+/* Vista completa: solo se ven el historial, el desglose y la proyección. Otro panel (productos, cuentas, Ajustes...) solo
+   cuando está abierto en su lugar; si quedó marcado de antes (por ejemplo, al cambiar de vista con él abierto), no se cuela. */
+body.completo:not(.ajustes-abierto) .vista-panel:not(#vista-historial):not(#vista-desglose):not(#vista-proyeccion) {
+  display: none !important;
+}

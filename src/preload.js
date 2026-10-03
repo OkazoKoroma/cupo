@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('widget', {
   // Hace crecer la ventana del widget para mostrar un panel de ese alto (true) o la devuelve a su tamaño (false).
   // Responde { haciaArriba }: hacia dónde creció, para poner el panel del lado correcto.
   // Si ya había un panel abierto y el nuevo no cabe en la pantalla, responde también { noCabe: true }.
-  ajustarVentana: (abierto, alto, ancho, preferirAbajo) => ipcRenderer.invoke('ajustar-ventana', abierto, alto, ancho, preferirAbajo),
+  ajustarVentana: (abierto, alto, ancho, preferirAbajo, panel) => ipcRenderer.invoke('ajustar-ventana', abierto, alto, ancho, preferirAbajo, panel),
 
   // Registra una función que se llama cuando el menú de la bandeja pide abrir un panel
   // ('historial', 'desglose', 'proyeccion' o 'ajustes').
@@ -69,12 +69,17 @@ contextBridge.exposeInMainWorld('widget', {
   // Guarda el historial en un archivo CSV que se abre en Excel (muestra el cuadro de "Guardar como").
   // Responde { ok, ruta, cantidad } o { ok: false, error } o { ok: false, cancelado: true }.
   exportarHistorial: () => ipcRenderer.invoke('exportar-historial'),
+  abrirUso: () => ipcRenderer.send('abrir-uso'),
+  bienvenidaVista: () => ipcRenderer.send('bienvenida-vista'),
+  separarParte: (parte) => ipcRenderer.send('separar-parte', parte), // saca una parte del widget a su propia ventana
+  juntarParte: () => ipcRenderer.send('juntar-parte'),               // (desde la ventana de una parte) la devuelve al widget // la bienvenida ya se mostró: no vuelve a salir sola // abre claude.ai → Configuración → Uso en el navegador
 
   // Ajustes: leer los actuales y guardar nuevos (la app responde { ok } o { ok: false, error }).
   obtenerAjustes: () => ipcRenderer.invoke('obtener-ajustes'),
   guardarAjustes: (datos) => ipcRenderer.invoke('guardar-ajustes', datos),
 
   // Historial: el uso de cada uno de los últimos 7 días.
+  obtenerProductos: (dias) => ipcRenderer.invoke('obtener-productos', dias), // el uso por producto a lo largo del tiempo
   obtenerHistorial: (dias) => ipcRenderer.invoke('obtener-historial', dias),
 
   // Solo sirve en el modo de prueba (en el modo normal la app no responde a esto).

@@ -128,6 +128,7 @@ function dibujarLimitesExtra(extras) {
         </div>
         <div class="barra"><div class="barra-relleno" id="extra-${i}-relleno"></div></div>`;
       medidor.querySelector('.etiqueta').textContent = extra.nombre;
+      medidor.querySelector('.medidor-texto').title = t('boton.verEnClaude');
       contenedor.appendChild(medidor);
     });
   }
@@ -138,6 +139,66 @@ function dibujarLimitesExtra(extras) {
     if (extra.detalleTexto !== undefined) escribirDetalle(`extra-${i}-detalle`, extra.detalleTexto);
     else escribirReinicio(`extra-${i}-detalle`, extra.reinicioTexto, extra.reinicio);
   });
+}
+
+// ----- Parte separada: esta ventana muestra solo una parte del widget (historial, desglose, proyección o chats) -----
+const PARTE = new URLSearchParams(location.search).get('parte'); // null en el widget de siempre
+const PARTES_DE_PANEL = ['historial', 'desglose', 'proyeccion', 'productos'];
+// El botón junto a la X del panel: saca ese panel a su propia ventana (y lo cierra aquí).
+document.getElementById('separar-panel').addEventListener('click', () => {
+  if (!PARTES_DE_PANEL.includes(panelActual)) return;
+  window.widget.separarParte(panelActual);
+  cerrarPanel();
+});
+document.getElementById('separar-chats').addEventListener('click', () => window.widget.separarParte('chats'));
+document.getElementById('juntar-chats').addEventListener('click', () => window.widget.juntarParte());
+
+// ----- Clic en el nombre de una barra: abre el detalle oficial en claude.ai -----
+document.querySelector('.tarjeta').addEventListener('click', (evento) => {
+  if (evento.target.closest('.medidor-texto') && !evento.target.closest('button')) window.widget.abrirUso();
+});
+
+// En la ventana de una parte: el título y la vista de esa parte (una sola vez; después solo se refresca con los datos).
+// Con varias cuentas, el título dice de cuál es ("Historial · Trabajo") o "Todas las cuentas".
+let parteMostrada = false;
+function mostrarVistaDeLaParte() {
+  if (!PARTES_DE_PANEL.includes(PARTE)) return;
+  if (!parteMostrada) {
+    parteMostrada = true;
+    mostrarVistaDelPanel(PARTE);
+  }
+  document.getElementById('panel-titulo').textContent = tituloDeLaParte();
+}
+
+function tituloDeLaParte() {
+  const titulo = t(TITULOS_DE_PANEL[PARTE]);
+  const cuentas = (ultimosDatos && ultimosDatos.cuentas) || [];
+  if (cuentas.length < 2) return titulo;
+  if (variasCuentas()) return `${titulo} · ${t('parte.todas')}`;
+  const cuenta = cuentas.find((c) => c.id === ultimosDatos.activa);
+  return cuenta ? `${titulo} · ${cuenta.nombre}` : titulo;
+}
+
+// ----- Modo mínimo -----
+const PERIMETRO_MINI = 2 * Math.PI * 26;
+function pintarMini(uso) {
+  const relleno = document.getElementById('mini-relleno');
+  const valor = document.getElementById('mini-valor');
+  const boton = document.getElementById('mini-boton');
+  const proporcion = uso && uso.limiteDiario ? uso.hoy / uso.limiteDiario : 0;
+  relleno.style.strokeDasharray = String(PERIMETRO_MINI);
+  relleno.style.strokeDashoffset = String(PERIMETRO_MINI * (1 - Math.min(1, proporcion)));
+  relleno.style.stroke = uso ? colorDiario(proporcion) : 'transparent';
+  valor.textContent = uso ? `${formatear(Math.round(uso.hoy))}%` : '—';
+  // Al pasar el mouse: todo el resumen
+  boton.title = uso
+    ? [
+      t('hoy.de', { hoy: formatear(uso.hoy), limite: formatear(uso.limiteDiario) }),
+      uso.sesion5h ? `${t('sesion.etiqueta')}: ${formatear(uso.sesion5h.porcentaje)}%` : null,
+      `${t('semana.etiqueta')}: ${formatear(uso.semana)}%`,
+      t('mini.volver'),
+    ].filter(Boolean).join('\n')
+    : t('mini.volver');
 }
 
 // ----- Chats de Claude Code -----
@@ -203,6 +264,8 @@ function mostrarUso(datos) {
 
   dibujarLimitesExtra(error || !uso ? null : uso.limitesExtra);
   dibujarChats(datos.chats || []);
+  if (PARTE) mostrarVistaDeLaParte();
+  pintarMini(error || !uso ? null : uso);
 
   if (error || !uso) {
     // Con error (o mientras carga) las barras quedan vacías y se explica qué pasa.
@@ -259,18 +322,31 @@ const TITULOS_DE_PANEL = {
   proyeccion: 'panel.proyeccion',
   ajustes: 'panel.ajustes',
   cuentas: 'panel.cuentas',
+  bienvenida: 'panel.bienvenida',
+  productos: 'panel.productos',
 };
 // Tamaño que pide cada panel, en píxeles: el alto, y el ancho solo si es más ancho que la vista (Ajustes lo es).
 const TAMANOS_DE_PANEL = {
   historial: { alto: 222 },
-  desglose: { alto: 196 },
+  desglose: { alto: 226 },
   proyeccion: { alto: 196 },
-  ajustes: { alto: 700, ancho: 940, altoCompleto: 900 }, // en la vista completa es más angosto (3 columnas): necesita más alto
+  ajustes: { alto: 760, ancho: 940, altoCompleto: 920 }, // en la vista completa es más angosto (3 columnas): necesita más alto
   cuentas: { alto: 350 },
+  bienvenida: { alto: 390 },
+  productos: { alto: 300, ancho: 500 }, // más grande: muchas líneas a lo largo del tiempo
 };
 const DURACION_PANEL_MS = 340; // debe coincidir con --duracion-panel en widget.css
 
 let panelActual = null;        // 'historial', 'desglose', 'proyeccion', 'ajustes', 'cuentas' o null (cerrado)
+// En la ventana de una parte (historial, desglose o proyección), ese panel está siempre abierto.
+if (PARTE) {
+  document.body.classList.add('parte', `parte-${PARTE}`);
+  if (PARTES_DE_PANEL.includes(PARTE)) {
+    panelActual = PARTE;
+    document.body.classList.add('panel-abierto');
+    document.getElementById('panel').setAttribute('aria-hidden', 'false');
+  }
+}
 let altoDelPanel = TAMANOS_DE_PANEL.historial.alto; // alto con el que está dibujado el panel ahora
 let anchoDelPanel = 0;         // ancho que pidió el panel abierto (0 = el de la vista)
 let reabrirPanel = null;       // 'ajustes' o 'cuentas' si ese panel estaba abierto cuando se pidió cerrar el panel para cambiar de vista
@@ -289,7 +365,7 @@ function ponerAltoExtraCompleto(alto) {
 }
 
 // Ajustes y Cuentas, en la vista completa, ocupan el lugar de esos tres paneles.
-const PANELES_EN_LUGAR = ['ajustes', 'cuentas'];
+const PANELES_EN_LUGAR = ['ajustes', 'cuentas', 'bienvenida', 'productos'];
 
 // ¿Hay que dibujar este panel ahora? Si está abierto, o si la vista completa lo muestra junto a los demás.
 function panelVisible(nombre) {
@@ -309,10 +385,10 @@ function ponerAltoDelPanel(alto) {
 // Si ya había un panel abierto y el nuevo no cabe en la pantalla, se cierra la ventana y se vuelve a abrir
 // (así la app puede elegir de nuevo hacia dónde crecer). Devuelve { haciaArriba }.
 async function pedirTamanoDeVentana(alto, ancho) {
-  let respuesta = await window.widget.ajustarVentana(true, alto, ancho);
+  let respuesta = await window.widget.ajustarVentana(true, alto, ancho, false, panelActual);
   if (respuesta.noCabe) {
     await window.widget.ajustarVentana(false);
-    respuesta = await window.widget.ajustarVentana(true, alto, ancho);
+    respuesta = await window.widget.ajustarVentana(true, alto, ancho, false, panelActual);
   }
   return respuesta;
 }
@@ -331,7 +407,7 @@ async function abrirPanel(nombre) {
     // Si el panel necesita más alto que el lugar de los tres paneles (Ajustes sí), la ventana crece hacia abajo.
     const falta = (TAMANOS_DE_PANEL[nombre].altoCompleto || TAMANOS_DE_PANEL[nombre].alto) - ALTO_PANELES_COMPLETO - extraAlto;
     if (falta > 0) {
-      const { alto } = await window.widget.ajustarVentana(true, falta - SEPARACION_PANEL, 0, true);
+      const { alto } = await window.widget.ajustarVentana(true, falta - SEPARACION_PANEL, 0, true, panelActual);
       if (panelActual === nombre) ponerAltoExtraCompleto(alto + SEPARACION_PANEL);
     } else {
       ponerAltoExtraCompleto(0);
@@ -369,7 +445,7 @@ async function abrirPanel(nombre) {
       ponerAltoDelPanel(alto);                                   // primero el panel se achica con animación...
       await esperar(DURACION_PANEL_MS + 40);
       if (panelActual !== null) {
-        await window.widget.ajustarVentana(true, alto, ancho);   // ...y después se achica la ventana
+        await window.widget.ajustarVentana(true, alto, ancho, false, panelActual);   // ...y después se achica la ventana
         anchoDelPanel = ancho;
       }
     }
@@ -378,6 +454,11 @@ async function abrirPanel(nombre) {
 
 // Cierra el panel. Devuelve una promesa que se cumple cuando la ventana ya volvió a su tamaño.
 function cerrarPanel() {
+  // En la ventana de una parte, la X la devuelve al widget.
+  if (PARTE) {
+    window.widget.juntarParte();
+    return Promise.resolve();
+  }
   if (panelActual === null) return Promise.resolve();
 
   // En la vista completa solo hay que volver a mostrar los tres paneles.
@@ -408,6 +489,8 @@ function cerrarPanel() {
 
 // Resalta (en naranja) el ícono cuyo panel está abierto.
 function marcarIconoActivo() {
+  // El botón para sacar el panel a su ventana solo está en el historial, el desglose y la proyección (y no en la parte ya separada).
+  document.getElementById('separar-panel').style.display = PARTE || !PARTES_DE_PANEL.includes(panelActual) ? 'none' : '';
   for (const boton of document.querySelectorAll('[data-panel]')) {
     boton.setAttribute('aria-pressed', String(boton.dataset.panel === panelActual));
   }
@@ -436,6 +519,7 @@ function mostrarVistaDelPanel(nombre) {
 let animarDibujo = true;
 function refrescarPanel(animar = true) {
   animarDibujo = animar;
+  if (panelVisible('productos')) dibujarProductos();
   if (panelVisible('historial')) dibujarHistorial();
   if (panelVisible('desglose')) dibujarDesglose();
   if (panelVisible('proyeccion')) dibujarProyeccion();
@@ -466,7 +550,7 @@ function despuesDelProximoCuadro(funcion) {
 
 const ALTO_BARRAS_BASE = 96;  // alto máximo de una columna, en píxeles
 let extraAlto = 0;            // cuánto estiraste la ventana a lo alto (en la vista completa, el gráfico crece lo mismo)
-const altoDeBarras = () => ALTO_BARRAS_BASE + (esCompleto() ? extraAlto : 0);
+const altoDeBarras = () => ALTO_BARRAS_BASE + (esCompleto() || PARTE ? extraAlto : 0);
 const ALTO_ETIQUETA_DIA = 18; // espacio que ocupa el nombre del día bajo cada columna
 
 // Nombre corto del día de la semana a partir de "2026-10-02" → "vie".
@@ -479,7 +563,8 @@ function nombreDelDia(fechaTexto) {
 // Cuántos días muestra el historial: 7 o 30 (se recuerda en esta computadora).
 let diasDelHistorial = 7;
 try {
-  if (localStorage.getItem('diasDelHistorial') === '30') diasDelHistorial = 30;
+  const guardado = localStorage.getItem('diasDelHistorial');
+  if (guardado === '30' || guardado === '1') diasDelHistorial = Number(guardado);
 } catch (error) { /* sin almacenamiento: se queda en 7 */ }
 
 function marcarDiasDelHistorial() {
@@ -490,13 +575,256 @@ function marcarDiasDelHistorial() {
 
 for (const boton of document.querySelectorAll('[data-dias]')) {
   boton.addEventListener('click', () => {
-    diasDelHistorial = Number(boton.dataset.dias) === 30 ? 30 : 7;
+    diasDelHistorial = [1, 7, 30].includes(Number(boton.dataset.dias)) ? Number(boton.dataset.dias) : 7;
     try { localStorage.setItem('diasDelHistorial', String(diasDelHistorial)); } catch (error) { /* no importa */ }
     marcarDiasDelHistorial();
     dibujarHistorial();
   });
 }
 marcarDiasDelHistorial();
+
+// ----- Gráfico del día: cómo fue subiendo el uso durante hoy -----
+// Eje X: las horas del día (una marca por hora). Eje Y: el uso de hoy en % de la cuota semanal (el mismo número de la tarjeta),
+// con tu límite diario como línea punteada. Con varias cuentas, una línea por cuenta.
+const NS_SVG = 'http://www.w3.org/2000/svg';
+
+function elementoSvg(nombre, atributos = {}, padre) {
+  const elemento = document.createElementNS(NS_SVG, nombre);
+  for (const [clave, valor] of Object.entries(atributos)) elemento.setAttribute(clave, String(valor));
+  if (padre) padre.appendChild(elemento);
+  return elemento;
+}
+
+// Curva suave que pasa por todos los puntos. Las tangentes salen de los puntos vecinos (como Catmull-Rom), así las curvas
+// son amplias; donde la línea cambia de dirección se aplanan, para que nunca "se pase" de un punto (una subida no parece bajada).
+function curvaSuave(puntos) {
+  if (puntos.length === 0) return '';
+  if (puntos.length === 1) return `M${puntos[0][0]} ${puntos[0][1]}`;
+  const n = puntos.length;
+  const pendientes = [];
+  for (let i = 0; i < n - 1; i++) {
+    const dx = puntos[i + 1][0] - puntos[i][0];
+    pendientes.push(dx === 0 ? 0 : (puntos[i + 1][1] - puntos[i][1]) / dx);
+  }
+  const tangentes = [pendientes[0]];
+  for (let i = 1; i < n - 1; i++) {
+    if (pendientes[i - 1] * pendientes[i] <= 0) { tangentes.push(0); continue; }
+    // Catmull-Rom: la pendiente entre el punto anterior y el siguiente, limitada para no pasarse (Fritsch-Carlson)
+    const dx = puntos[i + 1][0] - puntos[i - 1][0];
+    const catmull = dx === 0 ? 0 : (puntos[i + 1][1] - puntos[i - 1][1]) / dx;
+    const tope = 3 * Math.min(Math.abs(pendientes[i - 1]), Math.abs(pendientes[i]));
+    tangentes.push(Math.sign(catmull) * Math.min(Math.abs(catmull), tope));
+  }
+  tangentes.push(pendientes[n - 2]);
+  let d = `M${puntos[0][0].toFixed(1)} ${puntos[0][1].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = puntos[i];
+    const [x1, y1] = puntos[i + 1];
+    const tercio = (x1 - x0) / 3;
+    d += ` C${(x0 + tercio).toFixed(1)} ${(y0 + tangentes[i] * tercio).toFixed(1)}, ${(x1 - tercio).toFixed(1)} ${(y1 - tangentes[i + 1] * tercio).toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  }
+  return d;
+}
+
+// Dibuja un gráfico de líneas en el historial. Lo usan el de hoy (eje X: horas) y el de 7 o 30 días (eje X: días).
+//   series     → [{ nombre, color, relleno, leyenda, puntos: [[x, valor o null], ...] }] (null = sin dato: la línea se corta)
+//   desde/hasta→ el rango del eje X
+//   marcas     → [{ x, texto }] las marcas de abajo (texto vacío = solo la rayita)
+//   limites    → [[x, límite], ...] tu límite diario (si es igual en todo el rango, una línea recta con su nombre)
+//   ahora      → x de "ahora" (una raya vertical fina), o null
+//   conPuntos  → dibujar un puntito en cada dato (en 7 días, que son pocos)
+//   vacio      → el texto si todavía no hay datos
+//   en         → dónde dibujar: { grafico, contenedor, leyenda } (si no se dice, en el historial)
+function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, conPuntos = false, vacio, en = null }) {
+  const grafico = en ? en.grafico : document.querySelector('#vista-historial .grafico');
+  grafico.classList.add('del-dia');
+  grafico.classList.remove('largo');
+  if (!en) document.getElementById('linea-limite').style.display = 'none';
+  const contenedor = en ? en.contenedor : document.getElementById('columnas');
+  contenedor.innerHTML = '';
+  const leyenda = en ? en.leyenda : document.getElementById('historial-promedio');
+  leyenda.replaceChildren();
+
+  const anchoTotal = Math.max(140, contenedor.clientWidth || 260);
+  const altoTotal = Math.max(90, contenedor.clientHeight || 150);
+  const IZQ = 30;
+  const ABAJO = 16;
+  const ancho = anchoTotal - IZQ - 8;
+  const alto = altoTotal - ABAJO - 4;
+  const valores = series.flatMap((serie) => serie.puntos.map(([, v]) => v).filter((v) => v !== null));
+  const limiteMaximo = Math.max(0, ...limites.map(([, l]) => l));
+  const maximo = Math.max(limiteMaximo || 1, ...valores) * 1.15;
+  const x = (valor) => IZQ + (hasta > desde ? Math.min(1, Math.max(0, (valor - desde) / (hasta - desde))) : 0.5) * ancho;
+  const y = (valor) => 4 + alto - (Math.max(0, valor) / maximo) * alto;
+
+  const svg = elementoSvg('svg', { class: 'grafico-dia', width: anchoTotal, height: altoTotal });
+  const defs = elementoSvg('defs', {}, svg);
+  const degradado = elementoSvg('linearGradient', { id: 'relleno-hoy', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  elementoSvg('stop', { offset: '0%', 'stop-color': 'var(--acento)', 'stop-opacity': 0.35 }, degradado);
+  elementoSvg('stop', { offset: '100%', 'stop-color': 'var(--acento)', 'stop-opacity': 0 }, degradado);
+
+  // Escala de la izquierda: 0, la mitad y el límite (o, si no hay límite, el valor más alto)
+  const tope = limiteMaximo || Math.ceil(Math.max(0, ...valores) * 10) / 10;
+  for (const valor of tope ? [0, tope / 2, tope] : [0]) {
+    elementoSvg('line', { x1: IZQ, x2: IZQ + ancho, y1: y(valor), y2: y(valor), class: 'rejilla' }, svg);
+    const texto = elementoSvg('text', { x: IZQ - 5, y: y(valor) + 3, class: 'escala' }, svg);
+    texto.textContent = `${formatear(Math.round(valor * 10) / 10)}%`;
+  }
+  // Tu límite: recto si es igual siempre; si cambia de un día a otro, sigue cada día
+  if (limiteMaximo) {
+    const iguales = limites.every(([, l]) => l === limites[0][1]);
+    const d = iguales
+      ? `M${IZQ} ${y(limites[0][1])} H${IZQ + ancho}`
+      : limites.map(([lx, l], i) => `${i ? 'L' : 'M'}${x(lx).toFixed(1)} ${y(l).toFixed(1)}`).join(' ');
+    elementoSvg('path', { d, class: 'rejilla-limite', fill: 'none' }, svg);
+    const nombreLimite = elementoSvg('text', { x: IZQ + 3, y: y(iguales ? limites[0][1] : limiteMaximo) - 3, class: 'escala nombre-limite' }, svg);
+    nombreLimite.textContent = t('historial.limite');
+  }
+
+  // Marcas de abajo
+  marcas.forEach((marca, i) => {
+    const posicion = x(marca.x);
+    elementoSvg('line', { x1: posicion, x2: posicion, y1: 4 + alto, y2: 4 + alto + (marca.texto ? 4 : 2), class: 'marca-hora' }, svg);
+    if (!marca.texto) return;
+    const texto = elementoSvg('text', { x: posicion, y: altoTotal - 2, class: marca.destacada ? 'hora destacada' : 'hora' }, svg);
+    // La primera y la última se alinean hacia adentro, para que no se corten en el borde
+    if (i === 0) texto.style.textAnchor = 'start';
+    if (i === marcas.length - 1) texto.style.textAnchor = 'end';
+    texto.textContent = marca.texto;
+  });
+  if (ahora !== null) elementoSvg('line', { x1: x(ahora), x2: x(ahora), y1: 4, y2: 4 + alto, class: 'rejilla-ahora' }, svg);
+
+  let hayPuntos = false;
+  const etiquetasFinales = []; // [{ elemento, y }]: se separan al final si quedan encimadas
+  for (const serie of series) {
+    const item = crear('span', 'leyenda-cuenta');
+    const punto = crear('span', 'punto');
+    punto.style.backgroundColor = serie.color;
+    item.append(punto, crear('span', '', serie.leyenda || serie.nombre));
+    leyenda.appendChild(item);
+
+    // Tramos sin cortes (un dato null corta la línea)
+    const tramos = [[]];
+    for (const [px, valor] of serie.puntos) {
+      if (valor === null) { if (tramos[tramos.length - 1].length) tramos.push([]); continue; }
+      tramos[tramos.length - 1].push([x(px), y(valor), valor]);
+    }
+    for (const tramo of tramos) {
+      if (tramo.length === 0) continue;
+      hayPuntos = true;
+      const d = curvaSuave(tramo.map(([px, py]) => [px, py]));
+      if (serie.relleno && tramo.length > 1) {
+        const ultimo = tramo[tramo.length - 1];
+        elementoSvg('path', { d: `${d} L${ultimo[0].toFixed(1)} ${(4 + alto).toFixed(1)} L${tramo[0][0].toFixed(1)} ${(4 + alto).toFixed(1)} Z`, fill: 'url(#relleno-hoy)', stroke: 'none' }, svg);
+      }
+      elementoSvg('path', { d, class: 'serie', stroke: serie.color }, svg);
+      if (conPuntos) for (const [px, py] of tramo) elementoSvg('circle', { cx: px, cy: py, r: 2.2, fill: serie.color }, svg);
+    }
+    // El último valor, al final de la línea
+    const ultimoTramo = tramos.filter((tramo) => tramo.length).pop();
+    if (!ultimoTramo) continue;
+    const [xf, yf, valorFinal] = ultimoTramo[ultimoTramo.length - 1];
+    elementoSvg('circle', { cx: xf, cy: yf, r: 3, fill: serie.color, class: 'punto-final' }, svg);
+    const etiqueta = elementoSvg('text', { x: Math.min(IZQ + ancho - 2, xf + 5), y: Math.max(11, yf - 5), class: 'valor-final' }, svg);
+    if (xf + 30 > IZQ + ancho) etiqueta.style.textAnchor = 'end';
+    etiqueta.setAttribute('fill', serie.color);
+    etiqueta.textContent = `${formatear(Math.round(valorFinal * 10) / 10)}%`;
+    etiquetasFinales.push({ elemento: etiqueta, y: Math.max(11, yf - 5) });
+  }
+  // Separar los números que quedaron a menos de 13 px uno de otro (de arriba hacia abajo)
+  etiquetasFinales.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < etiquetasFinales.length; i++) {
+    const minimo = etiquetasFinales[i - 1].y + 13;
+    if (etiquetasFinales[i].y < minimo) etiquetasFinales[i].y = minimo;
+  }
+  // Si el de más abajo se sale por abajo, se suben todos lo necesario (y se vuelven a separar hacia arriba)
+  const piso = altoTotal - ABAJO - 2;
+  for (let i = etiquetasFinales.length - 1; i >= 0; i--) {
+    const techo = i === etiquetasFinales.length - 1 ? piso : etiquetasFinales[i + 1].y - 13;
+    if (etiquetasFinales[i].y > techo) etiquetasFinales[i].y = techo;
+  }
+  for (const { elemento, y: posicion } of etiquetasFinales) elemento.setAttribute('y', String(Math.max(10, posicion)));
+  contenedor.appendChild(svg);
+  const pocos = series.every((serie) => serie.puntos.filter(([, v]) => v !== null).length < 2);
+  if (!hayPuntos) contenedor.appendChild(crear('p', 'grafico-vacio', vacio));
+  else if (pocos) contenedor.appendChild(crear('p', 'grafico-vacio grafico-pocos', t('historial.pocos')));
+}
+
+// El gráfico de hoy: eje X = horas del día (una marca por hora), eje Y = el uso de hoy (como la tarjeta).
+function dibujarGraficoDelDia({ inicioMs, ahoraMs, cuentas }) {
+  const series = cuentas.map((cuenta, i) => {
+    // Lecturas del mismo momento: queda la última, para que la línea no haga escalones.
+    const puntos = cuenta.puntos.map((p) => [p.t, p.hoy]).sort((p, q) => p[0] - q[0])
+      .filter((punto, j, lista) => j === lista.length - 1 || lista[j + 1][0] - punto[0] > 60 * 1000);
+    return {
+      nombre: cuentas.length === 1 ? t('hoy.etiqueta') : cuenta.nombre,
+      color: cuentas.length === 1 ? 'var(--acento)' : colorDeCuenta(i),
+      relleno: cuentas.length === 1,
+      puntos,
+    };
+  });
+  // Desde la hora de la primera lectura hasta la hora que viene (al menos 6 horas)
+  const HORA = 60 * 60 * 1000;
+  const tiempos = series.flatMap((serie) => serie.puntos.map(([tiempo]) => tiempo));
+  const primeraHora = tiempos.length ? Math.floor((Math.min(...tiempos) - inicioMs) / HORA) : 0;
+  let ultimaHora = Math.min(24, Math.ceil((ahoraMs - inicioMs) / HORA) + 1);
+  const desdeHora = Math.max(0, Math.min(primeraHora, ultimaHora - 6));
+  ultimaHora = Math.max(ultimaHora, Math.min(24, desdeHora + 6));
+  const horas = ultimaHora - desdeHora;
+  const anchoAprox = (document.getElementById('columnas').clientWidth || 260) - 38;
+  const cadaCuanto = anchoAprox / horas >= 30 ? 1 : anchoAprox / horas >= 15 ? 2 : 3;
+  const marcas = [];
+  for (let hora = desdeHora; hora <= ultimaHora; hora++) {
+    marcas.push({ x: inicioMs + hora * HORA, texto: (hora - desdeHora) % cadaCuanto === 0 ? `${String(hora % 24).padStart(2, '0')}:00` : '' });
+  }
+  const limite = Math.max(0, ...cuentas.map((cuenta) => cuenta.limite || 0));
+  dibujarLineas({
+    series, marcas, ahora: ahoraMs,
+    desde: inicioMs + desdeHora * HORA, hasta: inicioMs + ultimaHora * HORA,
+    limites: limite ? [[inicioMs, limite]] : [],
+    vacio: t('historial.diaVacio'),
+  });
+}
+
+// El gráfico de 7 o 30 días: eje X = los días, eje Y = el uso de cada día. Con varias cuentas, una línea por cuenta.
+function dibujarGraficoDeDias(respuesta) {
+  const varias = variasCuentas() && Array.isArray(respuesta.cuentas) && respuesta.cuentas.length >= 2;
+  const cuentas = varias ? respuesta.cuentas : [{ nombre: t('historial.porDia'), dias: respuesta.dias, limiteDiario: respuesta.limiteDiario }];
+  const dias = cuentas[0].dias;
+  const largo = dias.length > 7;
+  const promedioDe = (lista) => {
+    const conDato = lista.filter((d) => d.uso !== null);
+    return conDato.length ? Math.round((conDato.reduce((suma, d) => suma + d.uso, 0) / conDato.length) * 10) / 10 : null;
+  };
+  const series = cuentas.map((cuenta, i) => {
+    const promedio = promedioDe(cuenta.dias);
+    return {
+      nombre: cuenta.nombre,
+      // En la leyenda: el promedio por día de cada una
+      leyenda: promedio === null ? cuenta.nombre
+        : varias ? `${cuenta.nombre} ${formatear(promedio)}%` : t('historial.promedio', { valor: formatear(promedio) }),
+      color: varias ? colorDeCuenta(i) : 'var(--acento)',
+      relleno: !varias,
+      puntos: cuenta.dias.map((d, j) => [j, d.uso]),
+    };
+  });
+  // Abajo: el nombre del día (7 días) o el número cada 5 días contando desde hoy (30 días); hoy, destacado.
+  const marcas = dias.map((d, j) => {
+    const esHoy = d.dia === respuesta.hoy;
+    const desdeHoy = dias.length - 1 - j;
+    const texto = !largo ? (esHoy ? t('historial.hoy') : nombreDelDia(d.dia))
+      : (esHoy ? t('historial.hoy') : desdeHoy % 5 === 0 && desdeHoy > 2 ? String(Number(d.dia.slice(8))) : '');
+    return { x: j, texto, destacada: esHoy };
+  });
+  // Tu límite de cada día (si usas límites por día o el automático, cambia)
+  const limites = varias ? [] : dias.map((d, j) => [j, typeof d.limite === 'number' ? d.limite : respuesta.limiteDiario]);
+  dibujarLineas({
+    series, marcas, limites,
+    desde: 0, hasta: dias.length - 1,
+    conPuntos: !largo,
+    vacio: t('historial.diasVacio'),
+  });
+}
 
 // ----- Varias cuentas a la vez -----
 // Con más de una cuenta (y sin ventanas separadas), el historial, el desglose y la proyección muestran todas las cuentas.
@@ -511,64 +839,6 @@ function crear(etiqueta, clase, texto) {
   if (clase) elemento.className = clase;
   if (texto !== undefined) elemento.textContent = texto;
   return elemento;
-}
-
-// Historial de varias cuentas: en cada día, una columna fina por cuenta (con su color); arriba, el promedio de cada una.
-function dibujarHistorialDeVarias(cuentas, hoy, animar = true) {
-  const ALTO_BARRAS = altoDeBarras();
-  const dias = cuentas[0].dias;
-  const largo = dias.length > 7;
-  document.querySelector('#vista-historial .grafico').classList.toggle('largo', largo);
-  document.getElementById('linea-limite').style.display = 'none';
-
-  // Leyenda: el color, el nombre y el promedio de cada cuenta
-  const leyenda = document.getElementById('historial-promedio');
-  leyenda.replaceChildren();
-  cuentas.forEach((cuenta, i) => {
-    const conDato = cuenta.dias.filter((d) => d.uso !== null);
-    const promedio = conDato.length ? conDato.reduce((suma, d) => suma + d.uso, 0) / conDato.length : null;
-    const item = crear('span', 'leyenda-cuenta');
-    const punto = crear('span', 'punto');
-    punto.style.backgroundColor = colorDeCuenta(i);
-    item.append(punto, crear('span', '', promedio === null ? cuenta.nombre : `${cuenta.nombre} ${formatear(Math.round(promedio * 10) / 10)}%`));
-    if (promedio !== null) item.title = t('historial.promedio', { valor: formatear(Math.round(promedio * 10) / 10) });
-    leyenda.appendChild(item);
-  });
-
-  const usoMaximo = Math.max(0, ...cuentas.flatMap((c) => c.dias.map((d) => d.uso || 0)));
-  const limiteMaximo = Math.max(...cuentas.map((c) => c.limiteDiario || 0));
-  const escala = Math.max(limiteMaximo, usoMaximo, 1) * 1.12;
-
-  const contenedor = document.getElementById('columnas');
-  contenedor.innerHTML = '';
-  const barras = [];
-  dias.forEach(({ dia }, posicion) => {
-    const columna = crear('div', 'columna');
-    const grupo = crear('div', 'grupo-barras');
-    cuentas.forEach((cuenta, i) => {
-      const { uso } = cuenta.dias[posicion];
-      const barra = crear('div', 'barra-dia');
-      barra.title = `${cuenta.nombre} · ${dia}: ${uso === null ? '—' : formatear(uso) + '%'}`;
-      if (uso === null) {
-        barra.classList.add('sin-dato');
-      } else {
-        barra.style.setProperty('--c', colorDeCuenta(i));
-        barra.style.transitionDelay = `${posicion * 50}ms`;
-        barras.push({ barra, alto: (uso / escala) * ALTO_BARRAS });
-      }
-      grupo.appendChild(barra);
-    });
-    const etiqueta = crear('span', dia === hoy ? 'nombre-dia hoy' : 'nombre-dia');
-    if (!largo) {
-      etiqueta.textContent = dia === hoy ? t('historial.hoy') : nombreDelDia(dia);
-    } else {
-      const desdeHoy = dias.length - 1 - posicion;
-      etiqueta.textContent = dia === hoy ? '•' : (desdeHoy % 5 === 0 ? String(Number(dia.slice(8))) : '');
-    }
-    columna.append(crear('span', 'valor-dia'), grupo, etiqueta);
-    contenedor.appendChild(columna);
-  });
-  crecer(barras.map(({ barra, alto }) => [barra, 'height', `${alto}px`]), animar);
 }
 
 // Desglose de varias cuentas: una barra dividida por cuenta y, abajo, qué color es cada producto.
@@ -655,94 +925,121 @@ function volverAUnaCuenta() {
 }
 
 async function dibujarHistorial() {
-  const animar = animarDibujo;
   const respuesta = await window.widget.obtenerHistorial(diasDelHistorial);
-  if (variasCuentas() && Array.isArray(respuesta.cuentas) && respuesta.cuentas.length >= 2) {
-    if (panelVisible('historial')) dibujarHistorialDeVarias(respuesta.cuentas, respuesta.hoy, animar);
-    return;
-  }
-  const { dias, limiteDiario, hoy } = respuesta;
-  const ALTO_BARRAS = altoDeBarras();
-  const largo = dias.length > 7;           // 30 días: columnas finas, sin el número encima, y solo algunas fechas
-  document.querySelector('#vista-historial .grafico').classList.toggle('largo', largo);
-
-  // Promedio de los días con registro
-  const conDato = dias.filter((d) => d.uso !== null);
-  const promedio = conDato.length ? conDato.reduce((suma, d) => suma + d.uso, 0) / conDato.length : null;
-  document.getElementById('historial-promedio').replaceChildren();
-  document.getElementById('historial-promedio').textContent = promedio === null
-    ? ''
-    : t('historial.promedio', { valor: formatear(Math.round(promedio * 10) / 10) });
   if (!panelVisible('historial')) return; // se cerró (o cambió) mientras esperábamos los datos
+  if (respuesta.delDia) dibujarGraficoDelDia(respuesta);
+  else dibujarGraficoDeDias(respuesta);
+}
 
-  // Cada día trae su propio límite (puede cambiar de un día a otro si usas límites distintos por día).
-  const limiteDe = (d) => (typeof d.limite === 'number' ? d.limite : limiteDiario);
-  const limitesIguales = dias.every((d) => limiteDe(d) === limiteDe(dias[0]));
-
-  // La columna más alta es la mayor entre los límites y el uso más alto, con un poco de aire.
-  const usoMaximo = Math.max(0, ...dias.map((d) => d.uso || 0));
-  const limiteMaximo = Math.max(...dias.map(limiteDe));
-  const escala = Math.max(limiteMaximo, usoMaximo) * 1.12;
-
-  // Si el límite es el mismo todos los días: una línea punteada continua.
-  // Si cambia de un día a otro: una marca del límite en cada columna.
-  const linea = document.getElementById('linea-limite');
-  linea.style.display = limitesIguales ? 'block' : 'none';
-  if (limitesIguales) {
-    linea.style.bottom = `${ALTO_ETIQUETA_DIA + (limiteDe(dias[0]) / escala) * ALTO_BARRAS}px`;
+// Al cambiar el tamaño de la ventana, los gráficos se vuelven a dibujar a su medida (sin animar).
+let temporizadorDeRedibujo = null;
+const anchosDibujados = new Map(); // lugar → "ancho x alto" con que se dibujó la última vez
+const observadorDeTamano = new ResizeObserver((cambios) => {
+  for (const cambio of cambios) {
+    const { width, height } = cambio.contentRect;
+    const medida = `${Math.round(width)}x${Math.round(height)}`;
+    if (anchosDibujados.get(cambio.target.id) === medida || width < 20) continue;
+    anchosDibujados.set(cambio.target.id, medida);
+    clearTimeout(temporizadorDeRedibujo);
+    temporizadorDeRedibujo = setTimeout(() => {
+      if (panelVisible('historial')) dibujarHistorial();
+      if (panelVisible('productos')) dibujarProductos();
+    }, 120);
   }
+});
+observadorDeTamano.observe(document.getElementById('columnas'));
+observadorDeTamano.observe(document.getElementById('productos-columnas'));
 
-  const contenedor = document.getElementById('columnas');
-  contenedor.innerHTML = '';
-  const barras = [];
+// --- Uso por producto a lo largo del tiempo ---
+// Una línea por producto (con el color de siempre: Claude Code naranja, Chats azul...). Eje Y: % de la cuota semanal que usó.
+// "1" (hoy), "semana" (la de tu plan, desde el reinicio), "30" (días) o "semanas" (histórico)
+let diasDeProductos = '1';
+try {
+  const guardado = localStorage.getItem('diasDeProductos');
+  if (['1', 'semana', '30', 'semanas'].includes(guardado)) diasDeProductos = guardado;
+} catch (error) { /* sin almacenamiento: hoy */ }
 
-  dias.forEach((entrada, posicion) => {
-    const { dia, uso } = entrada;
-    const limite = limiteDe(entrada);
-    const columna = document.createElement('div');
-    columna.className = 'columna';
-
-    const valor = document.createElement('span');
-    valor.className = 'valor-dia';
-    valor.textContent = uso === null ? '' : `${formatear(uso)}%`;
-
-    const barra = document.createElement('div');
-    barra.className = 'barra-dia';
-    if (uso === null) {
-      barra.classList.add('sin-dato');
-    } else {
-      barra.style.setProperty('--c', colorDiario(uso / limite));
-      barra.style.transitionDelay = `${posicion * 60}ms`; // las columnas suben una tras otra
-      barras.push({ barra, alto: (uso / escala) * ALTO_BARRAS });
-    }
-
-    const etiqueta = document.createElement('span');
-    etiqueta.className = dia === hoy ? 'nombre-dia hoy' : 'nombre-dia';
-    if (!largo) {
-      etiqueta.textContent = dia === hoy ? t('historial.hoy') : nombreDelDia(dia);
-    } else {
-      // 30 días: solo el número del día, cada 5 días contando desde hoy (y "hoy" se marca con un punto)
-      const desdeHoy = dias.length - 1 - posicion;
-      etiqueta.textContent = dia === hoy ? '•' : (desdeHoy % 5 === 0 ? String(Number(dia.slice(8))) : '');
-      columna.title = `${dia}: ${uso === null ? '—' : formatear(uso) + '%'}`;
-    }
-
-    columna.append(valor, barra, etiqueta);
-
-    // Marca del límite de ese día (solo cuando los límites no son todos iguales)
-    if (!limitesIguales) {
-      const marca = document.createElement('div');
-      marca.className = 'marca-limite';
-      marca.style.bottom = `${ALTO_ETIQUETA_DIA + (limite / escala) * ALTO_BARRAS}px`;
-      marca.title = t('historial.limiteDia', { limite: formatear(limite) });
-      columna.appendChild(marca);
-    }
-
-    contenedor.appendChild(columna);
+function marcarDiasDeProductos() {
+  for (const boton of document.querySelectorAll('[data-productos-dias]')) {
+    boton.setAttribute('aria-pressed', String(boton.dataset.productosDias === diasDeProductos));
+  }
+}
+for (const boton of document.querySelectorAll('[data-productos-dias]')) {
+  boton.addEventListener('click', () => {
+    diasDeProductos = boton.dataset.productosDias;
+    try { localStorage.setItem('diasDeProductos', String(diasDeProductos)); } catch (error) { /* no importa */ }
+    marcarDiasDeProductos();
+    dibujarProductos();
   });
+}
+marcarDiasDeProductos();
+document.getElementById('ver-productos').addEventListener('click', () => abrirPanel('productos'));
 
-  // Las columnas parten en 0 y "crecen" hasta su alto.
-  crecer(barras.map(({ barra, alto }) => [barra, 'height', `${alto}px`]), animar);
+async function dibujarProductos() {
+  const datos = await window.widget.obtenerProductos(diasDeProductos);
+  if (!panelVisible('productos')) return;
+  const en = {
+    grafico: document.getElementById('productos-grafico'),
+    contenedor: document.getElementById('productos-columnas'),
+    leyenda: document.getElementById('productos-leyenda'),
+  };
+  const colorDe = (clave, i) => COLORES_POR_PRODUCTO[clave] || COLORES_DE_REPUESTO[i % COLORES_DE_REPUESTO.length];
+  const series = datos.productos.map((producto, i) => ({
+    nombre: nombreDeProducto(producto),
+    color: colorDe(producto.clave, i),
+    relleno: false,
+    // (en "hoy": lecturas del mismo momento, queda la última, para que la línea no haga escalones)
+    puntos: datos.delDia
+      ? producto.puntos.filter((punto, j, lista) => j === lista.length - 1 || lista[j + 1][0] - punto[0] > 60 * 1000)
+      : producto.puntos,
+  }));
+  if (datos.semanas) {
+    // Eje X: las semanas (por el día en que empezó cada una); la última es la semana en curso
+    const marcas = datos.semanas.map((semana, j) => ({
+      x: j,
+      texto: semana.enCurso ? t('productos.estaSemana') : new Date(`${semana.inicio}T12:00:00Z`).toLocaleDateString(localeActual, { day: 'numeric', month: 'short', timeZone: 'UTC' }),
+      destacada: semana.enCurso,
+    }));
+    dibujarLineas({
+      series, marcas, limites: [], en, conPuntos: true,
+      desde: 0, hasta: Math.max(1, datos.semanas.length - 1),
+      vacio: t('productos.semanasVacio'),
+    });
+  } else if (datos.delDia) {
+    // Eje X: las horas de hoy (desde la primera lectura)
+    const HORA = 60 * 60 * 1000;
+    const tiempos = series.flatMap((serie) => serie.puntos.map(([tiempo]) => tiempo));
+    const primeraHora = tiempos.length ? Math.floor((Math.min(...tiempos) - datos.inicioMs) / HORA) : 0;
+    let ultimaHora = Math.min(24, Math.ceil((datos.ahoraMs - datos.inicioMs) / HORA) + 1);
+    const desdeHora = Math.max(0, Math.min(primeraHora, ultimaHora - 6));
+    ultimaHora = Math.max(ultimaHora, Math.min(24, desdeHora + 6));
+    const anchoAprox = (en.contenedor.clientWidth || 440) - 38;
+    const cadaCuanto = anchoAprox / (ultimaHora - desdeHora) >= 30 ? 1 : 2;
+    const marcas = [];
+    for (let hora = desdeHora; hora <= ultimaHora; hora++) {
+      marcas.push({ x: datos.inicioMs + hora * HORA, texto: (hora - desdeHora) % cadaCuanto === 0 ? `${String(hora % 24).padStart(2, '0')}:00` : '' });
+    }
+    dibujarLineas({
+      series, marcas, limites: [], ahora: datos.ahoraMs, en,
+      desde: datos.inicioMs + desdeHora * HORA, hasta: datos.inicioMs + ultimaHora * HORA,
+      vacio: t('historial.diaVacio'),
+    });
+  } else {
+    // Eje X: los días
+    const largo = datos.dias.length > 7;
+    const marcas = datos.dias.map((dia, j) => {
+      const esHoy = dia === datos.hoy;
+      const desdeHoy = datos.dias.length - 1 - j;
+      const texto = !largo ? (esHoy ? t('historial.hoy') : nombreDelDia(dia))
+        : (esHoy ? t('historial.hoy') : desdeHoy % 5 === 0 && desdeHoy > 2 ? String(Number(dia.slice(8))) : '');
+      return { x: j, texto, destacada: esHoy };
+    });
+    dibujarLineas({
+      series, marcas, limites: [], en, conPuntos: !largo,
+      desde: 0, hasta: datos.dias.length - 1,
+      vacio: t('productos.vacio'),
+    });
+  }
 }
 
 // --- Desglose: barra dividida y lista por producto ---
@@ -914,6 +1211,10 @@ for (const boton of document.querySelectorAll('[data-panel]')) {
   boton.addEventListener('click', () => abrirPanel(boton.dataset.panel));
 }
 document.getElementById('cerrar-panel').addEventListener('click', cerrarPanel);
+// La bienvenida: al cerrarla (con "Entendido" o con la X) queda marcada como vista y no vuelve a salir sola.
+document.getElementById('bienvenida-listo').addEventListener('click', cerrarPanel);
+document.getElementById('cerrar-panel').addEventListener('click', () => window.widget.bienvenidaVista());
+document.getElementById('bienvenida-listo').addEventListener('click', () => window.widget.bienvenidaVista());
 document.addEventListener('keydown', (evento) => {
   if (evento.key === 'Escape') {
     cerrarPanel();
@@ -1105,8 +1406,9 @@ document.querySelector('.tarjeta').addEventListener('animationend', ubicarBarraD
 
 // Cuando cambie el idioma (desde Ajustes), se vuelven a escribir todos los textos al instante.
 function aplicarIdioma(datos) {
+  for (const texto of document.querySelectorAll('.tarjeta .medidor-texto')) texto.title = t('boton.verEnClaude');
   definirIdioma(datos);                       // i18n.js: guarda los textos y reescribe los textos fijos de la página
-  if (panelActual) document.getElementById('panel-titulo').textContent = t(TITULOS_DE_PANEL[panelActual]);
+  if (panelActual) document.getElementById('panel-titulo').textContent = PARTE ? tituloDeLaParte() : t(TITULOS_DE_PANEL[panelActual]);
   if (ultimoEstado && ultimoEstado !== 'conectado') escribirTextosDeSesion(ultimoEstado);
   if (ultimosDatos) mostrarUso(ultimosDatos); // los textos con números y fechas
   refrescarPanel();                           // el panel abierto (nombres de días, proyección...)

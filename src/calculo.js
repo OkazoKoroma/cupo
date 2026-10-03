@@ -96,7 +96,9 @@ function procesarLectura({ estado, historial, semana, ahora, limite, umbralAviso
   // ----- Historial: el uso de cada día, últimos 30 días -----
   const otrosDias = (historial || []).filter((entrada) => entrada.dia !== dia);
   // Se guarda también el límite de ese día, para que el historial siga siendo correcto aunque cambies el límite después.
-  const nuevoHistorial = [...otrosDias, { dia, uso: hoy, limite }]
+  // (se conserva lo demás que ya tenía ese día, como el detalle por producto)
+  const deHoy = (historial || []).find((entrada) => entrada.dia === dia) || {};
+  const nuevoHistorial = [...otrosDias, { ...deHoy, dia, uso: hoy, limite }]
     .sort((a, b) => (a.dia < b.dia ? -1 : 1))
     .slice(-DIAS_DE_HISTORIAL);
 
@@ -124,6 +126,30 @@ function limitesDelDia({ limiteBase, umbralBase, limitesPorDia, ahora }) {
   let umbral = limiteBase > 0 ? (umbralBase * limite) / limiteBase : umbralBase;
   umbral = Math.min(umbral, limite * 0.95); // el aviso siempre es menor que el límite
   return { limite, umbral: Math.round(umbral * 10) / 10 };
+}
+
+// ----- Límite diario automático -----
+// Reparte lo que quedaba de la cuota semanal al empezar el día entre los días que faltan para el reinicio (contando hoy).
+// Así, si ayer usaste poco, hoy te toca más, y al revés. No cambia durante el día.
+//   semanaAlEmpezar → % de la cuota semanal usado cuando empezó el día (0 si la semana empezó hoy)
+//   reinicio        → fecha del reinicio semanal
+// Devuelve el límite de hoy en % (con un decimal; como mínimo 1).
+const DIA_MS = 24 * 60 * 60 * 1000;
+function limiteAutomatico({ semanaAlEmpezar, reinicio, ahora }) {
+  const inicioDelDia = new Date(ahora);
+  inicioDelDia.setHours(0, 0, 0, 0);
+  // Días que faltan, contando hoy (un pedacito de día al final, como "el viernes hasta las 04:00", casi no cuenta).
+  const dias = Math.max(1, Math.round((reinicio.getTime() - inicioDelDia.getTime()) / DIA_MS));
+  const queda = Math.max(0, 100 - semanaAlEmpezar);
+  return Math.max(1, Math.round((queda / dias) * 10) / 10);
+}
+
+// El % de la cuota semanal con que empezó el día, según el estado guardado del día (o la lectura de ahora, si es la primera).
+function semanaAlEmpezarElDia({ estado, semana, inicioSemana, ahora }) {
+  const dia = diaLocal(ahora);
+  if (inicioSemana && diaLocal(inicioSemana) === dia) return 0; // la semana empezó hoy
+  if (estado && estado.dia === dia && Number.isFinite(estado.puntoPartida)) return estado.puntoPartida;
+  return semana;
 }
 
 // Devuelve los últimos "cantidad" días hasta hoy (en hora de Chile), del más antiguo al más reciente.
@@ -309,6 +335,8 @@ function procesarSemana({ estado, semana, reinicio, umbral }) {
 }
 
 module.exports = {
+  limiteAutomatico,
+  semanaAlEmpezarElDia,
   llegadaAlLimiteDeSesion,
   procesarSemana,
   procesarLectura,

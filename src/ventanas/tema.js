@@ -21,6 +21,7 @@ function aplicarApariencia(apariencia) {
   const modo = apariencia.modo || 'normal';
   const horizontal = modo === 'normal' && apariencia.orientacion === 'horizontal';
   document.body.classList.toggle('compacto', modo === 'compacto');
+  document.body.classList.toggle('mini', modo === 'mini');
   document.body.classList.toggle('completo', modo === 'completo');
   document.body.classList.toggle('vista-cuentas', modo === 'cuentas');   // la vista "Cuentas" (todas a la vez, sin la tarjeta)
   document.body.classList.toggle('todas', Boolean(apariencia.todas));   // en vez de la tarjeta se ve la lista con todas las cuentas
@@ -52,6 +53,7 @@ function aplicarExtra(apariencia) {
   // La tarjeta mide lo que mide su vista, aunque la ventana se ensanche para un panel más ancho (como Ajustes).
   // (Va aquí porque el ancho de la vista también cambia sin cambiar de vista: por ejemplo, al aparecer una columna extra.)
   if (apariencia.anchoVista) document.documentElement.style.setProperty('--ancho-vista', `${apariencia.anchoVista}px`);
+  if (apariencia.altoLista) document.documentElement.style.setProperty('--alto-lista', `${apariencia.altoLista}px`);
 }
 
 // Si el tema es "auto" y cambias el tema de Windows, el widget lo sigue al instante.

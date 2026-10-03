@@ -67,7 +67,7 @@ function enviarExportado(cantidad, ruta) {
   );
 }
 
-// Avisa que hay una versión nueva de Cupo. Al hacer clic se abre la página para descargarla.
+// Avisa que hay una versión nueva de Headroom. Al hacer clic se abre la página para descargarla.
 function enviarVersionNueva(version, alHacerClic) {
   mostrar(t('alerta.version.titulo'), t('alerta.version.cuerpo', { version }), { alHacerClic, siempre: true });
 }
@@ -118,4 +118,17 @@ function enviarContexto(porcentaje, chat) {
   mostrar(t('alerta.contexto.titulo'), t('alerta.contexto.cuerpo', { porcentaje: formatear(porcentaje), chat: chat || 'Claude Code' }));
 }
 
-module.exports = { enviarContexto, silenciarHasta, estaSilenciado, enviarVersionNueva, enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };
+// Resumen de ayer: "Ayer usaste 9% de tu cuota (límite: 14%)".
+function enviarResumenDia(uso, limite, cuenta) {
+  const clave = uso > limite ? 'alerta.resumenDia.pasado' : 'alerta.resumenDia.cuerpo';
+  mostrar(conCuenta(t('alerta.resumenDia.titulo'), cuenta), t(clave, { uso: formatear(uso), limite: formatear(limite) }));
+}
+
+// Resumen de la semana que terminó: cuánto usaste y tu día más alto (si se sabe).
+function enviarResumenSemana(semana, diaMasAlto, cuenta) {
+  const cuerpo = t('alerta.resumenSemana.cuerpo', { semana: formatear(semana) }) +
+    (diaMasAlto ? ' ' + t('alerta.resumenSemana.dia', { dia: diaMasAlto.nombre, uso: formatear(diaMasAlto.uso) }) : '');
+  mostrar(conCuenta(t('alerta.resumenSemana.titulo'), cuenta), cuerpo);
+}
+
+module.exports = { enviarResumenDia, enviarResumenSemana, enviarContexto, silenciarHasta, estaSilenciado, enviarVersionNueva, enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };

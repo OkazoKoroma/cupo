@@ -14,7 +14,7 @@ const ESCALA_MAXIMA = 160;
 // Vistas del widget y su orientación (la orientación vale para la vista normal).
 const OPCIONES_FORMATO_REINICIO = ['relativo', 'hora'];
 const OPCIONES_TAMANO_CONTEXTO = ['auto', '200k', '1m'];
-const OPCIONES_MODO = ['normal', 'compacto', 'completo', 'cuentas'];
+const OPCIONES_MODO = ['normal', 'compacto', 'completo', 'cuentas', 'mini'];
 const OPCIONES_ORIENTACION = ['vertical', 'horizontal'];
 
 // Temas de color: oscuro, claro, o automático (sigue el tema de Windows).
@@ -59,7 +59,8 @@ function validar(datos) {
   const atajoGlobal = siNoViene(datos.atajoGlobal, true);
   const buscarActualizaciones = siNoViene(datos.buscarActualizaciones, true);
   const pausarOculto = siNoViene(datos.pausarOculto, true);
-  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones, pausarOculto].some((valor) => typeof valor !== 'boolean')) {
+  const resumenes = siNoViene(datos.resumenes, true);
+  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones, pausarOculto, resumenes].some((valor) => typeof valor !== 'boolean')) {
     return { ok: false, error: t('err.opcion') };
   }
   // Contexto de Claude Code
@@ -148,6 +149,7 @@ function validar(datos) {
       atajoGlobal,
       buscarActualizaciones,
       pausarOculto,
+      resumenes,
       formatoReinicio,
       colores,
       umbralSemana: Math.round(umbralSemana),
@@ -164,6 +166,7 @@ function validar(datos) {
       opacidad: Math.round(opacidad),
       escala: Math.round(escala),
       limitesPorDia,
+      limiteAutomatico: datos.limiteAutomatico === true,
       todasLasCuentas: datos.todasLasCuentas !== false,
       ventanasSeparadas: datos.ventanasSeparadas === true,
     },
@@ -188,7 +191,21 @@ function cambiarArranqueConWindows(activar) {
   app.setLoginItemSettings({ openAtLogin: activar, ...opcionesDeInicio() });
 }
 
+// La app antes se llamaba "Cupo": si quedó activado "arrancar con Windows" apuntando al programa viejo (Cupo.exe),
+// se vuelve a activar con el programa de ahora. Solo en la versión instalada.
+function migrarArranqueDeCupo() {
+  if (!app.isPackaged || process.platform !== 'win32') return;
+  try {
+    const { launchItems = [] } = app.getLoginItemSettings();
+    const vieja = launchItems.find((item) => item.enabled && /[\\/]Cupo\.exe$/i.test(item.path || ''));
+    if (vieja && !arrancaConWindows()) cambiarArranqueConWindows(true);
+  } catch (error) {
+    console.error('No se pudo revisar el arranque con Windows:', error.message);
+  }
+}
+
 module.exports = {
+  migrarArranqueDeCupo,
   OPCIONES_MODO,
   OPCIONES_ORIENTACION,
   ESCALA_MINIMA,

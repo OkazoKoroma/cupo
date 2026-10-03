@@ -584,3 +584,12 @@
 #colores-restablecer {
   margin-left: auto;
 }
+
+/* Una opción que no se usa ahora (por ejemplo, los límites por día con el límite automático) */
+.casilla.apagada {
+  opacity: 0.45;
+}
+
+input:disabled {
+  opacity: 0.5;
+}

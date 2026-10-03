@@ -10,6 +10,22 @@ const panelAjustes = (() => {
   const campoLimite = document.getElementById('limiteDiario');
   const campoAviso = document.getElementById('umbralAviso');
   const campoUsarLimitesPorDia = document.getElementById('usarLimitesPorDia');
+  const campoLimiteAuto = document.getElementById('limiteAutomatico');
+  const ayudaLimiteAuto = document.getElementById('ayuda-limite-auto');
+  let limiteDeHoy = null; // el límite que rige hoy (con el automático, el que calculó Headroom)
+
+  // Con el límite automático, el límite fijo y los límites por día no se usan: se apagan, y la ayuda dice cuánto toca hoy.
+  function mostrarLimiteAuto() {
+    const auto = campoLimiteAuto.checked;
+    campoLimite.disabled = auto;
+    campoUsarLimitesPorDia.disabled = auto;
+    document.getElementById('casilla-limites-por-dia').classList.toggle('apagada', auto);
+    if (auto) mostrarCajitasDeDias(false);
+    else mostrarCajitasDeDias(campoUsarLimitesPorDia.checked);
+    ayudaLimiteAuto.textContent = auto && limiteDeHoy !== null
+      ? t('aj.limiteAuto.hoy', { limite: String(limiteDeHoy).replace('.', ',') })
+      : t('aj.limiteAuto.ayuda');
+  }
   const cajaDias = document.getElementById('dias');
   const filaDias = document.getElementById('dias-fila');
   const campoIntervalo = document.getElementById('intervaloMin');
@@ -20,6 +36,7 @@ const panelAjustes = (() => {
   const campoFormatoReinicio = document.getElementById('formatoReinicio');
   const campoIconoDeColor = document.getElementById('iconoDeColor');
   const campoAtajo = document.getElementById('atajoGlobal');
+  const campoResumenes = document.getElementById('resumenes');
   const campoActualizaciones = document.getElementById('buscarActualizaciones');
   const campoPausarOculto = document.getElementById('pausarOculto');
   const camposDeColor = {
@@ -160,6 +177,7 @@ const panelAjustes = (() => {
     campoFormatoReinicio.value = actuales.formatoReinicio;
     campoIconoDeColor.checked = actuales.iconoDeColor;
     campoAtajo.checked = actuales.atajoGlobal;
+    campoResumenes.checked = actuales.resumenes;
     campoActualizaciones.checked = actuales.buscarActualizaciones;
     campoPausarOculto.checked = actuales.pausarOculto;
     coloresPropios = Boolean(actuales.colores);
@@ -188,6 +206,9 @@ const panelAjustes = (() => {
       campo.value = hayLimitesPorDia ? actuales.limitesPorDia[posicion] : '';
     });
     mostrarCajitasDeDias(hayLimitesPorDia);
+    campoLimiteAuto.checked = actuales.limiteAutomatico;
+    limiteDeHoy = actuales.limiteDeHoy;
+    mostrarLimiteAuto();
 
     decir('', '');
     mensajeExportar.textContent = '';
@@ -201,6 +222,7 @@ const panelAjustes = (() => {
     decir('', '');
   });
 
+  campoLimiteAuto.addEventListener('change', mostrarLimiteAuto);
   campoUsarLimitesPorDia.addEventListener('change', () => {
     mostrarCajitasDeDias(campoUsarLimitesPorDia.checked);
   });
@@ -226,6 +248,7 @@ const panelAjustes = (() => {
       umbralAviso: aNumero(campoAviso.value),
       intervaloMin: Number(campoIntervalo.value),
       limitesPorDia: campoUsarLimitesPorDia.checked ? camposDeDias.map((c) => aNumero(c.value)) : null,
+      limiteAutomatico: campoLimiteAuto.checked,
       alertasSesion: campoAlertasSesion.checked,
       umbralSesion: aNumero(campoUmbralSesion.value),
       alertasSemana: campoAlertasSemana.checked,
@@ -233,6 +256,7 @@ const panelAjustes = (() => {
       formatoReinicio: campoFormatoReinicio.value,
       iconoDeColor: campoIconoDeColor.checked,
       atajoGlobal: campoAtajo.checked,
+      resumenes: campoResumenes.checked,
       buscarActualizaciones: campoActualizaciones.checked,
       pausarOculto: campoPausarOculto.checked,
       colores: coloresPropios

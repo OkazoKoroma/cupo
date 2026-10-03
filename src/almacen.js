@@ -27,6 +27,9 @@ const VALORES_INICIALES = {
   atajoGlobal: true,   // Ctrl + Alt + C muestra u oculta el widget desde cualquier programa
   buscarActualizaciones: true, // revisar en GitHub si hay una versión nueva
   pausarOculto: true,  // no consultar el uso mientras el widget está oculto
+  resumenes: true,     // avisar cuánto usaste ayer (al empezar el día) y en la semana (al reiniciarse)
+  bienvenidaVista: false, // true cuando ya se mostró la bienvenida de la primera vez
+  partes: {},          // las partes sacadas a su propia ventana: { historial: { abierta, posicion }, ... }
   versionAvisada: null, // la última versión nueva de la que ya se avisó (para no avisar dos veces)
   silencioHasta: 0,    // "no molestar": hasta cuándo (ms) los avisos están silenciados
   alertasSemana: true, // avisar cuando la cuota semanal llega a un porcentaje
@@ -48,8 +51,13 @@ const CAMPOS_DE_CUENTA = {
   limiteDiario: 14,    // % de la cuota semanal que quieres usar como máximo por día
   umbralAviso: 10,     // % de uso diario en que llega el aviso previo
   limitesPorDia: null, // null = el mismo límite todos los días; o 7 números [lun ... dom]
+  limiteAutomatico: false, // true = el límite de cada día lo calcula Headroom (lo que queda de la semana / los días que faltan)
   estadoSesion: null,  // estado de la sesión de 5 horas en curso (lo maneja calculo.js)
   estadoSemana: null,  // estado del aviso de la cuota semanal (lo maneja calculo.js)
+  semanaEnCurso: null, // { reinicioMs, semana, productos }: la semana actual, para el resumen y el histórico cuando se reinicia
+  semanasPasadas: [],  // [{ inicio, semana, productos }]: las últimas semanas terminadas (para el histórico de semanas)
+  lecturasDeHoy: null, // { dia, puntos: [{ t, hoy, sesion, productos }] }: cada lectura de hoy, para los gráficos del día
+  nombresDeProductos: {}, // { clave: nombre } de los productos que informa claude.ai (Claude Code, Chats...)
   diario: null,        // estado del día en curso (lo maneja calculo.js)
   historial: [],       // uso de cada día, últimos 30 días: [{ dia: '2026-10-02', uso: 9, limite: 14 }, ...]
 };
