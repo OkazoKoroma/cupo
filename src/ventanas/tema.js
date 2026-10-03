@@ -28,8 +28,6 @@ function aplicarApariencia(apariencia) {
   document.body.classList.toggle('franja', horizontal || modo === 'completo');
   aplicarExtra(apariencia);
   aplicarColores(apariencia.colores);
-  // La tarjeta mide lo que mide su vista, aunque la ventana se ensanche para un panel más ancho (como Ajustes).
-  if (apariencia.anchoVista) document.documentElement.style.setProperty('--ancho-vista', `${apariencia.anchoVista}px`);
 }
 
 // Colores propios (Ajustes): el acento cambia en todo el widget; los de las barras los usa colores.js.
@@ -51,6 +49,9 @@ function aplicarExtra(apariencia) {
   const extra = apariencia.extra || { ancho: 0, alto: 0 };
   document.documentElement.style.setProperty('--extra-alto', `${extra.alto}px`);
   document.body.classList.toggle('redimensionando', Boolean(apariencia.redimensionando));
+  // La tarjeta mide lo que mide su vista, aunque la ventana se ensanche para un panel más ancho (como Ajustes).
+  // (Va aquí porque el ancho de la vista también cambia sin cambiar de vista: por ejemplo, al aparecer una columna extra.)
+  if (apariencia.anchoVista) document.documentElement.style.setProperty('--ancho-vista', `${apariencia.anchoVista}px`);
 }
 
 // Si el tema es "auto" y cambias el tema de Windows, el widget lo sigue al instante.

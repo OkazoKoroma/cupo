@@ -1,6 +1,6 @@
 {
   "name": "widget-uso-claude",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Cupo: widget de escritorio para Windows que muestra el uso de tu plan de Claude y avisa antes de pasarte del límite",
   "author": "Usuario",
   "main": "src/main.js",

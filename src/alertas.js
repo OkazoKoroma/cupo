@@ -113,4 +113,9 @@ function enviarSemana(porcentaje, reinicioTexto, cuenta) {
   );
 }
 
-module.exports = { silenciarHasta, estaSilenciado, enviarVersionNueva, enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };
+// Recuerda compactar el chat de Claude Code que se está llenando.
+function enviarContexto(porcentaje, chat) {
+  mostrar(t('alerta.contexto.titulo'), t('alerta.contexto.cuerpo', { porcentaje: formatear(porcentaje), chat: chat || 'Claude Code' }));
+}
+
+module.exports = { enviarContexto, silenciarHasta, estaSilenciado, enviarVersionNueva, enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };

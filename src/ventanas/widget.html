@@ -80,6 +80,11 @@
                     <span data-i18n="aj.todas">Mostrar todas las cuentas a la vez</span>
                   </label>
                   <p class="campo-ayuda" data-i18n="aj.todas.ayuda">En la vista normal y la compacta, cuando hay más de una cuenta.</p>
+                  <label class="casilla">
+                    <input id="ventanasSeparadas" type="checkbox">
+                    <span data-i18n="aj.separadas">Cada cuenta en su propia ventana</span>
+                  </label>
+                  <p class="campo-ayuda" data-i18n="aj.separadas.ayuda">Cada una se mueve por separado y tiene su propia vista.</p>
                   </section>
                   <section class="ajustes-grupo">
                   <h3 data-i18n="aj.seccion.escala">Escala de la interfaz</h3>
@@ -97,14 +102,6 @@
                     <button type="button" class="boton-chico" data-escala="150">150%</button>
                   </div>
                   <p class="campo-ayuda" data-i18n="aj.escala.ayuda">Agranda o achica todo el widget al instante. También: Ctrl + rueda del mouse, o Ctrl + / Ctrl − (y Ctrl 0 vuelve al 100%).</p>
-                  </section>
-                  <section class="ajustes-grupo">
-                  <h3 data-i18n="aj.seccion.consulta">Consulta</h3>
-                  <label class="campo">
-                    <span class="campo-titulo" data-i18n="aj.intervalo">Consultar el uso cada</span>
-                    <select id="intervaloMin"></select>
-                  </label>
-                  <p class="campo-ayuda" data-i18n="aj.intervalo.ayuda">El mínimo es 5 minutos.</p>
                   </section>
                 </div>
 
@@ -235,6 +232,23 @@
                   </label>
                   </section>
                   <section class="ajustes-grupo">
+                  <h3 data-i18n="aj.seccion.consulta">Consulta</h3>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.intervalo">Consultar el uso cada</span>
+                    <select id="intervaloMin"></select>
+                  </label>
+                  <p class="campo-ayuda" data-i18n="aj.intervalo.ayuda">El mínimo es 5 minutos.</p>
+                  <label class="casilla">
+                    <input id="pausarOculto" type="checkbox">
+                    <span data-i18n="aj.pausarOculto">No consultar mientras el widget está oculto</span>
+                  </label>
+                  <p class="campo-ayuda" data-i18n="aj.pausarOculto.ayuda">Mientras está oculto no hay avisos de uso. Al mostrarlo, se actualiza al instante.</p>
+                  </section>
+                </div>
+
+                <!-- Columna 4: cuota semanal y contexto de Claude Code -->
+                <div class="ajustes-columna">
+                  <section class="ajustes-grupo">
                   <h3 data-i18n="aj.seccion.semana">Cuota semanal</h3>
                   <label class="campo">
                     <span class="campo-titulo" data-i18n="aj.semana.aviso">Avisarme al llegar a</span>
@@ -247,6 +261,33 @@
                     <input id="alertasSemana" type="checkbox">
                     <span data-i18n="aj.semana.activar">Activar el aviso de la semana</span>
                   </label>
+                  </section>
+                  <section class="ajustes-grupo">
+                  <h3 data-i18n="aj.seccion.contexto">Ventana de contexto de Claude Code</h3>
+                  <label class="casilla">
+                    <input id="contextoVisible" type="checkbox">
+                    <span data-i18n="aj.contexto.mostrar">Mostrar el contexto de cada chat</span>
+                  </label>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.contexto.aviso">Avisarme al llegar a</span>
+                    <span class="campo-entrada">
+                      <input id="umbralContexto" type="number" min="10" max="95" step="1" inputmode="numeric">
+                      <span class="unidad">%</span>
+                    </span>
+                  </label>
+                  <label class="casilla">
+                    <input id="avisoContexto" type="checkbox">
+                    <span data-i18n="aj.contexto.activar">Recordarme compactar (y cada 10% más)</span>
+                  </label>
+                  <label class="campo">
+                    <span class="campo-titulo" data-i18n="aj.contexto.tamano">Tamaño del contexto</span>
+                    <select id="tamanoContexto">
+                      <option value="auto" data-i18n="aj.contexto.auto">Automático</option>
+                      <option value="200k">200k</option>
+                      <option value="1m">1M</option>
+                    </select>
+                  </label>
+                  <p class="campo-ayuda" data-i18n="aj.contexto.ayuda">Solo funciona si usas Claude Code en este mismo computador, y solo con una cuenta en Cupo. No ve los chats de claude.ai (en la web o en la app), ni los de otros equipos. Muestra los chats de las últimas 3 horas (hasta 5).</p>
                   </section>
                 </div>
 
@@ -263,9 +304,11 @@
         <!-- Vista de las cuentas: elegir cuál se muestra, renombrar, entrar / salir, agregar y eliminar -->
         <div class="vista-panel" id="vista-cuentas">
           <div class="cuentas-lista" id="cuentas-lista"></div>
+          <h4 class="cuentas-nueva-titulo" data-i18n="cuentas.nuevaTitulo">Agregar otra cuenta de Claude</h4>
+          <p class="nota cuentas-pasos" data-i18n="cuentas.pasos">1. Escribe un nombre para reconocerla (por ejemplo, Trabajo). 2. Pulsa Agregar. 3. Se abre claude.ai: entra con esa cuenta.</p>
           <form class="cuentas-nueva" id="cuentas-nueva" novalidate>
             <input id="cuentas-nombre-nueva" type="text" maxlength="20" autocomplete="off" spellcheck="false">
-            <button type="submit" class="boton-secundario" data-i18n="cuentas.agregar">Agregar</button>
+            <button type="submit" class="boton-primario" data-i18n="cuentas.agregar">Agregar</button>
           </form>
           <p class="nota cuentas-mensaje" id="cuentas-mensaje" role="status"></p>
           <p class="nota" data-i18n="cuentas.ayuda"></p>
@@ -404,6 +447,12 @@
       </div>
 
     </div>
+
+    <!-- Chats de Claude Code: cuánto de su ventana de contexto lleva cada uno (widget.js los dibuja) -->
+    <section class="chats" id="chats" aria-label="Ventana de contexto de Claude Code" data-i18n-aria="chats.titulo">
+      <h3 class="chats-titulo" data-i18n="chats.titulo">Ventana de contexto de Claude Code</h3>
+      <div class="chats-lista" id="chats-lista"></div>
+    </section>
   </div>
 
   <!-- Los bordes y esquinas por donde se estira la ventana (viven en el margen transparente de 3 px que rodea la tarjeta) -->

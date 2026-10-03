@@ -21,6 +21,7 @@ const panelAjustes = (() => {
   const campoIconoDeColor = document.getElementById('iconoDeColor');
   const campoAtajo = document.getElementById('atajoGlobal');
   const campoActualizaciones = document.getElementById('buscarActualizaciones');
+  const campoPausarOculto = document.getElementById('pausarOculto');
   const camposDeColor = {
     acento: document.getElementById('color-acento'),
     verde: document.getElementById('color-verde'),
@@ -33,6 +34,10 @@ const panelAjustes = (() => {
     for (const [clave, campo] of Object.entries(camposDeColor)) campo.value = (colores || COLORES_DE_SIEMPRE)[clave];
   }
   const campoUmbralSemana = document.getElementById('umbralSemana');
+  const campoContextoVisible = document.getElementById('contextoVisible');
+  const campoAvisoContexto = document.getElementById('avisoContexto');
+  const campoUmbralContexto = document.getElementById('umbralContexto');
+  const campoTamanoContexto = document.getElementById('tamanoContexto');
   const campoTema = document.getElementById('tema');
   const campoIdioma = document.getElementById('idioma');
   const campoEscala = document.getElementById('escala');
@@ -42,6 +47,7 @@ const panelAjustes = (() => {
   const campoModo = document.getElementById('modo');
   const campoOrientacion = document.getElementById('orientacion');
   const campoTodas = document.getElementById('todasLasCuentas');
+  const campoSeparadas = document.getElementById('ventanasSeparadas');
   const campoEncima = document.getElementById('siempreEncima');
   const campoArranque = document.getElementById('arrancarConWindows');
   const formulario = document.getElementById('formulario-ajustes');
@@ -155,9 +161,14 @@ const panelAjustes = (() => {
     campoIconoDeColor.checked = actuales.iconoDeColor;
     campoAtajo.checked = actuales.atajoGlobal;
     campoActualizaciones.checked = actuales.buscarActualizaciones;
+    campoPausarOculto.checked = actuales.pausarOculto;
     coloresPropios = Boolean(actuales.colores);
     mostrarColores(actuales.colores);
     campoUmbralSemana.value = actuales.umbralSemana;
+    campoContextoVisible.checked = actuales.contextoVisible;
+    campoAvisoContexto.checked = actuales.avisoContexto;
+    campoUmbralContexto.value = actuales.umbralContexto;
+    campoTamanoContexto.value = actuales.tamanoContexto;
     campoTema.value = actuales.tema;
     campoIdioma.value = actuales.idioma;
     campoOpacidad.value = actuales.opacidad;
@@ -166,6 +177,7 @@ const panelAjustes = (() => {
     campoModo.value = actuales.modo;
     campoOrientacion.value = actuales.orientacion;
     campoTodas.checked = actuales.todasLasCuentas;
+    campoSeparadas.checked = actuales.ventanasSeparadas;
     campoEncima.checked = actuales.siempreEncima;
     campoArranque.checked = actuales.arrancarConWindows;
 
@@ -222,10 +234,15 @@ const panelAjustes = (() => {
       iconoDeColor: campoIconoDeColor.checked,
       atajoGlobal: campoAtajo.checked,
       buscarActualizaciones: campoActualizaciones.checked,
+      pausarOculto: campoPausarOculto.checked,
       colores: coloresPropios
         ? Object.fromEntries(Object.entries(camposDeColor).map(([clave, campo]) => [clave, campo.value]))
         : null,
       umbralSemana: aNumero(campoUmbralSemana.value),
+      contextoVisible: campoContextoVisible.checked,
+      avisoContexto: campoAvisoContexto.checked,
+      umbralContexto: aNumero(campoUmbralContexto.value),
+      tamanoContexto: campoTamanoContexto.value,
       tema: campoTema.value,
       idioma: campoIdioma.value,
       opacidad: Number(campoOpacidad.value),
@@ -233,6 +250,7 @@ const panelAjustes = (() => {
       modo: campoModo.value,
       orientacion: campoOrientacion.value,
       todasLasCuentas: campoTodas.checked,
+      ventanasSeparadas: campoSeparadas.checked,
       siempreEncima: campoEncima.checked,
       arrancarConWindows: campoArranque.checked,
     });

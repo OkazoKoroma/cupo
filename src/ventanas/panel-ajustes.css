@@ -267,13 +267,28 @@
 
 .ajustes-columnas {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 20px;
   align-items: start;
 }
 
 .ajustes-columna {
   min-width: 0;
+}
+
+/* Más angosto (la vista completa): las secciones se reparten en 3 columnas parejas */
+@media (max-width: 900px) {
+  .ajustes-columnas {
+    display: block;
+    column-count: 3;
+    column-gap: 16px;
+  }
+  .ajustes-columna {
+    display: contents;
+  }
+  .ajustes-grupo {
+    break-inside: avoid;
+  }
 }
 
 /* Si por alguna razón no hay ancho suficiente, vuelve a una sola columna */

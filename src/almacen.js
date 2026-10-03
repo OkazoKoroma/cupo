@@ -11,7 +11,7 @@ const { app } = require('electron');
 const VALORES_INICIALES = {
   siempreEncima: true, // la ventana queda por encima de las demás
   posicion: null,      // { x, y } de la ventana; null = aún no se ha movido
-  intervaloMin: 15,    // cada cuántos minutos se consulta el uso
+  intervaloMin: 5,     // cada cuántos minutos se consulta el uso
   tema: 'oscuro',      // 'oscuro', 'claro' o 'auto' (sigue el tema de Windows)
   opacidad: 100,       // cuánto se ve el fondo del widget, de 40 a 100 (menos = más transparente)
   idioma: 'es',        // idioma de la app: 'es', 'en' o 'auto' (el idioma de Windows)
@@ -26,11 +26,17 @@ const VALORES_INICIALES = {
   iconoDeColor: true,  // el ícono de la bandeja cambia de color según el uso de hoy
   atajoGlobal: true,   // Ctrl + Alt + C muestra u oculta el widget desde cualquier programa
   buscarActualizaciones: true, // revisar en GitHub si hay una versión nueva
+  pausarOculto: true,  // no consultar el uso mientras el widget está oculto
   versionAvisada: null, // la última versión nueva de la que ya se avisó (para no avisar dos veces)
   silencioHasta: 0,    // "no molestar": hasta cuándo (ms) los avisos están silenciados
   alertasSemana: true, // avisar cuando la cuota semanal llega a un porcentaje
   umbralSemana: 85,    // % de la cuota semanal en que llega el aviso
+  contextoVisible: true,  // mostrar la barra "Contexto" del chat actual de Claude Code
+  avisoContexto: true,    // recordar compactar el chat al llegar a umbralContexto (y cada 10% más)
+  umbralContexto: 70,     // % del contexto en que llega el aviso
+  tamanoContexto: 'auto', // tamaño de la ventana de contexto: 'auto' (según el modelo), '200k' o '1m'
   todasLasCuentas: true, // en la vista normal y la compacta, mostrar todas las cuentas a la vez (si hay más de una)
+  ventanasSeparadas: false, // cada cuenta en su propia ventana (cada una guarda su posición y su vista en "ventana")
   tamanos: {},         // cuánto estiraste la ventana de cada vista: { 'normal-vertical': { ancho, alto }, ... }
   cuentas: [],         // las cuentas de Claude (ver CAMPOS_DE_CUENTA)
   cuentaActiva: null,  // id de la cuenta que se muestra en la tarjeta

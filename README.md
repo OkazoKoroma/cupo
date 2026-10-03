@@ -4,7 +4,7 @@
 
 [English version](README.en.md)
 
-![Cupo con una cuenta](docs/captura-tarjeta.png)
+![Cupo con una cuenta y la ventana de contexto de Claude Code](docs/captura-tarjeta.png)
 
 > Proyecto **no oficial**. No tiene relación con Anthropic. "Claude" es una marca de Anthropic.
 
@@ -14,8 +14,8 @@ Los planes de Claude (Pro, Max, Team…) tienen límites: una **sesión de 5 hor
 
 Además te ayuda a **repartir tu cuota semanal en el día a día**: tú eliges cuánto quieres usar como máximo por día (por ejemplo 14% de la semana) y Cupo te muestra cuánto llevas hoy y te avisa al acercarte.
 
-- **Una sola cuenta:** ves Hoy, la sesión de 5 horas y la semana de un vistazo, con avisos, historial y proyección.
-- **Varias cuentas** (por ejemplo, la personal y la del trabajo, o cuentas de distintos planes): ves **todas a la vez**, cada una con su plan, sus barras, sus propios límites y su propio historial. Los avisos dicen de qué cuenta son.
+- **Una sola cuenta:** ves Hoy, la sesión de 5 horas y la semana de un vistazo, con avisos, historial y proyección. Si usas Claude Code en ese mismo computador, también ves cuánto de su **ventana de contexto** lleva cada chat.
+- **Varias cuentas** (por ejemplo, la personal y la del trabajo, o cuentas de distintos planes): ves **todas a la vez**, cada una con su plan, sus barras, sus propios límites y su propio historial, juntas en una ventana o **cada una en su propia ventana**. Los avisos dicen de qué cuenta son.
 
 | Varias cuentas a la vez | Panel de cuentas |
 | --- | --- |
@@ -31,24 +31,36 @@ Además te ayuda a **repartir tu cuota semanal en el día a día**: tú eliges c
 - **Plan Max:** además, la ventana semanal de **Fable** (y otros límites por modelo que informe claude.ai). En Pro no aparece.
 - **Uso extra:** si tienes crédito extra activado con tope mensual, lo gastado (por ejemplo US$16 / US$50).
 - **Tipo de plan** de cada cuenta (Pro, Max 5x, Team…).
-- **Historial** de 7 o 30 días con tu promedio diario, **desglose** de la semana por producto (Claude Code, Chats, Cowork…) y **proyección** ("a este ritmo llegarías al límite a las 18:40").
+- **Historial** de 7 o 30 días con tu promedio diario, **desglose** de la semana por producto (Claude Code, Chats, Cowork…) y **proyección** ("a este ritmo llegarías al límite a las 18:40"). Con varias cuentas, los tres muestran todas las cuentas a la vez.
+- **Ventana de contexto de Claude Code:** cuánto de su ventana de contexto lleva cada chat de Claude Code que usaste en las últimas 3 horas (hasta 5), para saber cuándo conviene compactarlo. Ver [más abajo](#ventana-de-contexto-de-claude-code) cuándo funciona.
 - **Ícono junto al reloj** que se pone verde, amarillo o rojo según tu uso de hoy.
 
 ### Avisos (notificaciones de Windows)
 - Al acercarte y al llegar a tu **límite diario**.
 - Sesión de 5 horas: al llegar al porcentaje que elijas, al agotarse, cuando se reinicia y cuando **a este ritmo te quedarías sin sesión** antes del reinicio.
 - **Cuota semanal** alta (85% por defecto), una vez por semana.
+- **Compactar un chat de Claude Code** cuando llega al porcentaje que elijas (70% por defecto), y de nuevo cada 10% más.
 - **No molestar:** silencia los avisos por 1 hora o hasta mañana desde el menú de la bandeja.
 - Aviso cuando hay una **versión nueva** de Cupo.
 
 ### Vistas y aspecto
 - Vista **normal** (vertical u horizontal), **compacta** (una línea), **completa** (todo a la vez: barras, historial, desglose y proyección) y **Cuentas** (todas tus cuentas en filas).
+- **Cada cuenta en su propia ventana** (opcional): cada una se mueve por separado y tiene su propia vista.
 - **Ventana estirable:** arrastra sus bordes para cambiar su forma; las letras no cambian de tamaño (doble clic en un borde para volver al tamaño original).
 - Tema claro, oscuro o automático, transparencia, escala de 70% a 160% y **colores propios** (acento y colores de las barras).
 - **Atajo de teclado** Ctrl + Alt + C para mostrarlo u ocultarlo desde cualquier programa.
 - Exporta el historial a **CSV** (se abre en Excel).
 
-![Vista completa](docs/captura-completo.png)
+![Vista completa con dos cuentas](docs/captura-completo.png)
+
+## Ventana de contexto de Claude Code
+
+Cada chat de Claude Code tiene una "memoria" (la ventana de contexto). Cuando se llena, el chat se resume solo o hay que empezar otro. Cupo muestra cuánto lleva cada chat y te recuerda escribir `/compact` antes de que se llene.
+
+- **Solo funciona con Claude Code usado en ese mismo computador:** Cupo lee los archivos donde Claude Code guarda sus chats (`%USERPROFILE%\.claude\projects`). Solo mira el nombre del chat y cuántos tokens lleva.
+- **No ve los chats de claude.ai** (en la web o en la app), porque claude.ai no informa cuánto contexto lleva cada conversación. Tampoco ve los chats de otros equipos.
+- **Solo aparece con una cuenta en Cupo.** Con varias (que suelen usarse en distintos equipos) no sirve, así que se oculta.
+- Si no usas Claude Code, la sección simplemente no aparece.
 
 ## Idiomas
 
@@ -59,7 +71,9 @@ Español · English · Português (Brasil) · Français · Deutsch, o **automát
 1. Descarga `Instalar-Cupo-x.y.z.exe` desde la sección [Releases](../../releases).
 2. Ábrelo. Se instala solo, sin permisos de administrador.
 3. Windows puede mostrar un aviso azul de **SmartScreen** ("Windows protegió su PC"), porque el instalador no está firmado con un certificado de pago. Pulsa *Más información → Ejecutar de todas formas*. Si no te fías, el código está aquí completo y puedes [compilarlo tú](#compilarlo-tú-mismo).
-4. Pulsa **Iniciar sesión** y entra a claude.ai como siempre. Para agregar otra cuenta: la etiqueta con el nombre de la cuenta (arriba a la izquierda) → **Agregar**.
+4. Pulsa **Iniciar sesión** y entra a claude.ai como siempre.
+
+**Para agregar otra cuenta:** haz clic en la etiqueta con el nombre de la cuenta (arriba a la izquierda), o en el ícono junto al reloj → Cuenta → **Agregar cuenta…**. Escribe un nombre para reconocerla (por ejemplo, Trabajo), pulsa **Agregar** y entra a claude.ai con esa cuenta en la ventana que se abre.
 
 Por ahora solo hay versión para **Windows** (10 y 11).
 
@@ -70,7 +84,8 @@ Anthropic no ofrece una forma oficial de consultar el uso del plan, así que Cup
 - **Tu contraseña nunca pasa por Cupo.** El inicio de sesión ocurre en la página real de claude.ai.
 - Cada cuenta tiene su sesión guardada en tu computador, en un espacio propio. Cupo solo comprueba si existe la cookie de sesión (sí / no); no la lee ni la copia.
 - Los únicos datos que guarda son tus ajustes y el historial de porcentajes de uso por día, en un archivo local (`%APPDATA%\widget-uso-claude\datos.json`).
-- No hay servidores, ni cuentas, ni telemetría. Lo que sale a internet: las consultas a claude.ai y, una vez al día, una consulta a GitHub para saber si hay una versión nueva (se puede apagar en Ajustes).
+- **Consulta cada 5 minutos** por defecto (puedes elegir de 5 a 60; nunca menos de 5, para no molestar a claude.ai). **Mientras el widget está oculto no consulta nada**; al mostrarlo se actualiza al instante (se puede cambiar en Ajustes).
+- No hay servidores, ni cuentas, ni telemetría. Lo que sale a internet: las consultas a claude.ai y, una vez al día, una consulta a GitHub para saber si hay una versión nueva (se puede apagar en Ajustes). La ventana de contexto de Claude Code solo lee archivos de tu computador.
 
 ## Limitaciones honestas
 
@@ -98,6 +113,7 @@ src/uso.js             lectura del uso desde claude.ai  ← lo único que depend
 src/calculo.js         cálculo diario, alertas, proyecciones (sin Electron: fácil de probar)
 src/almacen.js         datos guardados en JSON
 src/actualizaciones.js aviso de versión nueva (GitHub)
+src/contexto.js        ventana de contexto de los chats de Claude Code (archivos locales)
 src/idiomas/           los textos, un archivo por idioma
 src/ventanas/          la pantalla del widget (HTML, CSS y JS)
 ```

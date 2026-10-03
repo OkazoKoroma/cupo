@@ -47,7 +47,8 @@ body.abajo .escena {
 
 .tarjeta,
 .panel-interior,
-.resumen-cuentas {
+.resumen-cuentas,
+.chats {
   box-sizing: border-box;
   position: relative;
   /* El fondo usa --op para ser más o menos transparente; el texto y las barras no se ven afectados. */
@@ -1261,14 +1262,16 @@ body.compacto .extras {
 
 /* ----- La tarjeta mide lo que mide su vista (aunque la ventana se ensanche para Ajustes) ----- */
 .tarjeta,
-.resumen-cuentas {
+.resumen-cuentas,
+.chats {
   width: 100%;
   max-width: var(--ancho-vista, none);
   align-self: flex-start;
 }
 
 body.ancla-derecha .tarjeta,
-body.ancla-derecha .resumen-cuentas {
+body.ancla-derecha .resumen-cuentas,
+body.ancla-derecha .chats {
   align-self: flex-end;
 }
 
@@ -1307,3 +1310,189 @@ body.completo.ajustes-abierto.abajo.panel-abierto .panel,
 body.completo.ajustes-abierto .panel-interior {
   height: calc(250px + var(--extra-alto, 0px) + var(--panel-extra, 0px));
 }
+
+/* ----- Historial, desglose y proyección de varias cuentas a la vez ----- */
+
+/* Leyenda: el color y el nombre de cada cuenta (o de cada producto) */
+.historial-promedio {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 10px;
+}
+
+.leyenda-cuenta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.leyenda-cuenta .punto {
+  width: 8px;
+  height: 8px;
+}
+
+/* En cada día, una columna fina por cuenta, lado a lado */
+.grupo-barras {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.grupo-barras .barra-dia {
+  flex: 1;
+  max-width: 14px;
+  border-radius: 4px 4px 1px 1px;
+}
+
+.grafico.largo .grupo-barras {
+  gap: 1px;
+}
+
+/* Desglose: una fila por cuenta (nombre, barra dividida y su % de la semana) */
+.fila-cuenta {
+  gap: 8px;
+}
+
+.fila-cuenta .nombre-cuenta {
+  flex: 0 0 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.barra-cuenta {
+  flex: 1;
+  height: 10px;
+}
+
+.fila-cuenta .valor-producto {
+  flex: 0 0 38px;
+  text-align: right;
+}
+
+.leyenda-productos {
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  padding-top: 6px;
+}
+
+/* Proyección: una línea por cuenta dentro de cada tarjeta */
+.proyeccion.varias .proyeccion-titulo,
+.proyeccion.varias .proyeccion-detalle {
+  display: none;
+}
+
+.proyeccion.varias .proyeccion-cuentas .proyeccion-titulo {
+  display: block;
+  font-size: 11.5px;
+}
+
+.proyeccion-cuentas {
+  display: grid;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.proyeccion-linea {
+  --tono: #6e6e78;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  padding-left: 7px;
+  border-left: 2px solid var(--tono);
+}
+
+.proyeccion-linea .nombre-cuenta {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--texto-suave);
+}
+
+.proyeccion-linea .proyeccion-titulo {
+  min-width: 0;
+}
+
+/* ----- Chats de Claude Code: una fila por chat con cuánto de su contexto lleva ----- */
+/* (las medidas deben coincidir con CHATS_* en main.js: 8 de separación, 16 de relleno, 18 de título y 22 por fila) */
+.chats {
+  display: none;
+  flex: none;
+  flex-direction: column;
+  height: calc(16px + 18px + 22px * var(--n-chats, 1));
+  margin-top: var(--separacion);
+  padding: 8px 18px;
+  animation: aparecer 0.4s var(--suave) both;
+}
+
+body.con-chats:not(.compacto) .chats {
+  display: flex;
+}
+
+.chats-titulo {
+  height: 18px;
+  margin: 0;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.9px;
+  line-height: 18px;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+.chat-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(46px, 28%) 40px;
+  align-items: center;
+  gap: 8px;
+  height: 22px;
+}
+
+.chat-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--texto);
+}
+
+.chat-fila .barra {
+  margin: 0;
+}
+
+.chat-porcentaje {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* El orden de arriba a abajo: tarjeta, chats, resumen de cuentas y panel (cuando el panel va abajo, o en la vista completa) */
+body.abajo .tarjeta, body.completo .tarjeta { order: 3; }
+body.abajo .chats, body.completo .chats { order: 2; }
+body.abajo .resumen-cuentas, body.completo .resumen-cuentas { order: 1; }
+body.abajo .panel, body.completo .panel { order: 0; }
+
+/* Panel de cuentas: el título y los pasos para agregar otra cuenta */
+.cuentas-nueva-titulo {
+  margin: 12px 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--acento);
+}
+
+.cuentas-pasos {
+  margin: 0 0 6px;
+  white-space: pre-line; /* un paso por línea */
+}
+/* Sin tarjeta (todas las cuentas a la vez), la lista de cuentas ocupa su lugar: arriba de los chats */
+body.abajo.todas .resumen-cuentas { order: 3; }

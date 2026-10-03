@@ -13,6 +13,7 @@ const ESCALA_MAXIMA = 160;
 
 // Vistas del widget y su orientación (la orientación vale para la vista normal).
 const OPCIONES_FORMATO_REINICIO = ['relativo', 'hora'];
+const OPCIONES_TAMANO_CONTEXTO = ['auto', '200k', '1m'];
 const OPCIONES_MODO = ['normal', 'compacto', 'completo', 'cuentas'];
 const OPCIONES_ORIENTACION = ['vertical', 'horizontal'];
 
@@ -57,7 +58,22 @@ function validar(datos) {
   const iconoDeColor = siNoViene(datos.iconoDeColor, true);
   const atajoGlobal = siNoViene(datos.atajoGlobal, true);
   const buscarActualizaciones = siNoViene(datos.buscarActualizaciones, true);
-  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones].some((valor) => typeof valor !== 'boolean')) {
+  const pausarOculto = siNoViene(datos.pausarOculto, true);
+  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones, pausarOculto].some((valor) => typeof valor !== 'boolean')) {
+    return { ok: false, error: t('err.opcion') };
+  }
+  // Contexto de Claude Code
+  const contextoVisible = siNoViene(datos.contextoVisible, true);
+  const avisoContexto = siNoViene(datos.avisoContexto, true);
+  if (typeof contextoVisible !== 'boolean' || typeof avisoContexto !== 'boolean') {
+    return { ok: false, error: t('err.opcion') };
+  }
+  const umbralContexto = Number(siNoViene(datos.umbralContexto, 70));
+  if (!Number.isFinite(umbralContexto) || umbralContexto < 10 || umbralContexto > 95) {
+    return { ok: false, error: t('err.umbralContexto') };
+  }
+  const tamanoContexto = siNoViene(datos.tamanoContexto, 'auto');
+  if (!OPCIONES_TAMANO_CONTEXTO.includes(tamanoContexto)) {
     return { ok: false, error: t('err.opcion') };
   }
   const formatoReinicio = siNoViene(datos.formatoReinicio, 'relativo');
@@ -131,9 +147,14 @@ function validar(datos) {
       iconoDeColor,
       atajoGlobal,
       buscarActualizaciones,
+      pausarOculto,
       formatoReinicio,
       colores,
       umbralSemana: Math.round(umbralSemana),
+      contextoVisible,
+      avisoContexto,
+      umbralContexto: Math.round(umbralContexto),
+      tamanoContexto,
       siempreEncima: datos.siempreEncima,
       arrancarConWindows: datos.arrancarConWindows,
       modo: datos.modo,
@@ -144,6 +165,7 @@ function validar(datos) {
       escala: Math.round(escala),
       limitesPorDia,
       todasLasCuentas: datos.todasLasCuentas !== false,
+      ventanasSeparadas: datos.ventanasSeparadas === true,
     },
   };
 }

@@ -140,6 +140,46 @@ function dibujarLimitesExtra(extras) {
   });
 }
 
+// ----- Chats de Claude Code -----
+// Una fila por chat: su nombre, una barra con cuánto de su ventana de contexto lleva, y el porcentaje.
+// Al pasar el mouse se ven los tokens ("348k / 1M").
+const filasDeChats = new Map(); // sesión del chat → sus elementos
+
+function dibujarChats(chats) {
+  const lista = document.getElementById('chats-lista');
+  document.body.classList.toggle('con-chats', chats.length > 0);
+  document.documentElement.style.setProperty('--n-chats', String(chats.length));
+  for (const [sesion, fila] of filasDeChats) {
+    if (!chats.some((c) => c.sesion === sesion)) {
+      fila.raiz.remove();
+      filasDeChats.delete(sesion);
+    }
+  }
+  chats.forEach((chat, i) => {
+    let fila = filasDeChats.get(chat.sesion);
+    if (!fila) {
+      const raiz = document.createElement('div');
+      raiz.className = 'chat-fila';
+      raiz.innerHTML = `
+        <span class="chat-nombre"></span>
+        <div class="barra"><div class="barra-relleno" id="chat-${i}-${Date.now()}"></div></div>
+        <span class="chat-porcentaje"></span>`;
+      fila = {
+        raiz,
+        nombre: raiz.querySelector('.chat-nombre'),
+        relleno: raiz.querySelector('.barra-relleno'),
+        porcentaje: raiz.querySelector('.chat-porcentaje'),
+      };
+      filasDeChats.set(chat.sesion, fila);
+    }
+    lista.appendChild(fila.raiz); // también deja las filas en el orden nuevo (la más reciente arriba)
+    fila.nombre.textContent = chat.titulo;
+    fila.raiz.title = `${chat.titulo} · ${chat.detalle}`;
+    fila.porcentaje.textContent = `${formatear(chat.porcentaje)}%`;
+    pintarBarra(fila.relleno.id, chat.porcentaje);
+  });
+}
+
 // ----- Datos de uso -----
 
 let ultimosDatos = null; // lo último recibido: { uso, error, prueba, activa, cuentas }
@@ -162,6 +202,7 @@ function mostrarUso(datos) {
   document.body.classList.toggle('prueba', Boolean(prueba));
 
   dibujarLimitesExtra(error || !uso ? null : uso.limitesExtra);
+  dibujarChats(datos.chats || []);
 
   if (error || !uso) {
     // Con error (o mientras carga) las barras quedan vacías y se explica qué pasa.
@@ -176,7 +217,7 @@ function mostrarUso(datos) {
     delete valoresMostrados['hoy-detalle'];
     delete valoresMostrados['semana-porcentaje'];
     delete valoresMostrados['sesion-porcentaje'];
-    refrescarPanel();
+    refrescarPanel(false);
     return;
   }
 
@@ -202,7 +243,7 @@ function mostrarUso(datos) {
     escribirDetalle('sesion-detalle', t('sesion.sinActividad'));
   }
 
-  refrescarPanel();
+  refrescarPanel(false); // datos nuevos: lo que ya está dibujado cambia sin volver a crecer desde cero
 }
 
 // ----- Panel desplegable -----
@@ -224,8 +265,8 @@ const TAMANOS_DE_PANEL = {
   historial: { alto: 222 },
   desglose: { alto: 196 },
   proyeccion: { alto: 196 },
-  ajustes: { alto: 700, ancho: 720 },
-  cuentas: { alto: 250 },
+  ajustes: { alto: 700, ancho: 940, altoCompleto: 900 }, // en la vista completa es más angosto (3 columnas): necesita más alto
+  cuentas: { alto: 350 },
 };
 const DURACION_PANEL_MS = 340; // debe coincidir con --duracion-panel en widget.css
 
@@ -288,7 +329,7 @@ async function abrirPanel(nombre) {
     marcarIconoActivo();
     mostrarVistaDelPanel(nombre);
     // Si el panel necesita más alto que el lugar de los tres paneles (Ajustes sí), la ventana crece hacia abajo.
-    const falta = TAMANOS_DE_PANEL[nombre].alto - ALTO_PANELES_COMPLETO - extraAlto;
+    const falta = (TAMANOS_DE_PANEL[nombre].altoCompleto || TAMANOS_DE_PANEL[nombre].alto) - ALTO_PANELES_COMPLETO - extraAlto;
     if (falta > 0) {
       const { alto } = await window.widget.ajustarVentana(true, falta - SEPARACION_PANEL, 0, true);
       if (panelActual === nombre) ponerAltoExtraCompleto(alto + SEPARACION_PANEL);
@@ -390,10 +431,30 @@ function mostrarVistaDelPanel(nombre) {
 }
 
 // Vuelve a dibujar el contenido del panel abierto (al abrirlo y cada vez que llegan datos nuevos).
-function refrescarPanel() {
+// "animar" = las columnas y los tramos crecen desde cero (al abrir un panel o cambiar de vista).
+// Con datos nuevos (cada pocos minutos, o cuando cambia un chat de Claude Code) se dibujan ya en su tamaño.
+let animarDibujo = true;
+function refrescarPanel(animar = true) {
+  animarDibujo = animar;
   if (panelVisible('historial')) dibujarHistorial();
   if (panelVisible('desglose')) dibujarDesglose();
   if (panelVisible('proyeccion')) dibujarProyeccion();
+}
+
+// Pone cada elemento en su tamaño final: [[elemento, 'height' o 'width', valor], ...].
+// Con "animar", parten en 0 y crecen; si no, quedan directo en su tamaño (sin transición ni retraso).
+function crecer(lista, animar) {
+  if (animar) {
+    despuesDelProximoCuadro(() => {
+      for (const [elemento, propiedad, valor] of lista) elemento.style[propiedad] = valor;
+    });
+    return;
+  }
+  for (const [elemento, propiedad, valor] of lista) {
+    elemento.style.transition = 'none';
+    elemento.style.transitionDelay = '0s';
+    elemento.style[propiedad] = valor;
+  }
 }
 
 // Espera un par de cuadros para que el navegador registre el estado inicial y la transición se anime.
@@ -437,8 +498,170 @@ for (const boton of document.querySelectorAll('[data-dias]')) {
 }
 marcarDiasDelHistorial();
 
+// ----- Varias cuentas a la vez -----
+// Con más de una cuenta (y sin ventanas separadas), el historial, el desglose y la proyección muestran todas las cuentas.
+const variasCuentas = () => Boolean(ultimosDatos && ultimosDatos.resumen && (ultimosDatos.cuentas || []).length >= 2);
+
+// Un color para cada cuenta (por su lugar en la lista), para distinguirlas en el historial.
+const COLORES_DE_CUENTA = ['#e8895f', '#5fa8e8', '#a78bfa', '#2dd4bf', '#f472b6'];
+const colorDeCuenta = (posicion) => COLORES_DE_CUENTA[posicion % COLORES_DE_CUENTA.length];
+
+function crear(etiqueta, clase, texto) {
+  const elemento = document.createElement(etiqueta);
+  if (clase) elemento.className = clase;
+  if (texto !== undefined) elemento.textContent = texto;
+  return elemento;
+}
+
+// Historial de varias cuentas: en cada día, una columna fina por cuenta (con su color); arriba, el promedio de cada una.
+function dibujarHistorialDeVarias(cuentas, hoy, animar = true) {
+  const ALTO_BARRAS = altoDeBarras();
+  const dias = cuentas[0].dias;
+  const largo = dias.length > 7;
+  document.querySelector('#vista-historial .grafico').classList.toggle('largo', largo);
+  document.getElementById('linea-limite').style.display = 'none';
+
+  // Leyenda: el color, el nombre y el promedio de cada cuenta
+  const leyenda = document.getElementById('historial-promedio');
+  leyenda.replaceChildren();
+  cuentas.forEach((cuenta, i) => {
+    const conDato = cuenta.dias.filter((d) => d.uso !== null);
+    const promedio = conDato.length ? conDato.reduce((suma, d) => suma + d.uso, 0) / conDato.length : null;
+    const item = crear('span', 'leyenda-cuenta');
+    const punto = crear('span', 'punto');
+    punto.style.backgroundColor = colorDeCuenta(i);
+    item.append(punto, crear('span', '', promedio === null ? cuenta.nombre : `${cuenta.nombre} ${formatear(Math.round(promedio * 10) / 10)}%`));
+    if (promedio !== null) item.title = t('historial.promedio', { valor: formatear(Math.round(promedio * 10) / 10) });
+    leyenda.appendChild(item);
+  });
+
+  const usoMaximo = Math.max(0, ...cuentas.flatMap((c) => c.dias.map((d) => d.uso || 0)));
+  const limiteMaximo = Math.max(...cuentas.map((c) => c.limiteDiario || 0));
+  const escala = Math.max(limiteMaximo, usoMaximo, 1) * 1.12;
+
+  const contenedor = document.getElementById('columnas');
+  contenedor.innerHTML = '';
+  const barras = [];
+  dias.forEach(({ dia }, posicion) => {
+    const columna = crear('div', 'columna');
+    const grupo = crear('div', 'grupo-barras');
+    cuentas.forEach((cuenta, i) => {
+      const { uso } = cuenta.dias[posicion];
+      const barra = crear('div', 'barra-dia');
+      barra.title = `${cuenta.nombre} · ${dia}: ${uso === null ? '—' : formatear(uso) + '%'}`;
+      if (uso === null) {
+        barra.classList.add('sin-dato');
+      } else {
+        barra.style.setProperty('--c', colorDeCuenta(i));
+        barra.style.transitionDelay = `${posicion * 50}ms`;
+        barras.push({ barra, alto: (uso / escala) * ALTO_BARRAS });
+      }
+      grupo.appendChild(barra);
+    });
+    const etiqueta = crear('span', dia === hoy ? 'nombre-dia hoy' : 'nombre-dia');
+    if (!largo) {
+      etiqueta.textContent = dia === hoy ? t('historial.hoy') : nombreDelDia(dia);
+    } else {
+      const desdeHoy = dias.length - 1 - posicion;
+      etiqueta.textContent = dia === hoy ? '•' : (desdeHoy % 5 === 0 ? String(Number(dia.slice(8))) : '');
+    }
+    columna.append(crear('span', 'valor-dia'), grupo, etiqueta);
+    contenedor.appendChild(columna);
+  });
+  crecer(barras.map(({ barra, alto }) => [barra, 'height', `${alto}px`]), animar);
+}
+
+// Desglose de varias cuentas: una barra dividida por cuenta y, abajo, qué color es cada producto.
+function dibujarDesgloseDeVarias(cuentas) {
+  const animar = animarDibujo;
+  const barraTotal = document.getElementById('barra-total');
+  const lista = document.getElementById('lista-desglose');
+  barraTotal.innerHTML = '';
+  lista.innerHTML = '';
+  barraTotal.style.display = 'none';
+  document.getElementById('nota-desglose').textContent = t('desglose.notaVarias');
+
+  const productosVistos = new Map(); // clave → { nombre, color }
+  const tramos = [];
+  for (const cuenta of cuentas) {
+    const fila = crear('li', 'fila fila-cuenta');
+    const nombre = crear('span', 'nombre-cuenta', cuenta.nombre);
+    const barra = crear('div', 'barra-total barra-cuenta');
+    if (cuenta.desglose && cuenta.uso) {
+      const productos = [...cuenta.desglose].sort((a, b) => b.porcentaje - a.porcentaje);
+      productos.forEach((producto, posicion) => {
+        const color = COLORES_POR_PRODUCTO[producto.clave] || COLORES_DE_REPUESTO[posicion % COLORES_DE_REPUESTO.length];
+        if (!productosVistos.has(producto.clave)) productosVistos.set(producto.clave, { nombre: nombreDeProducto(producto), color });
+        if (producto.porcentaje <= 0) return;
+        const tramo = crear('div', 'tramo');
+        tramo.style.backgroundColor = color;
+        tramo.title = `${nombreDeProducto(producto)}: ${formatear(producto.porcentaje)}%`;
+        barra.appendChild(tramo);
+        tramos.push({ tramo, ancho: producto.porcentaje });
+      });
+    }
+    const semana = crear('span', 'valor-producto', cuenta.uso ? `${formatear(cuenta.uso.semana)}%` : '—');
+    semana.title = t('semana.etiqueta');
+    fila.append(nombre, barra, semana);
+    lista.appendChild(fila);
+  }
+  // Qué es cada color
+  const leyenda = crear('li', 'fila leyenda-productos');
+  for (const { nombre, color } of productosVistos.values()) {
+    const item = crear('span', 'leyenda-cuenta');
+    const punto = crear('span', 'punto');
+    punto.style.backgroundColor = color;
+    item.append(punto, crear('span', '', nombre));
+    leyenda.appendChild(item);
+  }
+  lista.appendChild(leyenda);
+  crecer(tramos.map(({ tramo, ancho }) => [tramo, 'width', `${ancho}%`]), animar);
+}
+
+// Proyección de varias cuentas: en cada tarjeta (Hoy y Semana), una línea por cuenta con su color.
+function dibujarProyeccionDeVarias(cuentas) {
+  for (const clave of ['hoy', 'semana']) {
+    const tarjeta = document.getElementById(`proyeccion-${clave}`);
+    tarjeta.classList.add('varias');
+    tarjeta.style.setProperty('--tono', 'var(--linea)');
+    let lineas = tarjeta.querySelector('.proyeccion-cuentas');
+    if (!lineas) {
+      lineas = crear('div', 'proyeccion-cuentas');
+      tarjeta.appendChild(lineas);
+    }
+    lineas.replaceChildren();
+    for (const cuenta of cuentas) {
+      const p = cuenta.proyeccion;
+      const textos = !p
+        ? { titulo: t('proy.sinDatos'), detalle: t('proy.sinDatos.detalle'), tono: '#6e6e78' }
+        : clave === 'hoy' ? textosDeLaProyeccionDiaria(p.diaria) : textosDeLaProyeccionSemanal(p.semanal, cuenta.reinicioTexto);
+      const linea = crear('div', 'proyeccion-linea');
+      linea.style.setProperty('--tono', textos.tono);
+      linea.title = textos.detalle;
+      linea.append(crear('span', 'nombre-cuenta', cuenta.nombre), crear('span', 'proyeccion-titulo', textos.titulo));
+      lineas.appendChild(linea);
+    }
+  }
+}
+
+// Vuelve los paneles a mostrar una sola cuenta (deshace lo de varias cuentas).
+function volverAUnaCuenta() {
+  document.getElementById('barra-total').style.display = '';
+  for (const tarjeta of document.querySelectorAll('.proyeccion.varias')) {
+    tarjeta.classList.remove('varias');
+    const lineas = tarjeta.querySelector('.proyeccion-cuentas');
+    if (lineas) lineas.remove();
+  }
+}
+
 async function dibujarHistorial() {
-  const { dias, limiteDiario, hoy } = await window.widget.obtenerHistorial(diasDelHistorial);
+  const animar = animarDibujo;
+  const respuesta = await window.widget.obtenerHistorial(diasDelHistorial);
+  if (variasCuentas() && Array.isArray(respuesta.cuentas) && respuesta.cuentas.length >= 2) {
+    if (panelVisible('historial')) dibujarHistorialDeVarias(respuesta.cuentas, respuesta.hoy, animar);
+    return;
+  }
+  const { dias, limiteDiario, hoy } = respuesta;
   const ALTO_BARRAS = altoDeBarras();
   const largo = dias.length > 7;           // 30 días: columnas finas, sin el número encima, y solo algunas fechas
   document.querySelector('#vista-historial .grafico').classList.toggle('largo', largo);
@@ -446,6 +669,7 @@ async function dibujarHistorial() {
   // Promedio de los días con registro
   const conDato = dias.filter((d) => d.uso !== null);
   const promedio = conDato.length ? conDato.reduce((suma, d) => suma + d.uso, 0) / conDato.length : null;
+  document.getElementById('historial-promedio').replaceChildren();
   document.getElementById('historial-promedio').textContent = promedio === null
     ? ''
     : t('historial.promedio', { valor: formatear(Math.round(promedio * 10) / 10) });
@@ -518,9 +742,7 @@ async function dibujarHistorial() {
   });
 
   // Las columnas parten en 0 y "crecen" hasta su alto.
-  despuesDelProximoCuadro(() => {
-    for (const { barra, alto } of barras) barra.style.height = `${alto}px`;
-  });
+  crecer(barras.map(({ barra, alto }) => [barra, 'height', `${alto}px`]), animar);
 }
 
 // --- Desglose: barra dividida y lista por producto ---
@@ -542,9 +764,12 @@ function nombreDeProducto(producto) {
 }
 
 function dibujarDesglose() {
+  const animar = animarDibujo;
   const barra = document.getElementById('barra-total');
   const lista = document.getElementById('lista-desglose');
   const nota = document.getElementById('nota-desglose');
+  if (variasCuentas()) return dibujarDesgloseDeVarias(ultimosDatos.cuentas);
+  volverAUnaCuenta();
   barra.innerHTML = '';
   lista.innerHTML = '';
 
@@ -595,9 +820,7 @@ function dibujarDesglose() {
   });
 
   // Los tramos parten con ancho 0 y se abren hasta su tamaño.
-  despuesDelProximoCuadro(() => {
-    for (const { tramo, ancho } of tramos) tramo.style.width = `${ancho}%`;
-  });
+  crecer(tramos.map(({ tramo, ancho }) => [tramo, 'width', `${ancho}%`]), animar);
 }
 
 // --- Proyección: "a este ritmo..." ---
@@ -632,6 +855,8 @@ function textosDeLaProyeccionSemanal(p, reinicioTexto) {
 }
 
 function dibujarProyeccion() {
+  if (variasCuentas()) return dibujarProyeccionDeVarias(ultimosDatos.cuentas);
+  volverAUnaCuenta();
   const uso = ultimosDatos && ultimosDatos.uso;
   const proyeccion = uso && uso.proyeccion;
 
@@ -827,8 +1052,12 @@ window.widget.alPedirCerrarPanel(() => {
   cerrarPanel();
 });
 // Cuando el menú de la bandeja pida un panel (Historial, Desglose o Proyección), lo desplegamos.
-window.widget.alPedirPanel((nombre) => {
-  if (panelActual !== nombre) abrirPanel(nombre);
+// "agregar-cuenta" (menú de la bandeja → Agregar cuenta…) abre el panel de cuentas con el cursor listo en el nombre nuevo.
+window.widget.alPedirPanel(async (nombre) => {
+  const agregar = nombre === 'agregar-cuenta';
+  if (agregar) nombre = 'cuentas';
+  if (panelActual !== nombre) await abrirPanel(nombre);
+  if (agregar) setTimeout(() => document.getElementById('cuentas-nombre-nueva').focus(), 350);
 });
 
 // Los bordes y esquinas de la ventana: arrastrarlos la estira (la app mira dónde está el mouse). Doble clic: tamaño de siempre.

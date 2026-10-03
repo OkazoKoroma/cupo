@@ -14,6 +14,7 @@ const alertas = require('./alertas');
 const ajustes = require('./ajustes');
 const exportar = require('./exportar');
 const actualizaciones = require('./actualizaciones');
+const contexto = require('./contexto');
 const { rutaDeAsset } = require('./rutas');
 
 // Modo de prueba: se activa abriendo la app con "--prueba" (ver "Abrir widget (modo prueba).bat").
@@ -44,8 +45,7 @@ const MEDIDAS_DE_VISTA = {
 let escalaActual = 1;
 const px = (valor) => Math.round(valor * escalaActual);
 // El ancho de la ventana: el de la vista, o el que pide el panel abierto si es más ancho (Ajustes lo es).
-const anchoDeVista = () => px(medidasDeVista().ancho + 2 * MARGEN);
-const ancho = () => px(Math.max(medidasDeVista().ancho + 2 * MARGEN, expansion.anchoPanel));
+const ancho = (w) => px(Math.max(medidasDeVista(w).ancho + 2 * MARGEN, w.expansion.anchoPanel));
 const margen = () => px(MARGEN);
 
 // Los íconos de la tarjeta despliegan un panel (historial, desglose, proyección o ajustes) que hace
@@ -61,24 +61,49 @@ const PANEL_SEPARACION = 8;
 const ZONA_HORARIA = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 // Nunca se consulta más seguido que esto (para no molestar a claude.ai).
-// El intervalo normal lo eliges tú en Ajustes (por defecto 15 minutos).
+// El intervalo normal lo eliges tú en Ajustes (por defecto 5 minutos).
 const MINIMO_ENTRE_CONSULTAS_MS = 5 * 60 * 1000;
+// Si la última lectura falló, se reintenta a los 5 minutos (o antes, si tu intervalo es más corto).
+const REINTENTO_TRAS_ERROR_MS = 5 * 60 * 1000;
 
-// Guardamos estas cosas en variables para usarlas desde varias funciones.
-let ventana = null;
 let bandeja = null;
 
-// Cuánto ha crecido la ventana por el panel desplegable, y hacia dónde (arriba o abajo).
-// "extra" es lo que creció (ya multiplicado por la escala) y "alto" es el alto del panel en píxeles sin escalar.
-// "anchoPanel" es el ancho que pidió el panel abierto (0 = el panel no pide más ancho que la vista) y "anclaDerecha"
-// dice si, al ensancharse, la ventana crece hacia la izquierda (quedando quieto su borde derecho).
-const expansion = { extra: 0, alto: 0, anchoPanel: 0, anclaDerecha: false, haciaArriba: true };
+// ----- Las ventanas del widget -----
+// Normalmente hay una sola ventana: la "principal", que muestra la cuenta elegida (o todas a la vez).
+// Con "cada cuenta en su propia ventana" (Ajustes), cada una de las demás cuentas tiene además su propia ventana,
+// que se mueve por su cuenta y tiene su propia vista. Cada ventana guarda su estado en un objeto "w":
+//   cuentaId   → la cuenta que muestra (null en la principal: la cuenta elegida)
+//   ventana    → la ventana de Electron
+//   vista      → modo ('normal', 'compacto', 'completo' o 'cuentas') y orientación ('vertical' u 'horizontal')
+//   expansion  → cuánto ha crecido la ventana por el panel desplegable, y hacia dónde (arriba o abajo).
+//                "extra" es lo que creció (ya multiplicado por la escala) y "alto" es el alto del panel en píxeles sin escalar.
+//                "anchoPanel" es el ancho que pidió el panel abierto (0 = no pide más ancho que la vista) y "anclaDerecha"
+//                dice si, al ensancharse, la ventana crece hacia la izquierda (quedando quieto su borde derecho).
+//   redimension → datos del arrastre de un borde, mientras estiras la ventana (null si no)
+//   cambiandoDeVista → evita que un segundo clic interrumpa la animación de cambio de vista
+//   limitesExtra → cuántas barras extra (Fable, Contexto...) tiene la tarjeta
+function nuevoWidget(cuentaId, vista = { modo: 'normal', orientacion: 'vertical' }) {
+  return {
+    cuentaId,
+    ventana: null,
+    vista,
+    expansion: { extra: 0, alto: 0, anchoPanel: 0, anclaDerecha: false, haciaArriba: true },
+    redimension: null,
+    cambiandoDeVista: false,
+    limitesExtra: 0,
+  };
+}
+const principal = nuevoWidget(null);
+const secundarias = new Map(); // id de la cuenta → su ventana propia
+const todasLasVentanas = () => [principal, ...secundarias.values()];
+const estaViva = (w) => Boolean(w.ventana && !w.ventana.isDestroyed());
+// La cuenta que muestra una ventana.
+const cuentaDe = (w) => w.cuentaId || cuentaActivaId();
+// La ventana desde la que llegó un mensaje de una pantalla.
+const ventanaDelEvento = (evento) => todasLasVentanas().find((w) => estaViva(w) && w.ventana.webContents === evento.sender) || principal;
+let ventanasSeparadas = false; // ajuste: cada cuenta en su propia ventana
 
-// La vista actual: modo ('normal', 'compacto', 'completo' o 'cuentas') y orientación ('vertical' u 'horizontal', para el modo normal).
-// Se lee de los ajustes al arrancar y se mantiene al día aquí.
-let vistaActual = { modo: 'normal', orientacion: 'vertical' };
-
-function claveDeVista(vista = vistaActual) {
+function claveDeVista(vista) {
   return vista.modo === 'normal' ? 'normal-' + vista.orientacion : vista.modo;
 }
 
@@ -95,7 +120,6 @@ let verTodasLasCuentas = true; // ajuste: en la vista normal y la compacta, most
 // Los límites extra (por ejemplo Fable) de la cuenta que se muestra: cada uno es una barra más en la tarjeta.
 const ALTO_POR_LIMITE_EXTRA = 38;   // vista vertical (debe coincidir con widget.css)
 const ANCHO_POR_LIMITE_EXTRA = 110; // vista horizontal
-let limitesExtraActivos = 0;
 
 const LISTA_CABECERA = 24; // el título con sus botones
 const LISTA_BLOQUE = 84;   // una cuenta con sus tres barras una bajo la otra (vista normal vertical)
@@ -105,8 +129,70 @@ const ANCHO_COLUMNA_EXTRA_LISTA = 183; // cada límite extra: una columna más e
 
 // Los límites extra (por modelo) de una cuenta, según lo último leído.
 function limitesExtraDe(id) {
-  const lista = lecturaDe(id).uso && lecturaDe(id).uso.limitesExtra;
-  return Array.isArray(lista) ? lista : [];
+  const uso = lecturaDe(id).uso;
+  return uso && Array.isArray(uso.limitesExtra) ? uso.limitesExtra : [];
+}
+
+// ----- Chats de Claude Code: cuánto de su ventana de contexto lleva cada uno -----
+// Es solo para Claude Code usado en este mismo computador (sus chats quedan guardados aquí); los chats de claude.ai
+// no informan su contexto. Solo se muestra con una cuenta: con varias (que suelen usarse en distintos equipos) no sirve.
+
+let chatsActuales = []; // [{ sesion, titulo, tokens, tamano, porcentaje }], del más reciente al más antiguo
+const avisosDeChats = new Map(); // sesión del chat → estado de su aviso (ver contexto.tocaAvisar)
+
+// Medidas de la sección "Chats de Claude Code" (deben coincidir con .chats en widget.css)
+const CHATS_SEPARACION = 8;
+const CHATS_RELLENO = 16;
+const CHATS_CABECERA = 18;
+const CHATS_FILA = 22;
+
+// El alto que suma la sección de chats a una ventana: solo en la principal y no en la vista compacta.
+function altoDeChats(w, vista = w.vista) {
+  if (w !== principal || vista.modo === 'compacto' || chatsActuales.length === 0) return 0;
+  return CHATS_SEPARACION + CHATS_RELLENO + CHATS_CABECERA + CHATS_FILA * chatsActuales.length;
+}
+
+// "108k / 1M"
+function textoDeTokens(tokens) {
+  if (tokens >= 1000000) return `${Math.round(tokens / 100000) / 10}M`.replace('.', idiomas.locale().startsWith('en') ? '.' : ',');
+  return `${Math.round(tokens / 1000)}k`;
+}
+
+function chatsParaLaPantalla() {
+  return chatsActuales.map((chat) => ({
+    sesion: chat.sesion,
+    titulo: chat.titulo || t('chats.sinNombre'),
+    porcentaje: chat.porcentaje,
+    detalle: `${textoDeTokens(chat.tokens)} / ${textoDeTokens(chat.tamano)}`,
+  }));
+}
+
+// Mira los chats de Claude Code (es leer archivos locales: barato). Avisa si toca y, si algo cambió, redibuja.
+function revisarContexto() {
+  const config = almacen.leer();
+  let chats = [];
+  if ((config.contextoVisible || config.avisoContexto) && totalDeCuentas === 1) {
+    try {
+      chats = contexto.leerChats({ tamano: config.tamanoContexto });
+    } catch (error) {
+      console.error('No se pudo leer el contexto de Claude Code:', error.message);
+    }
+  }
+  if (config.avisoContexto) {
+    for (const chat of chats) {
+      if (!avisosDeChats.has(chat.sesion)) avisosDeChats.set(chat.sesion, { sesion: null, avisadoHasta: null });
+      if (contexto.tocaAvisar(avisosDeChats.get(chat.sesion), chat, config.umbralContexto)) {
+        alertas.enviarContexto(chat.porcentaje, chat.titulo);
+      }
+    }
+  }
+  const mostrar = config.contextoVisible ? chats : [];
+  const firma = (lista) => lista.map((d) => [d.sesion, d.titulo, d.tokens, d.tamano].join('|')).join('/');
+  if (firma(mostrar) === firma(chatsActuales)) return;
+  const otraCantidad = mostrar.length !== chatsActuales.length;
+  chatsActuales = mostrar;
+  if (otraCantidad) reajustarLaVentana(principal);
+  enviarUso();
 }
 
 // La mayor cantidad de límites extra que tiene una sola cuenta.
@@ -129,54 +215,64 @@ function alturaDeLosBloques() {
   }, 0);
 }
 
-function todasALaVez(vista = vistaActual) {
+// ¿Esa ventana muestra todas las cuentas a la vez (una lista) en vez de la tarjeta de una sola?
+// Con cada cuenta en su propia ventana, solo en la vista "Cuentas".
+function todasALaVez(w, vista = w.vista) {
   if (vista.modo === 'cuentas') return true;
-  if (vista.modo === 'completo') return false;
+  if (vista.modo === 'completo' || ventanasSeparadas) return false;
   return totalDeCuentas >= 2 && verTodasLasCuentas;
 }
 
+// ¿La vista completa lleva el resumen con una fila por cuenta? (Con cada cuenta en su ventana, no hace falta.)
+const hayResumenDeCuentas = () => totalDeCuentas >= 2 && !ventanasSeparadas;
+
 function altoDelResumen() {
-  return totalDeCuentas >= 2 ? RESUMEN_SEPARACION + RESUMEN_RELLENO + RESUMEN_FILA * totalDeCuentas : 0;
+  return hayResumenDeCuentas() ? RESUMEN_SEPARACION + RESUMEN_RELLENO + RESUMEN_FILA * totalDeCuentas : 0;
 }
 
 // Lo que el usuario estiró la ventana de cada vista (en píxeles sin escala), por vista: { ancho, alto }.
 // Se guarda en los datos de la app ("tamanos"). La ventana nunca es más chica que la medida base de su vista.
 let tamanosGuardados = {};
-const claveDeTamano = (vista = vistaActual) => claveDeVista(vista) + (todasALaVez(vista) ? '-todas' : '');
+const claveDeTamano = (w, vista = w.vista) => claveDeVista(vista) + (todasALaVez(w, vista) ? '-todas' : '');
 
 // ¿Se puede estirar esa vista a lo alto? Solo a lo ancho en la compacta y en las listas de cuentas (su alto depende de las cuentas).
-const permiteAlto = (vista = vistaActual) => vista.modo !== 'compacto' && !todasALaVez(vista);
+const permiteAlto = (w, vista = w.vista) => vista.modo !== 'compacto' && !todasALaVez(w, vista);
 
-function extrasDeVista(vista = vistaActual) {
-  const guardado = tamanosGuardados[claveDeTamano(vista)] || {};
+function extrasDeVista(w, vista = w.vista) {
+  const guardado = tamanosGuardados[claveDeTamano(w, vista)] || {};
   return {
     ancho: Math.max(0, Math.round(guardado.ancho || 0)),
-    alto: permiteAlto(vista) ? Math.max(0, Math.round(guardado.alto || 0)) : 0,
+    alto: permiteAlto(w, vista) ? Math.max(0, Math.round(guardado.alto || 0)) : 0,
   };
 }
 
 // Las medidas de una vista, con lo que el usuario la estiró.
-function medidasDeVista(vista = vistaActual) {
-  const base = medidasBase(vista);
-  const extras = extrasDeVista(vista);
+function medidasDeVista(w, vista = w.vista) {
+  const base = medidasBase(w, vista);
+  const extras = extrasDeVista(w, vista);
   return { ancho: base.ancho + extras.ancho, alto: base.alto + extras.alto };
 }
 
 // Las medidas de una vista sin estirar.
-function medidasBase(vista = vistaActual) {
+function medidasBase(w, vista = w.vista) {
+  const medidas = medidasSinChats(w, vista);
+  return { ...medidas, alto: medidas.alto + altoDeChats(w, vista) };
+}
+
+function medidasSinChats(w, vista) {
   const base = MEDIDAS_DE_VISTA[claveDeVista(vista)];
   // La vista completa: más alta con el resumen de cuentas, y más ancha si alguna cuenta tiene límites extra (una columna por cada uno).
   if (vista.modo === 'completo') {
-    const columnasExtra = totalDeCuentas >= 2 ? maximoDeLimitesExtra() : 0;
+    const columnasExtra = hayResumenDeCuentas() ? maximoDeLimitesExtra() : 0;
     return { ancho: base.ancho + ANCHO_COLUMNA_EXTRA_LISTA * columnasExtra, alto: base.alto + altoDelResumen() };
   }
   // Cada límite extra (por ejemplo Fable) es una barra más: en la vista vertical la tarjeta crece a lo alto, y en la horizontal a lo ancho.
-  if (!todasALaVez(vista) && vista.modo === 'normal') {
+  if (!todasALaVez(w, vista) && vista.modo === 'normal') {
     return vista.orientacion === 'vertical'
-      ? { ...base, alto: base.alto + ALTO_POR_LIMITE_EXTRA * limitesExtraActivos }
-      : { ...base, ancho: base.ancho + ANCHO_POR_LIMITE_EXTRA * limitesExtraActivos };
+      ? { ...base, alto: base.alto + ALTO_POR_LIMITE_EXTRA * w.limitesExtra }
+      : { ...base, ancho: base.ancho + ANCHO_POR_LIMITE_EXTRA * w.limitesExtra };
   }
-  if (todasALaVez(vista)) {
+  if (todasALaVez(w, vista)) {
     const cabecera = RESUMEN_RELLENO + LISTA_CABECERA;
     if (vista.modo === 'compacto') return { ancho: 300, alto: cabecera + RESUMEN_FILA * totalDeCuentas };
     if (vista.modo === 'normal' && vista.orientacion === 'vertical') return { ancho: 300, alto: cabecera + alturaDeLosBloques() };
@@ -187,8 +283,8 @@ function medidasBase(vista = vistaActual) {
 }
 
 // Alto de la ventana sin el panel desplegable, según la vista.
-function altoBase() {
-  return px(medidasDeVista().alto + 2 * MARGEN);
+function altoBase(w) {
+  return px(medidasDeVista(w).alto + 2 * MARGEN);
 }
 
 // Estado de la lectura del uso (general).
@@ -238,8 +334,9 @@ const simulacion = {
 // Calcula dónde poner la ventana al abrir.
 // - Si hay una posición guardada Y ese lugar todavía cae dentro de algún monitor conectado, la usa.
 // - Si no (primera vez, o el monitor ya no está), la pone en la esquina inferior derecha del monitor principal.
-function calcularPosicionInicial() {
-  const guardada = almacen.leer().posicion;
+// - Una ventana propia de una cuenta que se abre por primera vez aparece a la izquierda de la principal.
+function calcularPosicionInicial(w) {
+  const guardada = guardadoDeVentana(w).posicion;
 
   if (guardada) {
     const cabeEnAlgunMonitor = screen.getAllDisplays().some((monitor) => {
@@ -248,18 +345,42 @@ function calcularPosicionInicial() {
       return (
         guardada.x >= area.x - margen() &&
         guardada.y >= area.y - margen() &&
-        guardada.x + ancho() <= area.x + area.width + margen() &&
-        guardada.y + altoBase() <= area.y + area.height + margen()
+        guardada.x + ancho(w) <= area.x + area.width + margen() &&
+        guardada.y + altoBase(w) <= area.y + area.height + margen()
       );
     });
     if (cabeEnAlgunMonitor) return guardada;
   }
 
+  if (w !== principal && estaViva(principal)) {
+    const junto = principal.ventana.getBounds();
+    const area = screen.getDisplayMatching(junto).workArea;
+    const yaHay = [...secundarias.values()].filter((otra) => otra !== w && estaViva(otra)).length;
+    return {
+      x: Math.max(area.x, junto.x - (ancho(w) + 12) * (yaHay + 1)),
+      y: Math.max(area.y, Math.min(junto.y + junto.height - altoBase(w), area.y + area.height - altoBase(w))),
+    };
+  }
+
   const area = screen.getPrimaryDisplay().workArea;
   return {
-    x: area.x + area.width - ancho() - 12,
-    y: area.y + area.height - altoBase() - 12,
+    x: area.x + area.width - ancho(w) - 12,
+    y: area.y + area.height - altoBase(w) - 12,
   };
+}
+
+// Lo guardado de cada ventana (posición y vista): el de la principal va en los ajustes generales; el de la ventana
+// propia de una cuenta, dentro de esa cuenta ("ventana").
+function guardadoDeVentana(w) {
+  if (w === principal) return almacen.leer();
+  const cuenta = almacen.cuenta(w.cuentaId);
+  return (cuenta && cuenta.ventana) || {};
+}
+
+function guardarDeVentana(w, cambios) {
+  if (w === principal) return almacen.guardar(cambios);
+  if (!almacen.cuenta(w.cuentaId)) return;
+  almacen.guardarCuenta(w.cuentaId, { ventana: { ...guardadoDeVentana(w), ...cambios } });
 }
 
 // Hace crecer la ventana para el panel desplegable (abierto = true, con el alto y el ancho que pide ese panel)
@@ -273,54 +394,54 @@ function calcularPosicionInicial() {
 // (izquierdo o derecho) más cercano al borde de la pantalla.
 // Devuelve hacia dónde creció, para que la pantalla ponga el panel del lado correcto.
 // "preferirAbajo": crecer hacia abajo si cabe (lo usa la vista completa, que tiene la tarjeta arriba).
-function ajustarVentanaAlPanel(abierto, altoPanel, anchoPanel, preferirAbajo = false) {
+function ajustarVentanaAlPanel(w, abierto, altoPanel, anchoPanel, preferirAbajo = false) {
   const altoPedido = Number.isFinite(altoPanel) ? altoPanel : PANEL_ALTO_NORMAL;
-  const actual = ventana.getBounds();
+  const actual = w.ventana.getBounds();
   const area = screen.getDisplayMatching(actual).workArea;
   // El panel nunca puede ser más alto que lo que cabe en tu pantalla (con el widget grande, o en pantallas chicas).
-  const maximoQueCabe = Math.floor((area.height - altoBase()) / escalaActual) - PANEL_SEPARACION;
+  const maximoQueCabe = Math.floor((area.height - altoBase(w)) / escalaActual) - PANEL_SEPARACION;
   const alto = Math.max(PANEL_ALTO_MINIMO, Math.min(Math.round(altoPedido), PANEL_ALTO_MAXIMO, maximoQueCabe));
   const extra = abierto ? px(alto + PANEL_SEPARACION) : 0;
   // El ancho que pide el panel (incluye los márgenes), sin pasar del ancho de la pantalla.
   const anchoPedido = abierto && Number.isFinite(anchoPanel)
     ? Math.min(Math.round(anchoPanel), Math.floor(area.width / escalaActual))
     : 0;
-  if (extra === expansion.extra && anchoPedido === expansion.anchoPanel) {
-    return { haciaArriba: expansion.haciaArriba, anclaDerecha: expansion.anclaDerecha, alto };
+  if (extra === w.expansion.extra && anchoPedido === w.expansion.anchoPanel) {
+    return { haciaArriba: w.expansion.haciaArriba, anclaDerecha: w.expansion.anclaDerecha, alto };
   }
 
   const limiteSuperior = area.y - margen();
   const limiteInferior = area.y + area.height + margen();
   let y = actual.y;
 
-  if (expansion.extra === 0) {
+  if (w.expansion.extra === 0) {
     // ABRIR desde cero: ¿cabe arriba? ¿cabe abajo?
-    expansion.anclaDerecha = actual.x + actual.width / 2 > area.x + area.width / 2;
+    w.expansion.anclaDerecha = actual.x + actual.width / 2 > area.x + area.width / 2;
     const nuevoAlto = actual.height + extra;
     const cabeArriba = actual.y - extra >= limiteSuperior;
     const cabeAbajo = actual.y + nuevoAlto <= limiteInferior;
     if (preferirAbajo && cabeAbajo) {
-      expansion.haciaArriba = false;
+      w.expansion.haciaArriba = false;
     } else if (cabeArriba) {
-      expansion.haciaArriba = true;
+      w.expansion.haciaArriba = true;
       y = actual.y - extra;
     } else if (cabeAbajo) {
-      expansion.haciaArriba = false;
+      w.expansion.haciaArriba = false;
     } else {
       // No cabe en ninguna dirección: se elige el lado con más espacio y la ventana se corre lo justo para que quepa.
       const espacioArriba = actual.y - area.y;
       const espacioAbajo = area.y + area.height - (actual.y + actual.height);
-      expansion.haciaArriba = espacioArriba >= espacioAbajo;
-      const yDeseada = expansion.haciaArriba ? actual.y - extra : actual.y;
+      w.expansion.haciaArriba = espacioArriba >= espacioAbajo;
+      const yDeseada = w.expansion.haciaArriba ? actual.y - extra : actual.y;
       y = Math.max(limiteSuperior, Math.min(yDeseada, limiteInferior - nuevoAlto));
     }
   } else if (extra === 0) {
     // CERRAR: si había crecido hacia arriba, la ventana vuelve a bajar a su lugar.
-    if (expansion.haciaArriba) y = actual.y + expansion.extra;
+    if (w.expansion.haciaArriba) y = actual.y + w.expansion.extra;
   } else {
     // CAMBIAR de panel con otro abierto (distinto tamaño): se ajusta en el mismo lugar y en la misma dirección.
-    const diferencia = extra - expansion.extra;
-    if (expansion.haciaArriba) {
+    const diferencia = extra - w.expansion.extra;
+    if (w.expansion.haciaArriba) {
       if (diferencia > 0 && actual.y - diferencia < limiteSuperior) return { haciaArriba: true, noCabe: true, alto };
       y = actual.y - diferencia;
     } else if (diferencia > 0 && actual.y + actual.height + diferencia > limiteInferior) {
@@ -328,15 +449,15 @@ function ajustarVentanaAlPanel(abierto, altoPanel, anchoPanel, preferirAbajo = f
     }
   }
 
-  expansion.extra = extra;
-  expansion.alto = abierto ? alto : 0;
-  expansion.anchoPanel = anchoPedido;
-  const anchoNuevo = ancho();
+  w.expansion.extra = extra;
+  w.expansion.alto = abierto ? alto : 0;
+  w.expansion.anchoPanel = anchoPedido;
+  const anchoNuevo = ancho(w);
   // Si cambió el ancho, queda quieto el borde izquierdo o el derecho (el que está más cerca del borde de la pantalla).
-  const xDeseada = expansion.anclaDerecha ? actual.x + actual.width - anchoNuevo : actual.x;
+  const xDeseada = w.expansion.anclaDerecha ? actual.x + actual.width - anchoNuevo : actual.x;
   const x = Math.max(area.x - margen(), Math.min(xDeseada, area.x + area.width + margen() - anchoNuevo));
-  ventana.setBounds({ x, y, width: anchoNuevo, height: altoBase() + extra });
-  return { haciaArriba: expansion.haciaArriba, anclaDerecha: expansion.anclaDerecha, alto };
+  w.ventana.setBounds({ x, y, width: anchoNuevo, height: altoBase(w) + extra });
+  return { haciaArriba: w.expansion.haciaArriba, anclaDerecha: w.expansion.anclaDerecha, alto };
 }
 
 // Lo que las pantallas necesitan para escribir sus textos: el idioma activo, su "locale" y todos los textos.
@@ -345,7 +466,7 @@ function datosDeIdioma() {
 }
 
 function enviarIdioma() {
-  if (ventana && !ventana.isDestroyed()) ventana.webContents.send('idioma', datosDeIdioma());
+  for (const w of todasLasVentanas()) if (estaViva(w)) w.ventana.webContents.send('idioma', datosDeIdioma());
 }
 
 // Vuelve a escribir los textos que dependen del idioma (nombres de días, "viernes 04:00"...) con los datos ya leídos.
@@ -382,55 +503,60 @@ function cambiarIdioma(elegido) {
 }
 
 // La apariencia que se manda a las pantallas: tema, transparencia, vista y orientación.
-function aparienciaActual() {
+function aparienciaActual(w) {
   const config = almacen.leer();
   return {
     tema: config.tema,
     opacidad: config.opacidad,
-    modo: vistaActual.modo,
-    orientacion: vistaActual.orientacion,
+    modo: w.vista.modo,
+    orientacion: w.vista.orientacion,
     escala: Math.round(escalaActual * 100),
-    todas: todasALaVez(),             // true = en vez de la tarjeta se ve la lista con todas las cuentas
-    extra: extrasDeVista(),           // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual)
-    redimensionando: Boolean(redimension), // true mientras estás arrastrando un borde
-    altoPanel: expansion.alto || null, // alto del panel abierto (puede achicarse si ya no cabe en la pantalla)
+    todas: todasALaVez(w),             // true = en vez de la tarjeta se ve la lista con todas las cuentas
+    extra: extrasDeVista(w),           // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual)
+    redimensionando: Boolean(w.redimension), // true mientras estás arrastrando un borde
+    altoPanel: w.expansion.alto || null, // alto del panel abierto (puede achicarse si ya no cabe en la pantalla)
     formatoReinicio: config.formatoReinicio, // 'relativo' (en 2 h 15 min) u 'hora' (15:06)
-    anchoVista: medidasDeVista().ancho, // ancho de la tarjeta: no crece aunque un panel (Ajustes) sea más ancho
+    anchoVista: medidasDeVista(w).ancho, // ancho de la tarjeta: no crece aunque un panel (Ajustes) sea más ancho
     colores: config.colores,          // colores propios, o null
   };
 }
 
 // Avisa a la pantalla del widget que la apariencia cambió.
-function enviarApariencia() {
-  if (ventana && !ventana.isDestroyed()) ventana.webContents.send('apariencia', aparienciaActual());
+function enviarApariencia(w) {
+  if (w.ventana && !w.ventana.isDestroyed()) w.ventana.webContents.send('apariencia', aparienciaActual(w));
 }
 
 // Cambia el tamaño del widget (porcentaje: 100 = normal). El widget no se corre de lugar: queda quieto el
 // borde que está más cerca del borde de la pantalla (el de la izquierda o el de la derecha, y el de arriba
 // o el de abajo; con un panel abierto se sigue la dirección del panel). Después se revisa que no se salga de la pantalla.
+// La escala es la misma para todas las ventanas.
 function aplicarEscala(porcentaje) {
   const nueva = porcentaje / 100;
   if (nueva === escalaActual) return;
+  escalaActual = nueva;
+  almacen.guardar({ escala: porcentaje });
+  for (const w of todasLasVentanas()) if (estaViva(w)) aplicarEscalaA(w);
+  if (bandeja) construirMenu();
+}
 
-  const actual = ventana.getBounds();
+function aplicarEscalaA(w) {
+  const nueva = escalaActual;
+  const actual = w.ventana.getBounds();
   const area = screen.getDisplayMatching(actual).workArea;
-  const anclaAbajo = expansion.extra > 0
-    ? expansion.haciaArriba
+  const anclaAbajo = w.expansion.extra > 0
+    ? w.expansion.haciaArriba
     : actual.y + actual.height / 2 > area.y + area.height / 2;
   const anclaDerecha = actual.x + actual.width / 2 > area.x + area.width / 2;
 
-  escalaActual = nueva;
-  almacen.guardar({ escala: porcentaje });
-
   // Si hay un panel abierto, se recalcula con la escala nueva (y se achica si ya no cabe en la pantalla).
-  if (expansion.alto > 0) {
-    const maximoQueCabe = Math.floor((area.height - altoBase()) / escalaActual) - PANEL_SEPARACION;
-    expansion.alto = Math.max(PANEL_ALTO_MINIMO, Math.min(expansion.alto, maximoQueCabe));
-    expansion.extra = px(expansion.alto + PANEL_SEPARACION);
+  if (w.expansion.alto > 0) {
+    const maximoQueCabe = Math.floor((area.height - altoBase(w)) / escalaActual) - PANEL_SEPARACION;
+    w.expansion.alto = Math.max(PANEL_ALTO_MINIMO, Math.min(w.expansion.alto, maximoQueCabe));
+    w.expansion.extra = px(w.expansion.alto + PANEL_SEPARACION);
   }
 
-  const anchoNuevo = ancho();
-  const altoNuevo = altoBase() + expansion.extra;
+  const anchoNuevo = ancho(w);
+  const altoNuevo = altoBase(w) + w.expansion.extra;
   const dentro = (valor, minimo, maximo) => Math.max(minimo, Math.min(valor, maximo));
   const x = dentro(
     anclaDerecha ? actual.x + actual.width - anchoNuevo : actual.x,
@@ -441,10 +567,9 @@ function aplicarEscala(porcentaje) {
     area.y - margen(), area.y + area.height + margen() - altoNuevo
   );
 
-  ventana.webContents.setZoomFactor(nueva);
-  ventana.setBounds({ x, y, width: anchoNuevo, height: altoNuevo });
-  enviarApariencia();
-  if (bandeja) construirMenu();
+  w.ventana.webContents.setZoomFactor(nueva);
+  w.ventana.setBounds({ x, y, width: anchoNuevo, height: altoNuevo });
+  enviarApariencia(w);
 }
 
 // Cambia la vista del widget (normal, compacto o completo) y/o su orientación (vertical u horizontal).
@@ -459,39 +584,38 @@ function aplicarEscala(porcentaje) {
 const DURACION_FUNDIDO_MS = 140;    // el contenido se desvanece un instante al cambiar de vista (ver widget.js)
 const DURACION_TARJETA_MS = 300;    // lo que tarda la tarjeta en cambiar de alto (ver widget.css)
 const DURACION_CIERRE_PANEL_MS = 480; // lo que tarda en cerrarse un panel desplegado (animación + ventana)
-let cambiandoDeVista = false;       // evita que un segundo clic interrumpa la animación en curso
 
-function cambiarVista(pedida) {
+function cambiarVista(w, pedida) {
   const destino = {
-    modo: pedida.modo || vistaActual.modo,
-    orientacion: pedida.orientacion || vistaActual.orientacion,
+    modo: pedida.modo || w.vista.modo,
+    orientacion: pedida.orientacion || w.vista.orientacion,
   };
-  if (destino.modo === vistaActual.modo && destino.orientacion === vistaActual.orientacion) return;
-  if (cambiandoDeVista) return;
-  cambiandoDeVista = true;
+  if (destino.modo === w.vista.modo && destino.orientacion === w.vista.orientacion) return;
+  if (w.cambiandoDeVista) return;
+  w.cambiandoDeVista = true;
 
-  const anchoAntes = ancho();
-  const anchoDespues = px(Math.max(medidasDeVista(destino).ancho + 2 * MARGEN, expansion.anchoPanel));
+  const anchoAntes = ancho(w);
+  const anchoDespues = px(Math.max(medidasDeVista(w, destino).ancho + 2 * MARGEN, w.expansion.anchoPanel));
   const mismoAncho = anchoDespues === anchoAntes;
 
   // Con un panel desplegado y un cambio de ancho (o con un panel ancho, como Ajustes): se cierra el panel y se vuelve a intentar.
-  if (expansion.extra > 0 && (!mismoAncho || expansion.anchoPanel > 0)) {
-    ventana.webContents.send('cerrar-panel');
-    setTimeout(() => { cambiandoDeVista = false; cambiarVista(destino); }, DURACION_CIERRE_PANEL_MS);
+  if (w.expansion.extra > 0 && (!mismoAncho || w.expansion.anchoPanel > 0)) {
+    w.ventana.webContents.send('cerrar-panel');
+    setTimeout(() => { w.cambiandoDeVista = false; cambiarVista(w, destino); }, DURACION_CIERRE_PANEL_MS);
     return;
   }
 
-  vistaActual = destino;
-  almacen.guardar({ modo: destino.modo, orientacion: destino.orientacion });
+  w.vista = destino;
+  guardarDeVentana(w, { modo: destino.modo, orientacion: destino.orientacion });
   if (bandeja) construirMenu();
 
-  const actual = ventana.getBounds();
+  const actual = w.ventana.getBounds();
   const area = screen.getDisplayMatching(actual).workArea;
-  const nuevoAlto = altoBase() + expansion.extra;
+  const nuevoAlto = altoBase(w) + w.expansion.extra;
 
   // ¿Qué bordes quedan quietos? Con un panel abierto, el mismo en que creció el panel; si no, según la mitad de la pantalla.
-  const anclaAbajo = expansion.extra > 0
-    ? expansion.haciaArriba
+  const anclaAbajo = w.expansion.extra > 0
+    ? w.expansion.haciaArriba
     : actual.y + actual.height / 2 > area.y + area.height / 2;
   const anclaDerecha = actual.x + actual.width / 2 > area.x + area.width / 2;
   const dentro = (valor, minimo, maximo) => Math.max(minimo, Math.min(valor, maximo));
@@ -504,77 +628,81 @@ function cambiarVista(pedida) {
     area.y - margen(), area.y + area.height + margen() - nuevoAlto
   );
   const cambiarTamano = () => {
-    if (!ventana.isDestroyed()) ventana.setBounds({ x, y, width: anchoDespues, height: nuevoAlto });
+    if (!w.ventana.isDestroyed()) w.ventana.setBounds({ x, y, width: anchoDespues, height: nuevoAlto });
   };
 
   // 1. La pantalla acomoda la tarjeta contra el borde que queda quieto (todavía no se nota nada).
-  if (!ventana.isDestroyed()) ventana.webContents.send('ancla', anclaAbajo);
+  if (!w.ventana.isDestroyed()) w.ventana.webContents.send('ancla', anclaAbajo);
 
   let duracionTotal;
   if (!mismoAncho) {
     // Cambia el ancho: el contenido se desvanece, y a mitad del desvanecido la ventana cambia de tamaño.
-    enviarApariencia();
+    enviarApariencia(w);
     setTimeout(cambiarTamano, DURACION_FUNDIDO_MS + 20);
     duracionTotal = DURACION_FUNDIDO_MS + 400;
   } else if (nuevoAlto < actual.height) {
     // Achicar: primero la tarjeta se encoge dentro de la ventana grande, y al final se achica la ventana.
-    setTimeout(enviarApariencia, 50);
+    setTimeout(() => enviarApariencia(w), 50);
     setTimeout(cambiarTamano, 50 + DURACION_FUNDIDO_MS + DURACION_TARJETA_MS + 80);
     duracionTotal = 50 + DURACION_FUNDIDO_MS + DURACION_TARJETA_MS + 200;
   } else {
     // Agrandar: primero crece la ventana (la tarjeta sigue chica) y después la tarjeta se despliega.
     setTimeout(cambiarTamano, 50);
-    setTimeout(enviarApariencia, 110);
+    setTimeout(() => enviarApariencia(w), 110);
     duracionTotal = 50 + DURACION_FUNDIDO_MS + DURACION_TARJETA_MS + 200;
   }
-  setTimeout(() => { cambiandoDeVista = false; }, duracionTotal);
+  setTimeout(() => { w.cambiandoDeVista = false; }, duracionTotal);
 }
 
 // Si cambia la cantidad de cuentas (o el ajuste de verlas todas a la vez), la ventana cambia de tamaño.
 // Queda quieto el borde de la pantalla más cercano (el de arriba o el de abajo, el izquierdo o el derecho; con un panel
 // abierto, el mismo lado hacia donde creció el panel).
-function reajustarLaVentana() {
-  if (!ventana || ventana.isDestroyed()) return;
-  const actual = ventana.getBounds();
-  const anchoNuevo = ancho();
-  const altoNuevo = altoBase() + expansion.extra;
+function reajustarTodas() {
+  for (const w of todasLasVentanas()) reajustarLaVentana(w);
+}
+
+function reajustarLaVentana(w) {
+  if (!w.ventana || w.ventana.isDestroyed()) return;
+  const actual = w.ventana.getBounds();
+  const anchoNuevo = ancho(w);
+  const altoNuevo = altoBase(w) + w.expansion.extra;
   if (anchoNuevo === actual.width && altoNuevo === actual.height) return;
   const area = screen.getDisplayMatching(actual).workArea;
-  const anclaAbajo = expansion.extra > 0 ? expansion.haciaArriba : actual.y + actual.height / 2 > area.y + area.height / 2;
+  const anclaAbajo = w.expansion.extra > 0 ? w.expansion.haciaArriba : actual.y + actual.height / 2 > area.y + area.height / 2;
   const anclaDerecha = actual.x + actual.width / 2 > area.x + area.width / 2;
   const dentro = (valor, minimo, maximo) => Math.max(minimo, Math.min(valor, maximo));
   const x = dentro(anclaDerecha ? actual.x + actual.width - anchoNuevo : actual.x, area.x - margen(), area.x + area.width + margen() - anchoNuevo);
   const y = dentro(anclaAbajo ? actual.y + actual.height - altoNuevo : actual.y, area.y - margen(), area.y + area.height + margen() - altoNuevo);
-  ventana.setBounds({ x, y, width: anchoNuevo, height: altoNuevo });
-  enviarApariencia();
+  w.ventana.setBounds({ x, y, width: anchoNuevo, height: altoNuevo });
+  enviarApariencia(w);
 }
 
 // ----- Estirar la ventana arrastrando sus bordes -----
 // Los bordes (y esquinas) de la pantalla avisan cuándo empieza y termina el arrastre; mientras tanto, aquí se mira
 // dónde está el mouse y se va cambiando el tamaño. Queda quieto el borde contrario al que arrastras.
-let redimension = null; // { borde, inicio, cursor, area, clave, temporizador } mientras se arrastra
+// (w.redimension = { borde, inicio, cursor, area, clave, temporizador } mientras se arrastra)
 
-function empezarRedimension(borde) {
-  if (redimension || !ventana || ventana.isDestroyed() || expansion.extra > 0) return; // con un panel desplegado no se estira
+function empezarRedimension(w, borde) {
+  if (w.redimension || !w.ventana || w.ventana.isDestroyed() || w.expansion.extra > 0) return; // con un panel desplegado no se estira
   if (typeof borde !== 'string' || !/^(n|s|e|w|ne|nw|se|sw)$/.test(borde)) return;
-  const inicio = ventana.getBounds();
-  redimension = {
+  const inicio = w.ventana.getBounds();
+  w.redimension = {
     borde,
     inicio,
     cursor: screen.getCursorScreenPoint(),
     area: screen.getDisplayMatching(inicio).workArea,
-    clave: claveDeTamano(),
-    temporizador: setInterval(moverRedimension, 16),
+    clave: claveDeTamano(w),
+    temporizador: setInterval(() => moverRedimension(w), 16),
   };
 }
 
-function moverRedimension() {
-  if (!redimension || !ventana || ventana.isDestroyed()) return terminarRedimension();
-  const { borde, inicio, cursor, area, clave } = redimension;
+function moverRedimension(w) {
+  if (!w.redimension || !w.ventana || w.ventana.isDestroyed()) return terminarRedimension(w);
+  const { borde, inicio, cursor, area, clave } = w.redimension;
   const punto = screen.getCursorScreenPoint();
   const dx = punto.x - cursor.x;
   const dy = punto.y - cursor.y;
-  const base = medidasBase();
+  const base = medidasBase(w);
   const minAncho = px(base.ancho + 2 * MARGEN);
   const minAlto = px(base.alto + 2 * MARGEN);
   const maxAncho = area.width + 2 * margen();
@@ -587,7 +715,7 @@ function moverRedimension() {
     width = entre(inicio.width - dx, minAncho, maxAncho);
     x = inicio.x + inicio.width - width;
   }
-  if (permiteAlto()) {
+  if (permiteAlto(w)) {
     if (borde.includes('s')) height = entre(inicio.height + dy, minAlto, maxAlto);
     if (borde.includes('n')) {
       height = entre(inicio.height - dy, minAlto, maxAlto);
@@ -599,34 +727,34 @@ function moverRedimension() {
     ancho: Math.round((width - minAncho) / escalaActual),
     alto: Math.round((height - minAlto) / escalaActual),
   };
-  ventana.setBounds({ x, y, width, height });
-  enviarApariencia();
+  w.ventana.setBounds({ x, y, width, height });
+  enviarApariencia(w);
 }
 
-function terminarRedimension() {
-  if (!redimension) return;
-  clearInterval(redimension.temporizador);
-  redimension = null;
+function terminarRedimension(w) {
+  if (!w.redimension) return;
+  clearInterval(w.redimension.temporizador);
+  w.redimension = null;
   almacen.guardar({ tamanos: tamanosGuardados });
-  enviarApariencia();
+  enviarApariencia(w);
 }
 
 // Vuelve la ventana de la vista actual a su tamaño de siempre.
-function restablecerTamano() {
-  if (redimension || expansion.extra > 0) return;
-  delete tamanosGuardados[claveDeTamano()];
+function restablecerTamano(w) {
+  if (w.redimension || w.expansion.extra > 0) return;
+  delete tamanosGuardados[claveDeTamano(w)];
   almacen.guardar({ tamanos: tamanosGuardados });
-  reajustarLaVentana();
-  enviarApariencia();
+  reajustarLaVentana(w);
+  enviarApariencia(w);
 }
 
 // Crea la ventana del widget.
-function crearVentana() {
-  const posicion = calcularPosicionInicial();
+function crearVentana(w) {
+  const posicion = calcularPosicionInicial(w);
 
-  ventana = new BrowserWindow({
-    width: ancho(),
-    height: altoBase(),
+  w.ventana = new BrowserWindow({
+    width: ancho(w),
+    height: altoBase(w),
     x: posicion.x,
     y: posicion.y,
     frame: false,        // sin bordes ni barra de título
@@ -643,75 +771,83 @@ function crearVentana() {
     },
   });
 
-  ventana.setMenuBarVisibility(false);
+  w.ventana.setMenuBarVisibility(false);
+  if (w === principal) w.ventana.on('show', retomarConsultas); // al volver a mostrarla, se retoman las consultas
   // Cada vez que la pantalla del widget termina de cargar, se le aplica el tamaño elegido (zoom).
-  ventana.webContents.on('did-finish-load', () => ventana.webContents.setZoomFactor(escalaActual));
-  ventana.loadFile(path.join(__dirname, 'ventanas', 'widget.html'));
+  w.ventana.webContents.on('did-finish-load', () => w.ventana.webContents.setZoomFactor(escalaActual));
+  w.ventana.loadFile(path.join(__dirname, 'ventanas', 'widget.html'));
 
   // Cada vez que se mueve la ventana, guardamos su posición.
   // Esperamos 400 ms desde el último movimiento para no escribir el archivo cientos de veces mientras arrastras.
   let temporizador = null;
-  ventana.on('move', () => {
+  w.ventana.on('move', () => {
     clearTimeout(temporizador);
     temporizador = setTimeout(() => {
-      if (!ventana || ventana.isDestroyed()) return;
-      const [x, y] = ventana.getPosition();
+      if (!w.ventana || w.ventana.isDestroyed()) return;
+      const [x, y] = w.ventana.getPosition();
       // Se guarda donde estaría la ventana SIN el panel abierto (si creció hacia arriba, su borde de arriba subió).
-      const yBase = expansion.haciaArriba ? y + expansion.extra : y;
-      almacen.guardar({ posicion: { x, y: yBase } });
+      const yBase = w.expansion.haciaArriba ? y + w.expansion.extra : y;
+      guardarDeVentana(w, { posicion: { x, y: yBase } });
     }, 400);
   });
 }
 
-// Muestra la ventana si está oculta, y la oculta si está visible.
+// Muestra las ventanas si están ocultas, y las oculta si están visibles (todas juntas, según la principal).
 function mostrarOcultar() {
-  if (ventana.isVisible()) {
-    ventana.hide();
-  } else {
-    ventana.show();
+  const ocultar = principal.ventana.isVisible();
+  for (const w of todasLasVentanas()) {
+    if (!estaViva(w)) continue;
+    if (ocultar) w.ventana.hide();
+    else w.ventana.show();
   }
 }
 
 // Activa o desactiva "siempre encima" y lo recuerda para la próxima vez.
 function cambiarSiempreEncima(activar) {
-  ventana.setAlwaysOnTop(activar);
+  for (const w of todasLasVentanas()) if (estaViva(w)) w.ventana.setAlwaysOnTop(activar);
   almacen.guardar({ siempreEncima: activar });
 }
 
-// Pide al widget que despliegue uno de sus paneles: 'historial', 'desglose', 'proyeccion' o 'ajustes'.
+// Pide al widget principal que despliegue uno de sus paneles: 'historial', 'desglose', 'proyeccion' o 'ajustes'.
 // Si el widget estaba oculto, lo muestra.
 function pedirPanel(nombre) {
-  if (!ventana.isVisible()) ventana.show();
-  ventana.webContents.send('abrir-panel', nombre);
+  if (!principal.ventana.isVisible()) principal.ventana.show();
+  principal.ventana.webContents.send('abrir-panel', nombre);
 }
 
-// Los ajustes tal como los muestra el panel de Ajustes.
-function ajustesActuales() {
+// Los ajustes tal como los muestra el panel de Ajustes de una ventana (los límites son los de la cuenta que muestra).
+function ajustesActuales(w) {
   const config = almacen.leer();
-  const cuenta = almacen.cuentaActiva();
+  const cuenta = almacen.cuenta(cuentaDe(w)) || almacen.cuentaActiva();
   return {
     limiteDiario: cuenta.limiteDiario,   // los límites son de la cuenta que se muestra
     umbralAviso: cuenta.umbralAviso,
     nombreDeCuenta: nombreSiHayVarias(cuenta) || null,
     todasLasCuentas: verTodasLasCuentas,
-    intervaloMin: config.intervaloMin,
+    ventanasSeparadas,
+    intervaloMin: Math.max(5, config.intervaloMin), // (si quedó guardado uno menor de una versión anterior, se muestra el mínimo)
     limitesPorDia: cuenta.limitesPorDia,
     alertasSesion: config.alertasSesion,
     umbralSesion: config.umbralSesion,
     alertasSemana: config.alertasSemana,
     umbralSemana: config.umbralSemana,
+    contextoVisible: config.contextoVisible,
+    avisoContexto: config.avisoContexto,
+    umbralContexto: config.umbralContexto,
+    tamanoContexto: config.tamanoContexto,
     avisoRitmo: config.avisoRitmo,
     iconoDeColor: config.iconoDeColor,
     atajoGlobal: config.atajoGlobal,
     buscarActualizaciones: config.buscarActualizaciones,
+    pausarOculto: config.pausarOculto !== false,
     formatoReinicio: config.formatoReinicio,
     colores: config.colores,
     siempreEncima: config.siempreEncima,
     arrancarConWindows: ajustes.arrancaConWindows(),
     tema: config.tema,
     opacidad: config.opacidad,
-    modo: vistaActual.modo,
-    orientacion: vistaActual.orientacion,
+    modo: w.vista.modo,
+    orientacion: w.vista.orientacion,
     idioma: config.idioma,
     escala: Math.round(escalaActual * 100),
     opcionesIntervalo: ajustes.OPCIONES_INTERVALO,
@@ -719,13 +855,13 @@ function ajustesActuales() {
 }
 
 // Revisa y guarda los ajustes nuevos, y los aplica AL INSTANTE (sin reiniciar la app).
-function guardarAjustes(datos) {
+function guardarAjustes(w, datos) {
   const revision = ajustes.validar(datos);
   if (!revision.ok) return revision;
   const nuevos = revision.valores;
   const idiomaAntes = almacen.leer().idioma;
 
-  const cuenta = almacen.cuentaActiva();
+  const cuenta = almacen.cuenta(cuentaDe(w)) || almacen.cuentaActiva();
   almacen.guardarCuenta(cuenta.id, {
     limiteDiario: nuevos.limiteDiario,
     umbralAviso: nuevos.umbralAviso,
@@ -733,15 +869,21 @@ function guardarAjustes(datos) {
   });
   almacen.guardar({
     todasLasCuentas: nuevos.todasLasCuentas,
+    ventanasSeparadas: nuevos.ventanasSeparadas,
     intervaloMin: nuevos.intervaloMin,
     alertasSesion: nuevos.alertasSesion,
     umbralSesion: nuevos.umbralSesion,
     alertasSemana: nuevos.alertasSemana,
     umbralSemana: nuevos.umbralSemana,
+    contextoVisible: nuevos.contextoVisible,
+    avisoContexto: nuevos.avisoContexto,
+    umbralContexto: nuevos.umbralContexto,
+    tamanoContexto: nuevos.tamanoContexto,
     avisoRitmo: nuevos.avisoRitmo,
     iconoDeColor: nuevos.iconoDeColor,
     atajoGlobal: nuevos.atajoGlobal,
     buscarActualizaciones: nuevos.buscarActualizaciones,
+    pausarOculto: nuevos.pausarOculto,
     formatoReinicio: nuevos.formatoReinicio,
     colores: nuevos.colores,
     siempreEncima: nuevos.siempreEncima,
@@ -759,31 +901,42 @@ function guardarAjustes(datos) {
   // Ver todas las cuentas a la vez: cambia el tamaño de la ventana (en la vista normal y en la compacta).
   if (nuevos.todasLasCuentas !== verTodasLasCuentas) {
     verTodasLasCuentas = nuevos.todasLasCuentas;
-    reajustarLaVentana();
+    reajustarTodas();
+  }
+  // Cada cuenta en su propia ventana: se abren o se cierran las ventanas de las demás cuentas.
+  if (nuevos.ventanasSeparadas !== ventanasSeparadas) {
+    ventanasSeparadas = nuevos.ventanasSeparadas;
+    sincronizarVentanas();
+    reajustarTodas();
   }
 
   // Apariencia: tema y transparencia al instante; la vista y la orientación cambian el tamaño de la ventana.
-  if (nuevos.modo !== vistaActual.modo || nuevos.orientacion !== vistaActual.orientacion) {
-    cambiarVista({ modo: nuevos.modo, orientacion: nuevos.orientacion }); // también avisa a las pantallas
+  if (nuevos.modo !== w.vista.modo || nuevos.orientacion !== w.vista.orientacion) {
+    cambiarVista(w, { modo: nuevos.modo, orientacion: nuevos.orientacion }); // también avisa a las pantallas
   } else {
-    enviarApariencia();
+    enviarApariencia(w);
   }
 
   // Siempre encima: se aplica a la ventana y se actualiza la casilla del menú de la bandeja.
-  ventana.setAlwaysOnTop(nuevos.siempreEncima);
+  cambiarSiempreEncima(nuevos.siempreEncima);
 
   // Arrancar con Windows: solo se toca si cambió.
   if (nuevos.arrancarConWindows !== ajustes.arrancaConWindows()) {
     ajustes.cambiarArranqueConWindows(nuevos.arrancarConWindows);
   }
 
-  // Intervalo: la próxima consulta se reprograma con el valor nuevo.
+  // Intervalo: la próxima consulta se reprograma con el valor nuevo (y si estaba en pausa y apagaste la opción, se retoma).
   programarProximaConsulta();
+  retomarConsultas();
 
   // Ícono de la bandeja, atajo de teclado y búsqueda de actualizaciones: al instante.
   actualizarIconoDeBandeja();
   aplicarAtajoGlobal();
   if (nuevos.buscarActualizaciones) buscarVersionNueva();
+  // Contexto de Claude Code: se vuelve a mirar con los ajustes nuevos (el umbral nuevo empieza de cero).
+  avisosDeChats.clear();
+  chatsActuales = [];
+  revisarContexto();
 
   // Límite y aviso: se recalcula con el último dato, para que la barra y las alertas
   // reflejen el nuevo límite de inmediato (sin esperar a la próxima consulta).
@@ -802,9 +955,18 @@ function guardarAjustes(datos) {
 }
 
 // Datos para el gráfico: el uso de cada uno de los últimos 7 días (null si ese día no hay registro).
-function datosDelHistorial(cantidadDeDias = 7) {
+// Con varias cuentas a la vez (sin ventanas separadas) trae además el de cada cuenta ("cuentas").
+function datosDelHistorial(w, cantidadDeDias = 7) {
   const cantidad = cantidadDeDias === 30 ? 30 : 7;
-  const config = almacen.cuentaActiva();
+  const datos = historialDeCuenta(almacen.cuenta(cuentaDe(w)) || almacen.cuentaActiva(), cantidad);
+  if (hayResumenDeCuentas()) {
+    datos.cuentas = almacen.leer().cuentas.map((cuenta) => ({ id: cuenta.id, nombre: nombreDeCuenta(cuenta), ...historialDeCuenta(cuenta, cantidad) }));
+  }
+  return datos;
+}
+
+// El historial de una cuenta: los últimos días con su uso y su límite.
+function historialDeCuenta(config, cantidad) {
   const porDia = new Map(config.historial.map((entrada) => [entrada.dia, entrada]));
 
   // El límite de un día: el que quedó guardado con su registro; si no hay registro, el que le corresponde a ese día.
@@ -829,8 +991,8 @@ function datosDelHistorial(cantidadDeDias = 7) {
 // Guarda el historial en un archivo CSV que se abre en Excel. Pregunta dónde guardarlo (cuadro "Guardar como").
 // Devuelve { ok: true, ruta, cantidad }, { ok: false, cancelado: true } o { ok: false, error }.
 // "ventanaPadre" es la ventana desde la que se pidió: el cuadro queda pegado a ella, así aparece al frente.
-async function exportarHistorial(ventanaPadre) {
-  const config = almacen.cuentaActiva();
+async function exportarHistorial(w, ventanaPadre) {
+  const config = almacen.cuenta(cuentaDe(w)) || almacen.cuentaActiva();
   if (config.historial.length === 0) {
     return { ok: false, error: t('exportar.vacio') };
   }
@@ -979,6 +1141,7 @@ function construirMenu() {
           click: () => activarCuenta(cuenta.id),
         })),
         { type: 'separator' },
+        { label: t('tray.cuentaAgregar'), click: () => pedirPanel('agregar-cuenta') },
         { label: t('tray.cuentasAdministrar'), click: () => pedirPanel('cuentas') },
       ],
     },
@@ -988,13 +1151,13 @@ function construirMenu() {
     {
       label: t('tray.vista'),
       submenu: [
-        { label: t('tray.vista.normal'), type: 'radio', checked: vistaActual.modo === 'normal', click: () => cambiarVista({ modo: 'normal' }) },
-        { label: t('tray.vista.compacto'), type: 'radio', checked: vistaActual.modo === 'compacto', click: () => cambiarVista({ modo: 'compacto' }) },
-        { label: t('tray.vista.completo'), type: 'radio', checked: vistaActual.modo === 'completo', click: () => cambiarVista({ modo: 'completo' }) },
-        { label: t('tray.vista.cuentas'), type: 'radio', checked: vistaActual.modo === 'cuentas', click: () => cambiarVista({ modo: 'cuentas' }) },
+        { label: t('tray.vista.normal'), type: 'radio', checked: principal.vista.modo === 'normal', click: () => cambiarVista(principal, { modo: 'normal' }) },
+        { label: t('tray.vista.compacto'), type: 'radio', checked: principal.vista.modo === 'compacto', click: () => cambiarVista(principal, { modo: 'compacto' }) },
+        { label: t('tray.vista.completo'), type: 'radio', checked: principal.vista.modo === 'completo', click: () => cambiarVista(principal, { modo: 'completo' }) },
+        { label: t('tray.vista.cuentas'), type: 'radio', checked: principal.vista.modo === 'cuentas', click: () => cambiarVista(principal, { modo: 'cuentas' }) },
         { type: 'separator' },
-        { label: t('tray.disposicion.vertical'), type: 'radio', checked: vistaActual.orientacion === 'vertical', click: () => cambiarVista({ orientacion: 'vertical' }) },
-        { label: t('tray.disposicion.horizontal'), type: 'radio', checked: vistaActual.orientacion === 'horizontal', click: () => cambiarVista({ orientacion: 'horizontal' }) },
+        { label: t('tray.disposicion.vertical'), type: 'radio', checked: principal.vista.orientacion === 'vertical', click: () => cambiarVista(principal, { orientacion: 'vertical' }) },
+        { label: t('tray.disposicion.horizontal'), type: 'radio', checked: principal.vista.orientacion === 'horizontal', click: () => cambiarVista(principal, { orientacion: 'horizontal' }) },
       ],
     },
     {
@@ -1006,7 +1169,7 @@ function construirMenu() {
         { label: t('tray.silencio.reactivar'), enabled: silenciado, click: () => silenciarAvisos(0) },
       ],
     },
-    { label: t('tray.exportar'), click: () => exportarHistorial(ventana) },
+    { label: t('tray.exportar'), click: () => exportarHistorial(principal, principal.ventana) },
     { label: t('tray.ajustes'), click: () => pedirPanel('ajustes') },
     {
       label: config.cuentas.length > 1 ? t('tray.cerrarSesionDe', { nombre: nombreDeCuenta(activa) }) : t('tray.cerrarSesion'),
@@ -1202,8 +1365,8 @@ function registrarSemana(cuenta, semana, reinicio) {
 // Se llama cada vez que cambia el estado de la sesión de una cuenta:
 // avisa a la pantalla del widget (si es la cuenta que se muestra) y actualiza el menú de la bandeja.
 function alCambiarSesion(id, estado) {
-  if (ventana && !ventana.isDestroyed() && id === cuentaActivaId()) {
-    ventana.webContents.send('estado-sesion', estado);
+  for (const w of todasLasVentanas()) {
+    if (estaViva(w) && id === cuentaDe(w)) w.ventana.webContents.send('estado-sesion', estado);
   }
   if (bandeja) construirMenu();
 
@@ -1301,6 +1464,10 @@ function resumenDeCuentas() {
       estado: sesion.estadoDe(cuenta.id),
       error: error ? t(error) : null,
       plan: datos ? textoDePlan(datos.plan) : null,
+      // Para el desglose y la proyección de todas las cuentas a la vez
+      desglose: datos ? datos.desglose || null : null,
+      proyeccion: datos ? datos.proyeccion || null : null,
+      reinicioTexto: datos ? datos.reinicioTexto : null,
       extras: limitesExtraDe(cuenta.id).map((extra) => ({ nombre: extra.nombre, porcentaje: extra.porcentaje })),
       uso: datos && {
         hoy: datos.hoy,
@@ -1312,27 +1479,32 @@ function resumenDeCuentas() {
   });
 }
 
-// Lo que la pantalla necesita: el dato de la cuenta que se muestra y el resumen de todas.
-function datosParaLaPantalla() {
-  const activa = cuentaActivaId();
+// Lo que la pantalla de una ventana necesita: el dato de la cuenta que muestra y el resumen de todas.
+// "propia" = es la ventana propia de una cuenta (no la principal).
+function datosParaLaPantalla(w) {
+  const activa = cuentaDe(w);
   const { uso: datos, error } = lecturaDe(activa);
-  return { uso: datos, error: error ? t(error) : null, prueba: MODO_PRUEBA, activa, cuentas: resumenDeCuentas() };
+  const uso = datos && { ...datos, limitesExtra: limitesExtraDe(activa) };
+  return {
+    uso, error: error ? t(error) : null, prueba: MODO_PRUEBA, activa, propia: w !== principal,
+    resumen: hayResumenDeCuentas(), cuentas: resumenDeCuentas(),
+    chats: w === principal ? chatsParaLaPantalla() : [], // los chats de Claude Code (solo en la ventana principal)
+  };
 }
 
-// Manda a la pantalla del widget el último dato (o el último error).
+// Manda a la pantalla de cada ventana el último dato (o el último error).
 function enviarUso() {
   actualizarIconoDeBandeja();
-  // Si la cuenta que se muestra tiene límites extra (o dejó de tenerlos), la tarjeta cambia de tamaño.
-  const extrasAhora = (lecturaDe(cuentaActivaId()).uso || {}).limitesExtra;
-  const cantidad = extrasAhora ? extrasAhora.length : 0;
-  if (cantidad !== limitesExtraActivos) {
-    limitesExtraActivos = cantidad;
-    reajustarLaVentana();
-  }
-  // En la vista normal vertical con todas las cuentas, el alto de la ventana depende de cuáles tienen datos.
-  if (todasALaVez() || vistaActual.modo === 'completo') reajustarLaVentana();
-  if (ventana && !ventana.isDestroyed()) {
-    ventana.webContents.send('datos-uso', datosParaLaPantalla());
+  for (const w of todasLasVentanas()) {
+    // Si la cuenta que se muestra tiene límites extra (o dejó de tenerlos), la tarjeta cambia de tamaño.
+    const cantidad = limitesExtraDe(cuentaDe(w)).length;
+    if (cantidad !== w.limitesExtra) {
+      w.limitesExtra = cantidad;
+      reajustarLaVentana(w);
+    }
+    // En la vista normal vertical con todas las cuentas, el alto de la ventana depende de cuáles tienen datos.
+    if (todasALaVez(w) || w.vista.modo === 'completo') reajustarLaVentana(w);
+    if (estaViva(w)) w.ventana.webContents.send('datos-uso', datosParaLaPantalla(w));
   }
 }
 
@@ -1402,6 +1574,15 @@ async function actualizarUso({ solo } = {}) {
   const cuentas = almacen.leer().cuentas.filter((c) => sesion.estadoDe(c.id) === 'conectado' && (!solo || c.id === solo));
   if (cuentas.length === 0) return;
 
+  // Con el widget oculto (y la opción activada) no se consulta nada: al volver a mostrarlo se retoma.
+  // (Una cuenta que acabas de agregar o en la que acabas de entrar sí se lee: tú lo pediste.)
+  if (!solo && estaEnPausa()) {
+    clearTimeout(temporizadorUso);
+    consultasEnPausa = true;
+    console.log('Widget oculto: las consultas quedan en pausa');
+    return;
+  }
+
   // Respetamos el mínimo entre consultas: si fue hace poco, no volvemos a preguntar.
   // (En el modo de prueba no hay consulta real, así que no hace falta esperar.)
   // Se dan 2 segundos de margen, porque el temporizador puede despertar unos milisegundos antes
@@ -1430,6 +1611,20 @@ async function actualizarUso({ solo } = {}) {
   }
 }
 
+// ¿Las consultas están en pausa? Sí, si la opción está activada y el widget está oculto.
+let consultasEnPausa = false;
+function estaEnPausa() {
+  return almacen.leer().pausarOculto !== false && estaViva(principal) && !principal.ventana.isVisible();
+}
+
+// Al volver a mostrar el widget (o al apagar la opción): si estaba en pausa, se consulta de inmediato
+// (respetando el mínimo entre consultas) y se vuelve a programar la siguiente.
+function retomarConsultas() {
+  if (!consultasEnPausa || estaEnPausa()) return;
+  consultasEnPausa = false;
+  actualizarUso();
+}
+
 // Programa la próxima consulta automática: pasado el intervalo de Ajustes desde la última consulta,
 // o a los 5 minutos si la última falló (para recuperarse pronto).
 // También se llama al cambiar el intervalo en Ajustes, para que se aplique sin reiniciar.
@@ -1438,7 +1633,8 @@ function programarProximaConsulta() {
   if (!hayAlgunaConectada()) return;
 
   const hayError = almacen.leer().cuentas.some((c) => lecturaDe(c.id).error);
-  const espera = hayError ? MINIMO_ENTRE_CONSULTAS_MS : almacen.leer().intervaloMin * 60 * 1000;
+  const intervalo = Math.max(MINIMO_ENTRE_CONSULTAS_MS, almacen.leer().intervaloMin * 60 * 1000); // nunca más seguido que el mínimo
+  const espera = hayError ? Math.min(REINTENTO_TRAS_ERROR_MS, intervalo) : intervalo;
   const yaPasado = Date.now() - ultimaConsulta;
   const faltan = Math.max(1000, espera - yaPasado);
   temporizadorUso = setTimeout(() => actualizarUso(), faltan);
@@ -1452,10 +1648,38 @@ function tituloDeInicioDeSesion(cuenta) {
   return totalDeCuentas > 1 ? t('login.tituloCuenta', { nombre: nombreDeCuenta(cuenta) }) : t('login.titulo');
 }
 
-// Avisa a la pantalla y al menú que algo de las cuentas cambió.
+// Avisa a las pantallas y al menú que algo de las cuentas cambió.
 function avisarCambioDeCuentas() {
+  sincronizarVentanas();
+  revisarContexto(); // la ventana de contexto solo se muestra con una cuenta
   if (bandeja) construirMenu();
   enviarUso();
+}
+
+// Con "cada cuenta en su propia ventana": la principal muestra la cuenta elegida y cada una de las demás tiene
+// su ventana. Abre las que faltan y cierra las que sobran (por ejemplo al apagar la opción o al eliminar una cuenta).
+function sincronizarVentanas() {
+  if (!estaViva(principal)) return;
+  const activa = cuentaActivaId();
+  const queridas = ventanasSeparadas ? almacen.leer().cuentas.filter((c) => c.id !== activa).map((c) => c.id) : [];
+  for (const [id, w] of secundarias) {
+    if (queridas.includes(id)) continue;
+    secundarias.delete(id);
+    if (estaViva(w)) w.ventana.destroy();
+  }
+  for (const id of queridas) {
+    if (secundarias.has(id)) continue;
+    const guardado = (almacen.cuenta(id) || {}).ventana || {};
+    const vista = {
+      modo: ajustes.OPCIONES_MODO.includes(guardado.modo) ? guardado.modo : 'normal',
+      orientacion: ajustes.OPCIONES_ORIENTACION.includes(guardado.orientacion) ? guardado.orientacion : 'vertical',
+    };
+    const w = nuevoWidget(id, vista);
+    w.limitesExtra = limitesExtraDe(id).length;
+    secundarias.set(id, w);
+    crearVentana(w);
+    if (!principal.ventana.isVisible()) w.ventana.hide();
+  }
 }
 
 // Pasa a mostrar otra cuenta en la tarjeta.
@@ -1463,7 +1687,7 @@ function activarCuenta(id) {
   const config = almacen.leer();
   if (id === config.cuentaActiva || !config.cuentas.some((c) => c.id === id)) return;
   almacen.guardar({ cuentaActiva: id });
-  if (ventana && !ventana.isDestroyed()) ventana.webContents.send('estado-sesion', sesion.estadoDe(id));
+  if (estaViva(principal)) principal.ventana.webContents.send('estado-sesion', sesion.estadoDe(id));
   avisarCambioDeCuentas();
 }
 
@@ -1478,7 +1702,7 @@ async function agregarCuenta(nombre) {
   if (!nueva) return { ok: false, error: t('cuentas.err.maximo', { n: almacen.MAXIMO_DE_CUENTAS }) };
   await sesion.registrar(nueva, MODO_PRUEBA);
   actualizarTotalDeCuentas();
-  reajustarLaVentana();
+  reajustarTodas();
   activarCuenta(nueva.id);
   if (sesion.estadoDe(nueva.id) === 'conectado') actualizarUso({ solo: nueva.id }); // (solo pasa en el modo de prueba)
   if (!MODO_PRUEBA) sesion.abrirLogin(nueva.id, tituloDeInicioDeSesion(nueva));
@@ -1502,10 +1726,10 @@ async function eliminarCuenta(id) {
   almacen.quitarCuenta(id);
   lecturas.delete(id);
   actualizarTotalDeCuentas();
-  if (id === config.cuentaActiva && ventana && !ventana.isDestroyed()) {
-    ventana.webContents.send('estado-sesion', sesion.estadoDe(cuentaActivaId()));
+  if (id === config.cuentaActiva && estaViva(principal)) {
+    principal.ventana.webContents.send('estado-sesion', sesion.estadoDe(cuentaActivaId()));
   }
-  reajustarLaVentana();
+  reajustarTodas();
   avisarCambioDeCuentas();
   programarProximaConsulta();
   return { ok: true };
@@ -1518,8 +1742,12 @@ if (!app.requestSingleInstanceLock()) {
   // Cuando Electron termina de prepararse, creamos la ventana y el ícono.
   app.whenReady().then(async () => {
     // La pantalla del widget puede preguntar el estado y pedir abrir el inicio de sesión.
-    ipcMain.handle('obtener-estado', () => sesion.estadoDe(cuentaActivaId()));
-    ipcMain.on('iniciar-sesion', () => sesion.abrirLogin(cuentaActivaId(), tituloDeInicioDeSesion(almacen.cuentaActiva())));
+    ipcMain.handle('obtener-estado', (evento) => sesion.estadoDe(cuentaDe(ventanaDelEvento(evento))));
+    ipcMain.on('iniciar-sesion', (evento) => {
+      const id = cuentaDe(ventanaDelEvento(evento));
+      const cuenta = almacen.cuenta(id);
+      if (cuenta) sesion.abrirLogin(id, tituloDeInicioDeSesion(cuenta));
+    });
     // Cuentas: cambiar la que se muestra, agregar, renombrar, eliminar y entrar / salir de cada una.
     const esId = (id) => typeof id === 'string' && almacen.cuenta(id);
     ipcMain.on('cuentas-activar', (evento, id) => { if (esId(id)) activarCuenta(id); });
@@ -1528,61 +1756,69 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('cuentas-eliminar', (evento, id) => (esId(id) ? eliminarCuenta(id) : { ok: false }));
     ipcMain.on('cuentas-cerrar-sesion', (evento, id) => { if (esId(id)) sesion.cerrarSesion(id); });
     ipcMain.on('cuentas-iniciar-sesion', (evento, id) => { if (esId(id)) sesion.abrirLogin(id, tituloDeInicioDeSesion(almacen.cuenta(id))); });
-    ipcMain.handle('obtener-uso', () => datosParaLaPantalla());
-    ipcMain.handle('obtener-apariencia', () => aparienciaActual());
+    ipcMain.handle('obtener-uso', (evento) => datosParaLaPantalla(ventanaDelEvento(evento)));
+    ipcMain.handle('obtener-apariencia', (evento) => aparienciaActual(ventanaDelEvento(evento)));
     ipcMain.handle('obtener-idioma', () => datosDeIdioma());
     ipcMain.on('alternar-modo', (evento, modo) => {
       if (modo !== 'compacto' && modo !== 'completo' && modo !== 'cuentas') return;
-      cambiarVista({ modo: vistaActual.modo === modo ? 'normal' : modo }); // pulsar el mismo botón otra vez vuelve a la vista normal
+      const w = ventanaDelEvento(evento);
+      cambiarVista(w, { modo: w.vista.modo === modo ? 'normal' : modo }); // pulsar el mismo botón otra vez vuelve a la vista normal
     });
     ipcMain.on('fijar-escala', (evento, porcentaje) => {
       if (!Number.isFinite(porcentaje)) return;
       aplicarEscala(Math.max(ajustes.ESCALA_MINIMA, Math.min(Math.round(porcentaje), ajustes.ESCALA_MAXIMA)));
     });
-    ipcMain.on('redimensionar-inicio', (evento, borde) => empezarRedimension(borde));
-    ipcMain.on('redimensionar-fin', () => terminarRedimension());
-    ipcMain.on('restablecer-tamano', () => restablecerTamano());
-    ipcMain.on('alternar-orientacion', () => {
+    ipcMain.on('redimensionar-inicio', (evento, borde) => empezarRedimension(ventanaDelEvento(evento), borde));
+    ipcMain.on('redimensionar-fin', (evento) => terminarRedimension(ventanaDelEvento(evento)));
+    ipcMain.on('restablecer-tamano', (evento) => restablecerTamano(ventanaDelEvento(evento)));
+    ipcMain.on('alternar-orientacion', (evento) => {
+      const w = ventanaDelEvento(evento);
       // La orientación solo se nota en la vista normal; en las otras no hay nada que cambiar.
-      if (vistaActual.modo !== 'normal') return;
-      cambiarVista({ orientacion: vistaActual.orientacion === 'vertical' ? 'horizontal' : 'vertical' });
+      if (w.vista.modo !== 'normal') return;
+      cambiarVista(w, { orientacion: w.vista.orientacion === 'vertical' ? 'horizontal' : 'vertical' });
     });
     ipcMain.on('cambiar-escala', (evento, paso) => {
       if (!Number.isFinite(paso) || Math.abs(paso) > 50) return;
       const nueva = Math.round(escalaActual * 100 + paso);
       aplicarEscala(Math.max(ajustes.ESCALA_MINIMA, Math.min(nueva, ajustes.ESCALA_MAXIMA)));
     });
-    ipcMain.handle('exportar-historial', (evento) => exportarHistorial(BrowserWindow.fromWebContents(evento.sender)));
-    ipcMain.handle('ajustar-ventana', (evento, abierto, alto, anchoPanel, preferirAbajo) => ajustarVentanaAlPanel(Boolean(abierto), alto, anchoPanel, Boolean(preferirAbajo)));
-    ipcMain.handle('obtener-ajustes', () => ajustesActuales());
-    ipcMain.handle('guardar-ajustes', (evento, datos) => guardarAjustes(datos));
-    ipcMain.handle('obtener-historial', (evento, dias) => datosDelHistorial(dias));
+    ipcMain.handle('exportar-historial', (evento) => exportarHistorial(ventanaDelEvento(evento), BrowserWindow.fromWebContents(evento.sender)));
+    ipcMain.handle('ajustar-ventana', (evento, abierto, alto, anchoPanel, preferirAbajo) => ajustarVentanaAlPanel(ventanaDelEvento(evento), Boolean(abierto), alto, anchoPanel, Boolean(preferirAbajo)));
+    ipcMain.handle('obtener-ajustes', (evento) => ajustesActuales(ventanaDelEvento(evento)));
+    ipcMain.handle('guardar-ajustes', (evento, datos) => guardarAjustes(ventanaDelEvento(evento), datos));
+    ipcMain.handle('obtener-historial', (evento, dias) => datosDelHistorial(ventanaDelEvento(evento), dias));
     if (MODO_PRUEBA) ipcMain.handle('prueba', (evento, nombre) => accionDePrueba(nombre));
 
     // Primero averiguamos si ya hay sesión guardada, luego mostramos todo.
     const cuentasGuardadas = almacen.leer().cuentas;
     actualizarTotalDeCuentas();
     verTodasLasCuentas = almacen.leer().todasLasCuentas !== false;
+    ventanasSeparadas = almacen.leer().ventanasSeparadas === true;
     tamanosGuardados = almacen.leer().tamanos || {};
     await sesion.iniciar(cuentasGuardadas, alCambiarSesion, MODO_PRUEBA);
     idiomas.fijar(almacen.leer().idioma); // el idioma guardado, antes de crear el menú y las pantallas
 
     // El tamaño de la ventana depende de la vista y de la orientación guardadas.
     const guardadaVista = almacen.leer();
-    vistaActual = {
+    principal.vista = {
       modo: ajustes.OPCIONES_MODO.includes(guardadaVista.modo) ? guardadaVista.modo : 'normal',
       orientacion: ajustes.OPCIONES_ORIENTACION.includes(guardadaVista.orientacion) ? guardadaVista.orientacion : 'vertical',
     };
     const guardada = almacen.leer().escala;   // y del tamaño elegido (en %)
     escalaActual = Math.max(ajustes.ESCALA_MINIMA, Math.min(guardada, ajustes.ESCALA_MAXIMA)) / 100;
-    crearVentana();
+    crearVentana(principal);
     crearBandeja();
+    sincronizarVentanas(); // las ventanas propias de las demás cuentas (si está activada esa opción)
 
     // "No molestar" que había quedado activo, el atajo de teclado y, al rato, la búsqueda de una versión nueva.
     const silencioGuardado = almacen.leer().silencioHasta || 0;
     if (silencioGuardado > Date.now()) silenciarAvisos(silencioGuardado);
     aplicarAtajoGlobal();
     setTimeout(buscarVersionNueva, 15 * 1000);
+
+    // El contexto del chat de Claude Code cambia con cada mensaje: se mira cada 15 segundos.
+    revisarContexto();
+    setInterval(revisarContexto, 15 * 1000);
 
     // Si ya había sesión guardada de otras veces, leemos el uso al arrancar.
     actualizarUso();

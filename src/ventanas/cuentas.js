@@ -194,12 +194,13 @@ const panelCuentas = (() => {
     return { fila, nombre, nombreTexto, planTexto, hoy, sesion, semana, aviso, extras: [] };
   }
 
-  function dibujarResumen(cuentas, activa) {
+  // "conResumen": la vista completa lleva las filas de todas las cuentas (no, si cada cuenta tiene su propia ventana).
+  function dibujarResumen(cuentas, activa, conResumen = true) {
     resumen.style.setProperty('--resumen-n', String(cuentas.length));
     // Columnas de las filas anchas: Hoy, Sesión, Semana y una más por cada límite extra (Fable...) de la cuenta que más tenga
     const maximoExtras = cuentas.reduce((mayor, c) => Math.max(mayor, (c.extras || []).length), 0);
     resumen.style.setProperty('--n-cols-lista', String(3 + maximoExtras));
-    document.body.classList.toggle('con-resumen', cuentas.length >= 2);
+    document.body.classList.toggle('con-resumen', cuentas.length >= 2 && conResumen);
 
     for (const [id, elementos] of filasDelResumen) {
       if (!cuentas.some((c) => c.id === id)) {
@@ -265,7 +266,7 @@ const panelCuentas = (() => {
     const activa = cuentasActuales.find((c) => c.id === datos.activa);
     mostrarPestana(activa);
     dibujarLista(cuentasActuales, datos.activa);
-    dibujarResumen(cuentasActuales, datos.activa);
+    dibujarResumen(cuentasActuales, datos.activa, datos.resumen !== false);
   }
 
   return { mostrar };
