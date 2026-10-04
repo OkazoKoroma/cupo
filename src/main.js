@@ -48,7 +48,8 @@ const MEDIDAS_DE_VISTA = {
   completo: { ancho: 760, alto: 92 + 8 + 250 },    // las barras arriba y, abajo, el historial, el desglose y la proyección juntos
   cuentas: { ancho: 760, alto: 0 },                // todas las cuentas a la vez, una fila por cuenta (el alto depende de cuántas haya)
   // el panel de control: la vista completa (más ancha) y, debajo, seis gráficos más en dos filas (ver #tablero en widget.css)
-  tablero: { ancho: 1000, alto: 92 + 8 + 250 + 8 + 430 },
+  // (con el margen de la ventana mide 1280 × 720)
+  tablero: { ancho: 1278, alto: 92 + 8 + 250 + 8 + 360 },
 };
 // El panel de control es la vista completa con una sección más: casi todo lo que vale para una vale para la otra.
 const esVistaCompleta = (vista) => vista.modo === 'completo' || vista.modo === 'tablero';

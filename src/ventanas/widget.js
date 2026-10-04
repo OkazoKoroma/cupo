@@ -462,7 +462,9 @@ async function abrirPanel(nombre) {
     mostrarVistaDelPanel(nombre);
     // Si el panel necesita más alto que el lugar de los tres paneles (Ajustes sí), la ventana crece hacia abajo.
     // (en el panel de control, el panel abierto usa también el lugar de los gráficos de abajo)
-    const falta = (TAMANOS_DE_PANEL[nombre].altoCompleto || TAMANOS_DE_PANEL[nombre].alto) - ALTO_PANELES_COMPLETO - extraAlto - (esTablero() ? ALTO_DEL_TABLERO : 0);
+    // (y como es ancho, Ajustes cabe en sus cuatro columnas: no necesita el alto extra de la vista completa)
+    const altoPedido = esTablero() ? TAMANOS_DE_PANEL[nombre].alto : TAMANOS_DE_PANEL[nombre].altoCompleto || TAMANOS_DE_PANEL[nombre].alto;
+    const falta = altoPedido - ALTO_PANELES_COMPLETO - extraAlto - (esTablero() ? ALTO_DEL_TABLERO : 0);
     if (falta > 0) {
       const { alto } = await window.widget.ajustarVentana(true, falta - SEPARACION_PANEL, 0, true, panelActual);
       if (panelActual === nombre) ponerAltoExtraCompleto(alto + SEPARACION_PANEL);
@@ -585,7 +587,7 @@ function refrescarPanel(animar = true) {
 
 // ----- Panel de control: seis gráficos más, debajo de la vista completa -----
 const esTablero = () => document.body.classList.contains('tablero');
-const ALTO_DEL_TABLERO = 438; // lo que ocupa esa sección con su separación (igual que en widget.css y en main.js)
+const ALTO_DEL_TABLERO = 368; // lo que ocupa esa sección con su separación (igual que en widget.css y en main.js)
 let turnoDelTablero = 0;      // si llegan dos pedidos seguidos, solo se dibuja el último
 
 async function dibujarTablero() {

@@ -2029,7 +2029,7 @@ body.tablero:not(.ajustes-abierto) .tablero-graficos {
   box-sizing: border-box;
   order: -1;                 /* debajo de todo (la escena de la vista completa va de abajo hacia arriba) */
   flex: none;
-  height: 430px;
+  height: 360px;
   margin-top: 8px;
   padding: 12px 16px;
   display: grid;
@@ -2086,7 +2086,7 @@ body.tablero.ajustes-abierto.abajo .panel,
 body.tablero.ajustes-abierto.panel-abierto .panel,
 body.tablero.ajustes-abierto.abajo.panel-abierto .panel,
 body.tablero.ajustes-abierto .panel-interior {
-  height: calc(250px + 438px + var(--extra-alto, 0px) + var(--panel-extra, 0px));
+  height: calc(250px + 368px + var(--extra-alto, 0px) + var(--panel-extra, 0px));
 }
 
 /* Con los botones del panel de control y de la vista mínima hay diez íconos: en la tarjeta vertical van un poco más juntos */
