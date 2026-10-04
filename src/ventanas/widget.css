@@ -1105,10 +1105,11 @@ body.abajo.panel-abierto .panel {
 .agarre-nw { top: 0;    left: 0;     width: 10px;  height: 10px; cursor: nwse-resize; }
 .agarre-se { bottom: 0; right: 0;    width: 10px;  height: 10px; cursor: nwse-resize; }
 
-/* Con un panel desplegado no se estira. La vista compacta y las listas de cuentas solo se estiran a lo ancho. */
-body.panel-abierto .agarre,
-body.compacto .agarre-n, body.compacto .agarre-s, body.compacto .agarre-ne, body.compacto .agarre-nw, body.compacto .agarre-se, body.compacto .agarre-sw,
-body.todas .agarre-n, body.todas .agarre-s, body.todas .agarre-ne, body.todas .agarre-nw, body.todas .agarre-se, body.todas .agarre-sw {
+/* La vista compacta y las listas de cuentas solo se estiran a lo ancho (con un panel desplegado, lo que se estira es el panel). */
+body.compacto:not(.panel-abierto) .agarre-n, body.compacto:not(.panel-abierto) .agarre-s, body.compacto:not(.panel-abierto) .agarre-ne, body.compacto:not(.panel-abierto) .agarre-nw,
+body.compacto:not(.panel-abierto) .agarre-se, body.compacto:not(.panel-abierto) .agarre-sw,
+body.todas:not(.panel-abierto) .agarre-n, body.todas:not(.panel-abierto) .agarre-s, body.todas:not(.panel-abierto) .agarre-ne,
+body.todas:not(.panel-abierto) .agarre-nw, body.todas:not(.panel-abierto) .agarre-se, body.todas:not(.panel-abierto) .agarre-sw {
   display: none;
 }
 
@@ -1726,9 +1727,14 @@ body.parte-chats #juntar-chats {
 
 /* La ventana de una parte muestra solo esa parte, ocupando toda la ventana */
 body.parte .tarjeta,
-body.parte .resumen-cuentas,
-body.parte .agarre {
+body.parte .resumen-cuentas {
   display: none !important;
+}
+
+/* La ventana de una parte también se estira arrastrando sus bordes (la de los chats, solo a lo ancho: su alto depende de cuántos haya) */
+body.parte-chats .agarre-n, body.parte-chats .agarre-s, body.parte-chats .agarre-ne,
+body.parte-chats .agarre-nw, body.parte-chats .agarre-se, body.parte-chats .agarre-sw {
+  display: none;
 }
 
 body.parte:not(.parte-chats) .chats {
@@ -1762,7 +1768,7 @@ body.parte .panel-interior {
 }
 
 body.parte #vista-historial .grafico {
-  height: calc(150px + var(--extra-alto, 0px));
+  height: calc(100% - 22px);
 }
 
 .grafico-dia .nombre-limite {
@@ -1863,4 +1869,34 @@ body:not(.compacto):not(.franja) .cuenta-pestana {
    cuando está abierto en su lugar; si quedó marcado de antes (por ejemplo, al cambiar de vista con él abierto), no se cuela. */
 body.completo:not(.ajustes-abierto) .vista-panel:not(#vista-historial):not(#vista-desglose):not(#vista-proyeccion) {
   display: none !important;
+}
+
+/* ----- Comparación con la semana pasada: la marquita junto al % de la semana ("▲ 12") ----- */
+.comparacion {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: help;
+  -webkit-app-region: no-drag;
+}
+
+.comparacion:empty {
+  display: none;
+}
+
+/* En la vista horizontal no hay espacio para la marquita (la frase está en la Proyección) */
+body.horizontal .comparacion {
+  display: none;
+}
+
+.proyeccion-comparacion:empty {
+  display: none;
+}
+
+/* ----- Ajustes: los dos botones de la copia de seguridad, uno bajo el otro (como el de exportar) ----- */
+.campo.botones-fila {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }

@@ -1,6 +1,7 @@
 // main.js: es el "arranque" de la app. Electron ejecuta este archivo primero.
 // Aquí se crean la ventana del widget y el ícono de la bandeja del sistema.
 
+const fs = require('fs');
 const path = require('path');
 const { app, BrowserWindow, Tray, Menu, screen, nativeImage, ipcMain, dialog, globalShortcut, shell } = require('electron');
 const almacen = require('./almacen');
@@ -13,6 +14,7 @@ const calculo = require('./calculo');
 const alertas = require('./alertas');
 const ajustes = require('./ajustes');
 const exportar = require('./exportar');
+const copia = require('./copia');
 const actualizaciones = require('./actualizaciones');
 const contexto = require('./contexto');
 const { rutaDeAsset } = require('./rutas');
@@ -60,7 +62,7 @@ const margen = () => px(MARGEN);
 // (PANEL_SEPARACION debe coincidir con --separacion en widget.css.)
 const PANEL_ALTO_NORMAL = 196;
 const PANEL_ALTO_MINIMO = 120;
-const PANEL_ALTO_MAXIMO = 700;
+const PANEL_ALTO_MAXIMO = 1400; // (además, nunca más alto que lo que cabe en la pantalla)
 const PANEL_SEPARACION = 8;
 
 // Todas las horas se muestran en la zona horaria de tu computador.
@@ -281,7 +283,7 @@ function medidasBase(w, vista = w.vista) {
 const MEDIDAS_DE_PARTE = {
   historial: { ancho: 320, alto: 250 },
   desglose: { ancho: 300, alto: 230 },
-  proyeccion: { ancho: 300, alto: 220 },
+  proyeccion: { ancho: 300, alto: 236 },
   productos: { ancho: 500, alto: 300 },
 };
 function medidasDeParte(parte) {
@@ -568,11 +570,22 @@ function aparienciaActual(w) {
     extra: extrasDeVista(w),           // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual)
     redimensionando: Boolean(w.redimension), // true mientras estás arrastrando un borde
     altoPanel: w.expansion.alto || null, // alto del panel abierto (puede achicarse si ya no cabe en la pantalla)
+    anchoPanel: w.expansion.anchoPanel || 0, // ancho del panel abierto, si es más ancho que la vista
+    paneles: tamanosDePaneles(),      // el tamaño que le diste a cada panel desplegado: { historial: { ancho, alto }, ... }
     formatoReinicio: config.formatoReinicio, // 'relativo' (en 2 h 15 min) u 'hora' (15:06)
     anchoVista: medidasDeVista(w).ancho, // ancho de la tarjeta: no crece aunque un panel (Ajustes) sea más ancho
     altoLista: medidasSinChats(w, w.vista).alto, // alto de la lista de cuentas (todas a la vez): no se estira cuando crece la ventana
     colores: config.colores,          // colores propios, o null
   };
+}
+
+// Los tamaños guardados de los paneles desplegados (los que estiraste arrastrando un borde con el panel abierto).
+function tamanosDePaneles() {
+  const paneles = {};
+  for (const [clave, tamano] of Object.entries(tamanosGuardados)) {
+    if (clave.startsWith('panel-') && tamano) paneles[clave.slice(6)] = { ancho: tamano.ancho || 0, alto: tamano.alto || 0 };
+  }
+  return paneles;
 }
 
 // Avisa a la pantalla del widget que la apariencia cambió.
@@ -736,31 +749,43 @@ function reajustarLaVentana(w) {
 // dónde está el mouse y se va cambiando el tamaño. Queda quieto el borde contrario al que arrastras.
 // (w.redimension = { borde, inicio, cursor, area, clave, temporizador } mientras se arrastra)
 
-function empezarRedimension(w, borde) {
-  if (w.redimension || !w.ventana || w.ventana.isDestroyed() || w.expansion.extra > 0) return; // con un panel desplegado no se estira
+// Con un panel desplegado, lo que se estira es ese panel (la tarjeta no cambia): "minimos" es el tamaño de siempre del panel
+// ({ alto, ancho }), que la pantalla manda para que no se pueda achicar más que eso. Cada panel recuerda su tamaño.
+// (En la vista completa los paneles están siempre a la vista: ahí se estira la vista, sin ningún panel abierto encima.)
+function empezarRedimension(w, borde, minimos) {
+  if (w.redimension || !w.ventana || w.ventana.isDestroyed()) return;
   if (typeof borde !== 'string' || !/^(n|s|e|w|ne|nw|se|sw)$/.test(borde)) return;
+  const conPanel = w.expansion.extra > 0;
+  if (conPanel && (w.vista.modo === 'completo' || !/^[a-z]{3,20}$/.test(w.panelAbierto || ''))) return;
   const inicio = w.ventana.getBounds();
+  const numero = (valor) => (Number.isFinite(valor) && valor > 0 ? Math.round(valor) : 0);
   w.redimension = {
     borde,
     inicio,
     cursor: screen.getCursorScreenPoint(),
     area: screen.getDisplayMatching(inicio).workArea,
-    clave: claveDeTamano(w),
+    clave: conPanel ? 'panel-' + w.panelAbierto : claveDeTamano(w),
+    // El panel nunca queda más chico que su tamaño de siempre (ni que como está ahora, si la pantalla ya lo había achicado)
+    panel: conPanel
+      ? { alto: Math.max(PANEL_ALTO_MINIMO, Math.min(numero(minimos && minimos.alto) || PANEL_ALTO_MINIMO, w.expansion.alto)), ancho: numero(minimos && minimos.ancho) }
+      : null,
     temporizador: setInterval(() => moverRedimension(w), 16),
   };
 }
 
 function moverRedimension(w) {
   if (!w.redimension || !w.ventana || w.ventana.isDestroyed()) return terminarRedimension(w);
-  const { borde, inicio, cursor, area, clave } = w.redimension;
+  const { borde, inicio, cursor, area, clave, panel } = w.redimension;
   const punto = screen.getCursorScreenPoint();
   const dx = punto.x - cursor.x;
   const dy = punto.y - cursor.y;
   const base = medidasBase(w);
-  const minAncho = px(base.ancho + 2 * MARGEN);
-  const minAlto = px(base.alto + 2 * MARGEN);
+  // Con un panel abierto: la ventana mide la tarjeta más el panel, y lo que cambia es el panel.
+  const anchoDeLaVista = px(medidasDeVista(w).ancho + 2 * MARGEN);
+  const minAncho = panel ? Math.max(anchoDeLaVista, px(panel.ancho)) : px(base.ancho + 2 * MARGEN);
+  const minAlto = panel ? altoBase(w) + px(panel.alto + PANEL_SEPARACION) : px(base.alto + 2 * MARGEN);
   const maxAncho = area.width + 2 * margen();
-  const maxAlto = area.height + 2 * margen();
+  const maxAlto = panel ? Math.min(area.height + 2 * margen(), altoBase(w) + px(PANEL_ALTO_MAXIMO + PANEL_SEPARACION)) : area.height + 2 * margen();
   const entre = (valor, minimo, maximo) => Math.max(minimo, Math.min(valor, maximo));
 
   let { x, y, width, height } = inicio;
@@ -768,6 +793,20 @@ function moverRedimension(w) {
   if (borde.includes('w')) {
     width = entre(inicio.width - dx, minAncho, maxAncho);
     x = inicio.x + inicio.width - width;
+  }
+  if (panel) {
+    if (borde.includes('s')) height = entre(inicio.height + dy, minAlto, Math.max(minAlto, maxAlto));
+    if (borde.includes('n')) {
+      height = entre(inicio.height - dy, minAlto, Math.max(minAlto, maxAlto));
+      y = inicio.y + inicio.height - height;
+    }
+    w.expansion.extra = height - altoBase(w);
+    w.expansion.alto = Math.round(w.expansion.extra / escalaActual) - PANEL_SEPARACION;
+    w.expansion.anchoPanel = width > anchoDeLaVista ? Math.round(width / escalaActual) : 0;
+    tamanosGuardados[clave] = { ancho: w.expansion.anchoPanel, alto: w.expansion.alto };
+    w.ventana.setBounds({ x, y, width, height });
+    enviarApariencia(w);
+    return;
   }
   if (permiteAlto(w)) {
     if (borde.includes('s')) height = entre(inicio.height + dy, minAlto, maxAlto);
@@ -791,11 +830,20 @@ function terminarRedimension(w) {
   w.redimension = null;
   almacen.guardar({ tamanos: tamanosGuardados });
   enviarApariencia(w);
+  despejarAlrededor(w); // si al crecer quedó encima de otra ventana de la app, esa se corre
 }
 
 // Vuelve la ventana de la vista actual a su tamaño de siempre.
+// Con un panel desplegado, el que vuelve a su tamaño de siempre es ese panel (la pantalla pide después ese tamaño).
 function restablecerTamano(w) {
-  if (w.redimension || w.expansion.extra > 0) return;
+  if (w.redimension) return;
+  if (w.expansion.extra > 0) {
+    if (w.vista.modo === 'completo' || !w.panelAbierto) return;
+    delete tamanosGuardados['panel-' + w.panelAbierto];
+    almacen.guardar({ tamanos: tamanosGuardados });
+    enviarApariencia(w);
+    return;
+  }
   delete tamanosGuardados[claveDeTamano(w)];
   almacen.guardar({ tamanos: tamanosGuardados });
   reajustarLaVentana(w);
@@ -1170,7 +1218,12 @@ function guardarAjustes(w, datos) {
 
 // Datos para el gráfico: el uso de cada uno de los últimos 7 días (null si ese día no hay registro).
 // Con varias cuentas a la vez (sin ventanas separadas) trae además el de cada cuenta ("cuentas").
+// "horas": a qué horas del día se usa más (el promedio de cada hora, entre los días guardados).
 function datosDelHistorial(w, cantidadDeDias = 7) {
+  if (cantidadDeDias === 'horas') {
+    const cuentas = hayResumenDeCuentas() && !w.cuentaId ? almacen.leer().cuentas : [almacen.cuenta(cuentaDe(w)) || almacen.cuentaActiva()];
+    return { porHora: true, cuentas: cuentas.map(horasDeCuenta) };
+  }
   // "Hoy": el gráfico del día (de la cuenta de esa ventana, o de todas si se muestran todas a la vez).
   if (cantidadDeDias === 1) {
     const cuentas = hayResumenDeCuentas() && !w.cuentaId ? almacen.leer().cuentas : [almacen.cuenta(cuentaDe(w)) || almacen.cuentaActiva()];
@@ -1184,6 +1237,19 @@ function datosDelHistorial(w, cantidadDeDias = 7) {
     datos.cuentas = almacen.leer().cuentas.map((cuenta) => ({ id: cuenta.id, nombre: nombreDeCuenta(cuenta), ...historialDeCuenta(cuenta, cantidad) }));
   }
   return datos;
+}
+
+// El promedio de uso de cada hora del día de una cuenta. Se usan los días ya terminados (hoy está a medias y bajaría el
+// promedio de las horas que faltan); si todavía no hay ninguno, lo que va de hoy.
+function horasDeCuenta(cuenta) {
+  const hoy = calculo.diaLocal(fechaActual());
+  const conHoras = (cuenta.historial || []).filter((d) => Array.isArray(d.horas) && d.horas.length === 24);
+  const terminados = conHoras.filter((d) => d.dia !== hoy);
+  const dias = terminados.length ? terminados : conHoras;
+  const horas = Array.from({ length: 24 }, (_, hora) => (
+    dias.length ? Math.round((dias.reduce((suma, d) => suma + (Number(d.horas[hora]) || 0), 0) / dias.length) * 100) / 100 : null
+  ));
+  return { id: cuenta.id, nombre: nombreDeCuenta(cuenta), horas, dias: dias.length };
 }
 
 // El historial de una cuenta: los últimos días con su uso y su límite.
@@ -1240,6 +1306,69 @@ async function exportarHistorial(w, ventanaPadre) {
   } catch (error) {
     return { ok: false, error: t('exportar.error', { mensaje: error.message }) };
   }
+}
+
+// ----- Copia de seguridad -----
+// "Guardar copia" escribe en un archivo todo lo que la app recuerda (ajustes, cuentas, límites e historial).
+// "Restaurar copia" lo lee, pide confirmación, reemplaza los datos y vuelve a abrir la app.
+// La copia no lleva sesiones: en otro computador hay que entrar de nuevo a cada cuenta.
+const cuadroCon = (ventanaPadre) => (ventanaPadre && !ventanaPadre.isDestroyed() && ventanaPadre.isVisible() ? [ventanaPadre] : []);
+
+async function guardarCopia(ventanaPadre) {
+  const eleccion = await dialog.showSaveDialog(...cuadroCon(ventanaPadre), {
+    title: t('copia.guardar.titulo'),
+    defaultPath: path.join(app.getPath('documents'), 'headroom-copia-' + calculo.diaLocal(new Date()) + '.json'),
+    filters: [{ name: t('copia.filtro'), extensions: ['json'] }],
+  });
+  if (eleccion.canceled || !eleccion.filePath) return { ok: false, cancelado: true };
+  try {
+    fs.writeFileSync(eleccion.filePath, copia.crear(almacen.leer(), app.getVersion()), 'utf8');
+    return { ok: true, mensaje: t('copia.guardada') };
+  } catch (error) {
+    return { ok: false, error: t('exportar.error', { mensaje: error.message }) };
+  }
+}
+
+async function restaurarCopia(ventanaPadre) {
+  const eleccion = await dialog.showOpenDialog(...cuadroCon(ventanaPadre), {
+    title: t('copia.restaurar.titulo'),
+    defaultPath: app.getPath('documents'),
+    filters: [{ name: t('copia.filtro'), extensions: ['json'] }],
+    properties: ['openFile'],
+  });
+  if (eleccion.canceled || !eleccion.filePaths[0]) return { ok: false, cancelado: true };
+  let leida = { ok: false };
+  try {
+    if (fs.statSync(eleccion.filePaths[0]).size <= copia.TAMANO_MAXIMO) leida = copia.leer(fs.readFileSync(eleccion.filePaths[0], 'utf8'));
+  } catch (error) { /* no se pudo leer: se trata como un archivo que no sirve */ }
+  if (!leida.ok) return { ok: false, error: t('copia.invalida') };
+
+  const fecha = leida.fecha && !Number.isNaN(Date.parse(leida.fecha))
+    ? new Date(leida.fecha).toLocaleDateString(idiomas.locale(), { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
+  const confirmacion = await dialog.showMessageBox(...cuadroCon(ventanaPadre), {
+    type: 'warning',
+    buttons: [t('copia.confirmar.si'), t('copia.confirmar.no')],
+    defaultId: 1,
+    cancelId: 1,
+    title: t('copia.restaurar.titulo'),
+    message: t('copia.confirmar', { fecha, n: leida.datos.cuentas.length }),
+    detail: t('copia.confirmar.detalle'),
+  });
+  if (confirmacion.response !== 0) return { ok: false, cancelado: true };
+
+  // Las cuentas de ahora que no vienen en la copia: se cierra su sesión, para que no quede guardada sin dueño.
+  const queQuedan = new Set(leida.datos.cuentas.map((c) => c.id));
+  for (const cuenta of almacen.leer().cuentas) {
+    if (!queQuedan.has(cuenta.id)) {
+      try { await sesion.olvidar(cuenta.id); } catch (error) { /* no importa: igual se restaura */ }
+    }
+  }
+  almacen.reemplazar(leida.datos);
+  // Se vuelve a abrir la app, para que todo (ventanas, cuentas, idioma...) parta de los datos restaurados.
+  app.relaunch();
+  app.exit(0);
+  return { ok: true };
 }
 
 // ----- Ícono de la bandeja de color -----
@@ -1588,6 +1717,9 @@ function anotarLecturaDeHoy(cuenta, hoy, sesion5h, semana, desglose) {
   const punto = { t: ahora.getTime(), hoy, sesion: sesion5h ? sesion5h.porcentaje : null, productos };
   const puntos = [...anteriores, punto].slice(-MAXIMO_DE_PUNTOS_DEL_DIA);
   const cambios = { lecturasDeHoy: { dia, puntos } };
+  // Cuánto se usó en cada hora de hoy (para "a qué horas usas más"): se guarda con el día en el historial
+  const horas = calculo.usoPorHora(puntos, cuenta.diario ? cuenta.diario.inicioMs : null);
+  cambios.historial = (cuenta.historial || []).map((d) => (d.dia === dia ? { ...d, horas } : d));
   if (productos) {
     // Los nombres de los productos (para los que claude.ai agregue y no conozcamos)
     cambios.nombresDeProductos = { ...(cuenta.nombresDeProductos || {}), ...Object.fromEntries(desglose.map((p) => [p.clave, p.nombre])) };
@@ -1599,7 +1731,7 @@ function anotarLecturaDeHoy(cuenta, hoy, sesion5h, semana, desglose) {
       const antes = inicio[clave] || 0;
       delDia[clave] = Math.round((valor >= antes ? valor - antes : valor) * 100) / 100;
     }
-    cambios.historial = (cuenta.historial || []).map((d) => (d.dia === dia ? { ...d, productos: delDia } : d));
+    cambios.historial = cambios.historial.map((d) => (d.dia === dia ? { ...d, productos: delDia } : d));
   }
   almacen.guardarCuenta(cuenta.id, cambios);
 }
@@ -1700,8 +1832,12 @@ function resumirSemanaSiTermino(cuenta, semana, reinicio, desglose) {
   const anterior = cuenta.semanaEnCurso;
   const reinicioMs = reinicio.getTime();
   const termino = anterior && reinicioMs - anterior.reinicioMs > 12 * HORAS;
-  const cambios = { semanaEnCurso: { reinicioMs, semana, productos: productosDeLaSemana(semana, desglose) } };
+  // La curva de la semana: cuánto llevaba a cada hora desde que empezó (para comparar la semana que viene con esta)
+  const horasDeSemana = (fechaActual().getTime() - (reinicioMs - 7 * 24 * HORAS)) / HORAS;
+  const curva = calculo.agregarALaCurva(anterior && !termino ? anterior.curva : [], horasDeSemana, semana);
+  const cambios = { semanaEnCurso: { reinicioMs, semana, productos: productosDeLaSemana(semana, desglose), curva } };
   if (termino) {
+    cambios.curvaSemanaPasada = { reinicioMs: anterior.reinicioMs, puntos: anterior.curva || [] };
     const terminada = {
       inicio: calculo.diaLocal(new Date(anterior.reinicioMs - 7 * 24 * HORAS)),
       semana: anterior.semana,
@@ -1867,6 +2003,7 @@ function resumenDeCuentas() {
       // Para el desglose y la proyección de todas las cuentas a la vez
       desglose: datos ? datos.desglose || null : null,
       proyeccion: datos ? datos.proyeccion || null : null,
+      comparacion: datos ? datos.comparacion || null : null,
       reinicioTexto: datos ? datos.reinicioTexto : null,
       extras: limitesExtraDe(cuenta.id).map((extra) => ({ nombre: extra.nombre, porcentaje: extra.porcentaje })),
       uso: datos && {
@@ -1943,6 +2080,12 @@ async function leerCuenta(cuenta, indice) {
       actualizado: ahora,
     };
     lectura.uso.proyeccion = calcularProyecciones(cuenta.id); // "a este ritmo..." de hoy y de la semana
+    // Cómo vas contra la semana pasada a esta misma altura (null si todavía no hay con qué comparar)
+    const guardada = almacen.cuenta(cuenta.id);
+    lectura.uso.comparacion = calculo.compararConSemanaPasada({
+      semana: resultado.semana, inicioSemana: lectura.inicioSemana, ahora: fechaActual(),
+      curvaPasada: guardada.curvaSemanaPasada, historial: guardada.historial,
+    });
     lectura.error = null;
     lectura.fallosDeFormato = 0; // una lectura buena borra la cuenta de fallos
     formatoAvisado = false;
@@ -2173,7 +2316,7 @@ if (!app.requestSingleInstanceLock()) {
       if (!Number.isFinite(porcentaje)) return;
       aplicarEscala(Math.max(ajustes.ESCALA_MINIMA, Math.min(Math.round(porcentaje), ajustes.ESCALA_MAXIMA)));
     });
-    ipcMain.on('redimensionar-inicio', (evento, borde) => empezarRedimension(ventanaDelEvento(evento), borde));
+    ipcMain.on('redimensionar-inicio', (evento, borde, minimos) => empezarRedimension(ventanaDelEvento(evento), borde, minimos));
     ipcMain.on('redimensionar-fin', (evento) => terminarRedimension(ventanaDelEvento(evento)));
     ipcMain.on('restablecer-tamano', (evento) => restablecerTamano(ventanaDelEvento(evento)));
     ipcMain.on('alternar-orientacion', (evento) => {
@@ -2192,6 +2335,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.on('juntar-parte', (evento) => { const w = ventanaDelEvento(evento); if (w.parte) juntarParte(w.clave); });
     ipcMain.on('bienvenida-vista', () => { if (!almacen.leer().bienvenidaVista) almacen.guardar({ bienvenidaVista: true }); });
     ipcMain.handle('exportar-historial', (evento) => exportarHistorial(ventanaDelEvento(evento), BrowserWindow.fromWebContents(evento.sender)));
+    ipcMain.handle('guardar-copia', (evento) => guardarCopia(BrowserWindow.fromWebContents(evento.sender)));
+    ipcMain.handle('restaurar-copia', (evento) => restaurarCopia(BrowserWindow.fromWebContents(evento.sender)));
     ipcMain.handle('ajustar-ventana', (evento, abierto, alto, anchoPanel, preferirAbajo, panel) => {
       const w = ventanaDelEvento(evento);
       w.panelAbierto = abierto && typeof panel === 'string' ? panel : null; // (Ajustes puede quedar encima de otras ventanas)
@@ -2199,7 +2344,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     ipcMain.handle('obtener-ajustes', (evento) => ajustesActuales(ventanaDelEvento(evento)));
     ipcMain.handle('guardar-ajustes', (evento, datos) => guardarAjustes(ventanaDelEvento(evento), datos));
-    ipcMain.handle('obtener-historial', (evento, dias) => datosDelHistorial(ventanaDelEvento(evento), dias));
+    ipcMain.handle('obtener-historial', (evento, dias) => datosDelHistorial(ventanaDelEvento(evento), dias === 'horas' ? 'horas' : Number(dias)));
     ipcMain.handle('obtener-productos', (evento, modo) => datosDeProductos(ventanaDelEvento(evento), ['semana', 'semanas'].includes(modo) ? modo : Number(modo)));
     if (MODO_PRUEBA) ipcMain.handle('prueba', (evento, nombre) => accionDePrueba(nombre));
 

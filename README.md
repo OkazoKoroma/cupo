@@ -33,6 +33,10 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 
 ![Historial de hoy y de 7 días](docs/captura-historial.png)
 
+**A qué horas usas más.** El promedio de cada hora del día, con tu hora pico. Y junto a la semana, cómo vas contra la **semana pasada a esta misma altura** (▼ 12 = vas 12 puntos por debajo). Los paneles se agrandan arrastrando sus bordes:
+
+![Horas de más uso, con el panel agrandado](docs/captura-horas.png)
+
 **Uso por producto a lo largo del tiempo.** Cuánto usaron Claude Code, Chats, Cowork y Otros: hoy, esta semana (desde el día en que se reinicia tu plan), 30 días o semana a semana:
 
 | Esta semana | Semana a semana |
@@ -74,6 +78,8 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 - **Uso extra:** si tienes crédito extra activado con tope mensual, lo gastado (por ejemplo US$16 / US$50).
 - **Tipo de plan** de cada cuenta (Pro, Max 5x, Team…).
 - **Historial** en gráficos de línea: **hoy** hora a hora, y los últimos **7 o 30 días**, con tu límite marcado y tu promedio diario.
+- **Horas de más uso:** a qué horas del día se te va más cuota (el promedio de cada hora), con tu hora pico.
+- **Comparación con la semana pasada:** junto a la barra de la semana, cuántos puntos llevas de más o de menos que la semana pasada a esta misma altura.
 - **Desglose** de la semana por producto (Claude Code, Chats, Cowork…) y **uso por producto a lo largo del tiempo**: hoy, esta semana (desde el día en que se reinicia tu plan), 30 días o semana a semana.
 - **Proyección** ("a este ritmo llegarías al límite a las 18:40").
 - Con varias cuentas, el historial, el desglose y la proyección muestran todas las cuentas a la vez.
@@ -96,10 +102,11 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 - **Cada cuenta en su propia ventana** (opcional): cada una se mueve por separado y tiene su propia vista.
 - **Partes en su propia ventana:** el historial, el desglose, la proyección, el uso por producto y la ventana de contexto se pueden sacar del widget (botón junto a la X) y poner donde quieras. Con varias cuentas, cada una dice de qué cuenta es.
 - **Las ventanas no se tapan:** si sueltas una encima de otra, se acomoda al lado y se imanta a los bordes. Solo Ajustes puede quedar encima mientras está abierto.
-- **Ventana estirable:** arrastra sus bordes para cambiar su forma; las letras no cambian de tamaño (doble clic en un borde para volver al tamaño original).
+- **Ventanas y paneles estirables:** arrastra los bordes del widget, de un panel abierto o de una parte separada para cambiar su tamaño; las letras no cambian de tamaño y cada uno recuerda el suyo (doble clic en un borde para volver al tamaño original).
 - Tema claro, oscuro o automático, transparencia, escala de 70% a 160% y **colores propios** (acento y colores de las barras).
 - **Atajo de teclado** Ctrl + Alt + C para mostrarlo u ocultarlo desde cualquier programa.
 - Exporta el historial a **CSV** (se abre en Excel).
+- **Copia de seguridad:** guarda en un archivo tus ajustes, cuentas e historial, y restáuralos en otro computador o después de reinstalar Windows. (La copia no lleva tus sesiones: hay que volver a entrar a cada cuenta.)
 
 ![Ajustes](docs/captura-ajustes.png)
 

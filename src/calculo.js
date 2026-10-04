@@ -334,7 +334,131 @@ function procesarSemana({ estado, semana, reinicio, umbral }) {
   return { estado: nuevo, alertas };
 }
 
+// ----- A qué horas usas más -----
+// Reparte el uso de un día entre sus 24 horas, a partir de las lecturas de ese día.
+//   puntos   → [{ t, hoy }] las lecturas del día, en orden (t = momento en ms, hoy = % usado hoy hasta ese momento)
+//   inicioMs → desde cuándo se mide el uso de ese día (lo usado antes de la primera lectura se reparte desde ahí)
+// Lo que subió entre dos lecturas se reparte entre las horas que pasaron entre ellas (si el widget estuvo oculto
+// tres horas, no se sabe en cuál de las tres fue: se reparte parejo).
+// Devuelve 24 números (de las 00 a las 23), en % de la cuota semanal.
+function usoPorHora(puntos, inicioMs) {
+  const horas = new Array(24).fill(0);
+  if (!Array.isArray(puntos) || puntos.length === 0) return horas;
+  const inicioDelDia = new Date(puntos[0].t);
+  inicioDelDia.setHours(0, 0, 0, 0);
+  const partida = Number.isFinite(inicioMs) ? Math.min(Math.max(inicioMs, inicioDelDia.getTime()), puntos[0].t) : puntos[0].t;
+  let antes = { t: partida, hoy: 0 };
+  for (const punto of puntos) {
+    const subio = punto.hoy - antes.hoy;
+    if (subio > 0) {
+      const total = punto.t - antes.t;
+      if (total <= 0) {
+        horas[new Date(punto.t).getHours()] += subio;
+      } else {
+        // Se recorre el tramo de hora en hora, y a cada hora le toca la parte que le corresponde
+        let desde = antes.t;
+        while (desde < punto.t) {
+          const finDeLaHora = new Date(desde);
+          finDeLaHora.setMinutes(60, 0, 0);
+          const hasta = Math.min(punto.t, finDeLaHora.getTime());
+          horas[new Date(desde).getHours()] += (subio * (hasta - desde)) / total;
+          desde = hasta;
+        }
+      }
+    }
+    if (punto.hoy >= antes.hoy || punto.t > antes.t) antes = punto;
+  }
+  return horas.map((valor) => Math.round(valor * 100) / 100);
+}
+
+// ----- Comparar con la semana pasada -----
+// Mientras avanza la semana se guarda su "curva": cuánto llevaba de la cuota a cada hora desde que empezó.
+// Con la curva de la semana pasada se puede decir "a esta misma altura ibas en 35%".
+
+const MAXIMO_DE_PUNTOS_DE_LA_CURVA = 7 * 24 + 2;
+
+// Agrega una lectura a la curva de la semana: un punto por hora como máximo (el último de cada hora).
+//   curva → [[horas desde que empezó la semana, % de la cuota], ...]
+function agregarALaCurva(curva, horas, semana) {
+  if (!Number.isFinite(horas) || horas < 0 || !Number.isFinite(semana)) return curva || [];
+  const punto = [Math.round(horas * 100) / 100, semana];
+  const lista = Array.isArray(curva) ? [...curva] : [];
+  const ultimo = lista[lista.length - 1];
+  if (ultimo && Math.floor(ultimo[0]) === Math.floor(punto[0])) lista[lista.length - 1] = punto;
+  else lista.push(punto);
+  return lista.slice(-MAXIMO_DE_PUNTOS_DE_LA_CURVA);
+}
+
+// Cuánto llevaba la semana pasada a esas mismas horas de empezada (entre dos puntos, en línea recta).
+// Devuelve null si la curva no llega hasta ahí (por ejemplo, si se empezó a guardar a mitad de semana).
+function valorDeLaCurva(curva, horas) {
+  if (!Array.isArray(curva) || curva.length === 0 || !Number.isFinite(horas)) return null;
+  if (horas < curva[0][0] - 1) return null;
+  if (horas <= curva[0][0]) return curva[0][1];
+  for (let i = 1; i < curva.length; i++) {
+    const [h0, v0] = curva[i - 1];
+    const [h1, v1] = curva[i];
+    if (horas <= h1) return h1 === h0 ? v1 : v0 + ((v1 - v0) * (horas - h0)) / (h1 - h0);
+  }
+  return curva[curva.length - 1][1];
+}
+
+// Lo mismo, pero estimado con el historial por día (cuando todavía no hay curva de la semana pasada):
+// suma lo usado en los días de la semana pasada hasta el momento equivalente (de cada día, la parte que cae en ese tramo).
+// Devuelve null si faltan días en el historial (si no, la cuenta saldría más baja de lo que fue).
+function semanaPasadaSegunHistorial({ historial, inicioSemana, ahora }) {
+  if (!inicioSemana || !Array.isArray(historial)) return null;
+  const desde = inicioSemana.getTime() - 7 * DIA_MS;
+  const hasta = ahora.getTime() - 7 * DIA_MS;
+  if (!(hasta > desde)) return null;
+  const porDia = new Map(historial.map((entrada) => [entrada.dia, entrada]));
+  let suma = 0;
+  let faltan = 0;
+  let dias = 0;
+  const cursor = new Date(desde);
+  cursor.setHours(0, 0, 0, 0);
+  while (cursor.getTime() < hasta) {
+    const inicioDelDia = cursor.getTime();
+    cursor.setDate(cursor.getDate() + 1);
+    const finDelDia = cursor.getTime();
+    const parte = (Math.min(hasta, finDelDia) - Math.max(desde, inicioDelDia)) / (finDelDia - inicioDelDia);
+    const registro = porDia.get(diaLocal(new Date(inicioDelDia + 12 * HORA_MS)));
+    dias += 1;
+    if (registro && Number.isFinite(registro.uso)) suma += registro.uso * Math.max(0, Math.min(1, parte));
+    else faltan += 1;
+  }
+  if (dias === 0 || faltan > 1 || faltan === dias) return null;
+  return suma;
+}
+
+// Compara lo que llevas esta semana con lo que llevabas la semana pasada a esta misma altura.
+//   curvaPasada → { reinicioMs, puntos } de la semana anterior (o null)
+// Devuelve { diferencia, antes, aproximado } (en puntos de la cuota semanal, con un decimal) o null si no se puede comparar.
+function compararConSemanaPasada({ semana, inicioSemana, ahora, curvaPasada, historial }) {
+  if (!inicioSemana || !Number.isFinite(semana)) return null;
+  const horas = (ahora.getTime() - inicioSemana.getTime()) / HORA_MS;
+  if (!(horas >= 0)) return null;
+  let antes = null;
+  let aproximado = false;
+  // La curva sirve solo si es de la semana justo anterior (terminó cuando empezó esta)
+  if (curvaPasada && Math.abs(curvaPasada.reinicioMs - inicioSemana.getTime()) < 12 * HORA_MS) {
+    antes = valorDeLaCurva(curvaPasada.puntos, horas);
+  }
+  if (antes === null) {
+    antes = semanaPasadaSegunHistorial({ historial, inicioSemana, ahora });
+    aproximado = true;
+  }
+  if (antes === null) return null;
+  const redondear = (valor) => Math.round(valor * 10) / 10;
+  return { diferencia: redondear(semana - antes), antes: redondear(antes), aproximado };
+}
+
 module.exports = {
+  usoPorHora,
+  agregarALaCurva,
+  valorDeLaCurva,
+  semanaPasadaSegunHistorial,
+  compararConSemanaPasada,
   limiteAutomatico,
   semanaAlEmpezarElDia,
   llegadaAlLimiteDeSesion,

@@ -69,6 +69,9 @@ contextBridge.exposeInMainWorld('widget', {
   // Guarda el historial en un archivo CSV que se abre en Excel (muestra el cuadro de "Guardar como").
   // Responde { ok, ruta, cantidad } o { ok: false, error } o { ok: false, cancelado: true }.
   exportarHistorial: () => ipcRenderer.invoke('exportar-historial'),
+  // Copia de seguridad: guardar todo en un archivo, o restaurarlo (pide confirmación y vuelve a abrir la app).
+  guardarCopia: () => ipcRenderer.invoke('guardar-copia'),
+  restaurarCopia: () => ipcRenderer.invoke('restaurar-copia'),
   abrirUso: () => ipcRenderer.send('abrir-uso'),
   bienvenidaVista: () => ipcRenderer.send('bienvenida-vista'),
   separarParte: (parte) => ipcRenderer.send('separar-parte', parte), // saca una parte del widget a su propia ventana
@@ -86,7 +89,8 @@ contextBridge.exposeInMainWorld('widget', {
   prueba: (accion) => ipcRenderer.invoke('prueba', accion),
 
   // Estirar la ventana arrastrando un borde ('n', 's', 'e', 'w', 'ne', 'nw', 'se' o 'sw'): empieza, termina, y vuelve al tamaño de siempre.
-  redimensionarInicio: (borde) => ipcRenderer.send('redimensionar-inicio', borde),
+  // (con un panel desplegado se estira el panel: "minimos" es su tamaño de siempre, { alto, ancho })
+  redimensionarInicio: (borde, minimos) => ipcRenderer.send('redimensionar-inicio', borde, minimos),
   redimensionarFin: () => ipcRenderer.send('redimensionar-fin'),
   restablecerTamano: () => ipcRenderer.send('restablecer-tamano'),
 

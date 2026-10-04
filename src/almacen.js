@@ -41,6 +41,7 @@ const VALORES_INICIALES = {
   todasLasCuentas: true, // en la vista normal y la compacta, mostrar todas las cuentas a la vez (si hay más de una)
   ventanasSeparadas: false, // cada cuenta en su propia ventana (cada una guarda su posición y su vista en "ventana")
   tamanos: {},         // cuánto estiraste la ventana de cada vista: { 'normal-vertical': { ancho, alto }, ... }
+                       // (y el tamaño que le diste a cada panel desplegado: { 'panel-historial': { ancho, alto } })
   cuentas: [],         // las cuentas de Claude (ver CAMPOS_DE_CUENTA)
   cuentaActiva: null,  // id de la cuenta que se muestra en la tarjeta
 };
@@ -54,12 +55,13 @@ const CAMPOS_DE_CUENTA = {
   limiteAutomatico: false, // true = el límite de cada día lo calcula Headroom (lo que queda de la semana / los días que faltan)
   estadoSesion: null,  // estado de la sesión de 5 horas en curso (lo maneja calculo.js)
   estadoSemana: null,  // estado del aviso de la cuota semanal (lo maneja calculo.js)
-  semanaEnCurso: null, // { reinicioMs, semana, productos }: la semana actual, para el resumen y el histórico cuando se reinicia
+  semanaEnCurso: null, // { reinicioMs, semana, productos, curva }: la semana actual, para el resumen y el histórico cuando se reinicia
   semanasPasadas: [],  // [{ inicio, semana, productos }]: las últimas semanas terminadas (para el histórico de semanas)
+  curvaSemanaPasada: null, // { reinicioMs, puntos: [[horas, %], ...] }: cómo fue subiendo la semana anterior (para comparar con esta)
   lecturasDeHoy: null, // { dia, puntos: [{ t, hoy, sesion, productos }] }: cada lectura de hoy, para los gráficos del día
   nombresDeProductos: {}, // { clave: nombre } de los productos que informa claude.ai (Claude Code, Chats...)
   diario: null,        // estado del día en curso (lo maneja calculo.js)
-  historial: [],       // uso de cada día, últimos 30 días: [{ dia: '2026-10-02', uso: 9, limite: 14 }, ...]
+  historial: [],       // uso de cada día, últimos 30 días: [{ dia: '2026-10-02', uso: 9, limite: 14, productos, horas }, ...]
 };
 
 const PARTICION_PRIMERA = 'persist:claude'; // la sesión de la primera cuenta (la que ya existía antes de haber varias)
@@ -123,6 +125,11 @@ function escribir(datos) {
   }
 }
 
+// Reemplaza TODOS los datos por otros (lo usa "Restaurar copia"). Lo que falte toma los valores de siempre al leer.
+function reemplazar(datos) {
+  escribir(datos);
+}
+
 // Guarda un cambio sin borrar el resto de los datos.
 // Ejemplo: guardar({ siempreEncima: false })
 function guardar(cambios) {
@@ -173,7 +180,7 @@ function quitarCuenta(id) {
 }
 
 module.exports = {
-  leer, guardar, usarArchivo,
+  leer, guardar, usarArchivo, reemplazar,
   cuenta, cuentaActiva, guardarCuenta, agregarCuenta, quitarCuenta,
-  MAXIMO_DE_CUENTAS,
+  MAXIMO_DE_CUENTAS, VALORES_INICIALES, CAMPOS_DE_CUENTA,
 };

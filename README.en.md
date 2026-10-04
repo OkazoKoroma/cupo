@@ -33,6 +33,10 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 
 ![History for today and for 7 days](docs/captura-historial.png)
 
+**What time of day you use it most.** The average of each hour of the day, with your peak hour. And next to the week, how you're doing against **last week at this same point** (▼ 12 = you're 12 points below). Panels grow when you drag their edges:
+
+![Busiest hours, with the panel enlarged](docs/captura-horas.png)
+
 **Usage by product over time.** How much Claude Code, Chats, Cowork and Others used: today, this week (from the day your plan resets), 30 days or week by week:
 
 | This week | Week by week |
@@ -74,6 +78,8 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 - **Extra usage:** if you have extra credit enabled with a monthly cap, what you've spent (for example $16 / $50).
 - **Plan type** of each account (Pro, Max 5x, Team…).
 - **History** as line charts: **today** hour by hour, and the last **7 or 30 days**, with your limit marked and your daily average.
+- **Busiest hours:** what time of day most of your quota goes (the average of each hour), with your peak hour.
+- **Comparison with last week:** next to the weekly bar, how many points above or below last week you are at this same point.
 - Weekly **breakdown** by product (Claude Code, Chats, Cowork…) and **usage by product over time**: today, this week (from the day your plan resets), 30 days or week by week.
 - **Projection** ("at this pace you'd hit the limit at 6:40 pm").
 - With several accounts, the history, breakdown and projection show every account at once.
@@ -96,10 +102,11 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 - **Each account in its own window** (optional): each one moves separately and has its own view.
 - **Parts in their own window:** the history, breakdown, projection, usage by product and context window can be moved out of the widget (button next to the X) and placed wherever you like. With several accounts, each one says which account it belongs to.
 - **Windows never overlap:** drop one on top of another and it moves aside and snaps to the edges. Only Settings may cover others while it's open.
-- **Resizable window:** drag its edges to change its shape; text size stays the same (double-click an edge to go back to the original size).
+- **Resizable windows and panels:** drag the edges of the widget, of an open panel or of a detached part to change its size; text size stays the same and each one remembers its own (double-click an edge to go back to the original size).
 - Light, dark or automatic theme, transparency, scale from 70% to 160% and **custom colors** (accent and bar colors).
 - **Keyboard shortcut** Ctrl + Alt + C to show or hide it from any program.
 - Export the history to **CSV** (opens in Excel).
+- **Backup:** save your settings, accounts and history to a file, and restore them on another computer or after reinstalling Windows. (The backup doesn't include your sign-ins: you sign in to each account again.)
 
 ![Settings](docs/captura-ajustes.png)
 

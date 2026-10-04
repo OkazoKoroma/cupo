@@ -70,6 +70,7 @@ const panelAjustes = (() => {
   const formulario = document.getElementById('formulario-ajustes');
   const mensaje = document.getElementById('mensaje-ajustes');
   const mensajeExportar = document.getElementById('mensaje-exportar');
+  const mensajeCopia = document.getElementById('mensaje-copia');
   const tituloLimite = document.getElementById('titulo-limite');
   let nombreDeCuenta = null; // nombre de la cuenta a la que pertenecen los límites (null si hay una sola cuenta)
 
@@ -212,6 +213,7 @@ const panelAjustes = (() => {
 
     decir('', '');
     mensajeExportar.textContent = '';
+    mensajeCopia.textContent = '';
   }
 
   // Colores: al tocar uno, pasan a ser "propios"; Restablecer vuelve a los de siempre (se aplica al pulsar Guardar).
@@ -303,6 +305,23 @@ const panelAjustes = (() => {
       mensajeExportar.className = 'mensaje-chico error';
     }
   });
+
+  // Copia de seguridad: la app muestra sus cuadros (dónde guardar, cuál abrir, confirmar) y responde cómo salió.
+  // Si se restaura, la app se vuelve a abrir sola con los datos de la copia.
+  for (const [id, accion] of [['guardar-copia', 'guardarCopia'], ['restaurar-copia', 'restaurarCopia']]) {
+    document.getElementById(id).addEventListener('click', async () => {
+      mensajeCopia.textContent = '';
+      mensajeCopia.className = 'mensaje-chico';
+      const respuesta = await window.widget[accion]();
+      if (respuesta.ok && respuesta.mensaje) {
+        mensajeCopia.textContent = respuesta.mensaje;
+        mensajeCopia.className = 'mensaje-chico ok';
+      } else if (!respuesta.ok && !respuesta.cancelado) {
+        mensajeCopia.textContent = respuesta.error;
+        mensajeCopia.className = 'mensaje-chico error';
+      }
+    });
+  }
 
   crearCajitasDeDias();
 

@@ -35,6 +35,7 @@
               <button type="button" class="segmento" data-dias="1" data-i18n="historial.dia">Hoy</button>
               <button type="button" class="segmento" data-dias="7" data-i18n="historial.7">7 días</button>
               <button type="button" class="segmento" data-dias="30" data-i18n="historial.30">30 días</button>
+              <button type="button" class="segmento" data-dias="horas" data-i18n="historial.horas" data-i18n-title="historial.horas.titulo">Horas</button>
             </div>
             <span class="historial-promedio" id="historial-promedio"></span>
           </div>
@@ -125,6 +126,15 @@
                     <button type="button" class="boton-chico" data-escala="150">150%</button>
                   </div>
                   <p class="campo-ayuda" data-i18n="aj.escala.ayuda">Agranda o achica todo el widget al instante. También: Ctrl + rueda del mouse, o Ctrl + / Ctrl − (y Ctrl 0 vuelve al 100%).</p>
+                  </section>
+                  <section class="ajustes-grupo">
+                  <h3 data-i18n="aj.seccion.copia">Copia de seguridad</h3>
+                  <div class="campo botones-fila">
+                    <button id="guardar-copia" class="boton-secundario" type="button" data-i18n="aj.copia.guardar">Guardar copia…</button>
+                    <button id="restaurar-copia" class="boton-secundario" type="button" data-i18n="aj.copia.restaurar">Restaurar copia…</button>
+                    <span id="mensaje-copia" class="mensaje-chico" role="status"></span>
+                  </div>
+                  <p class="campo-ayuda" data-i18n="aj.copia.ayuda">La copia guarda tus ajustes, cuentas e historial. No guarda tus sesiones: en otro computador tendrás que entrar de nuevo a cada cuenta.</p>
                   </section>
                 </div>
 
@@ -370,6 +380,7 @@
             <span class="proyeccion-etiqueta" data-i18n="semana.etiqueta">Semana</span>
             <span class="proyeccion-titulo" id="proyeccion-semana-titulo"></span>
             <span class="proyeccion-detalle" id="proyeccion-semana-detalle"></span>
+            <span class="proyeccion-detalle proyeccion-comparacion" id="proyeccion-semana-comparacion"></span>
           </div>
           <p class="nota" data-i18n="proy.nota">Estimaciones según tu ritmo de uso hasta ahora.</p>
         </div>
@@ -450,6 +461,7 @@
             <span class="etiqueta-con-boton">
               <span class="etiqueta" id="etiqueta-semana" data-i18n="semana.etiqueta">Semana</span>
               <span class="porcentaje" id="semana-porcentaje"></span>
+              <span class="comparacion" id="semana-comparacion"></span>
             </span>
             <span class="detalle" id="semana-detalle"></span>
           </div>
