@@ -590,6 +590,7 @@ function aparienciaActual(w) {
     // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual); en la vista completa cuenta también
     // lo que creció por tener muchas cuentas
     extra: { ...extrasDeVista(w), alto: extrasDeVista(w).alto + (esVistaCompleta(w.vista) && !w.parte ? extraDeCompletoPorCuentas() : 0) },
+    extraPorCuentas: esVistaCompleta(w.vista) && !w.parte ? extraDeCompletoPorCuentas() : 0, // la parte de ese alto que es por tener muchas cuentas
     redimensionando: Boolean(w.redimension), // true mientras estás arrastrando un borde
     altoPanel: w.expansion.alto || null, // alto del panel abierto (puede achicarse si ya no cabe en la pantalla)
     anchoPanel: w.expansion.anchoPanel || 0, // ancho del panel abierto, si es más ancho que la vista

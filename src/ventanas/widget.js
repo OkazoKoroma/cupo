@@ -751,8 +751,10 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
 
   const anchoTotal = Math.max(140, contenedor.clientWidth || 260);
   const altoTotal = Math.max(90, contenedor.clientHeight || 150);
-  const IZQ = 30;
-  const ABAJO = 16;
+  // En un lugar grande (panel agrandado, panel de control a pantalla completa) las letras del gráfico crecen, hasta 1,5 veces
+  const k = Math.min(1.5, Math.max(1, Math.min(anchoTotal / 400, altoTotal / 170)));
+  const IZQ = Math.round(30 * k);
+  const ABAJO = Math.round(16 * k);
   const ancho = anchoTotal - IZQ - 8;
   const alto = altoTotal - ABAJO - 4;
   const valores = series.flatMap((serie) => serie.puntos.map(([, v]) => v).filter((v) => v !== null));
@@ -762,6 +764,7 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
   const y = (valor) => 4 + alto - (Math.max(0, valor) / maximo) * alto;
 
   const svg = elementoSvg('svg', { class: 'grafico-dia', width: anchoTotal, height: altoTotal });
+  svg.style.setProperty('--k', String(Math.round(k * 100) / 100));
   const defs = elementoSvg('defs', {}, svg);
   const degradado = elementoSvg('linearGradient', { id: `degradado-${contenedor.id}`, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
   elementoSvg('stop', { offset: '0%', 'stop-color': 'var(--acento)', 'stop-opacity': 0.35 }, degradado);
@@ -771,7 +774,7 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
   const tope = limiteMaximo || Math.ceil(Math.max(0, ...valores) * 10) / 10;
   for (const valor of tope ? [0, tope / 2, tope] : [0]) {
     elementoSvg('line', { x1: IZQ, x2: IZQ + ancho, y1: y(valor), y2: y(valor), class: 'rejilla' }, svg);
-    const texto = elementoSvg('text', { x: IZQ - 5, y: y(valor) + 3, class: 'escala' }, svg);
+    const texto = elementoSvg('text', { x: IZQ - 5, y: y(valor) + 3 * k, class: 'escala' }, svg);
     texto.textContent = `${formatear(Math.round(valor * 10) / 10)}%`;
   }
   // Tu límite: recto si es igual siempre; si cambia de un día a otro, sigue cada día
@@ -787,7 +790,7 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
 
   // Marcas de abajo
   // Los textos no se enciman: si uno no cabe junto al anterior (o tapa al último, que siempre va), se deja solo su rayita.
-  const anchoDelTexto = (marca) => marca.texto.length * 5.6 + 6;
+  const anchoDelTexto = (marca) => marca.texto.length * 5.6 * k + 6;
   const ultimaMarca = marcas[marcas.length - 1];
   const topeDerecho = ultimaMarca && ultimaMarca.texto ? x(ultimaMarca.x) - anchoDelTexto(ultimaMarca) : Infinity; // (la última se alinea hacia adentro)
   let ocupadoHasta = -Infinity;
@@ -835,7 +838,7 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
     const [xf, yf, valorFinal] = numeroEn === 'maximo' ? masAlto : ultimoTramo[ultimoTramo.length - 1];
     elementoSvg('circle', { cx: xf, cy: yf, r: 3, fill: serie.color, class: 'punto-final' }, svg);
     const etiqueta = elementoSvg('text', { x: Math.min(IZQ + ancho - 2, xf + 5), y: Math.max(11, yf - 5), class: 'valor-final' }, svg);
-    if (xf + 30 > IZQ + ancho) etiqueta.style.textAnchor = 'end';
+    if (xf + 30 * k > IZQ + ancho) etiqueta.style.textAnchor = 'end';
     etiqueta.setAttribute('fill', serie.color);
     etiqueta.textContent = `${formatear(Math.round(valorFinal * 10) / 10)}%`;
     etiquetasFinales.push({ elemento: etiqueta, y: Math.max(11, yf - 5) });
@@ -843,18 +846,19 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
   // Separar los números que quedaron a menos de 13 px uno de otro (de arriba hacia abajo)
   etiquetasFinales.sort((a, b) => a.y - b.y);
   for (let i = 1; i < etiquetasFinales.length; i++) {
-    const minimo = etiquetasFinales[i - 1].y + 13;
+    const minimo = etiquetasFinales[i - 1].y + 13 * k;
     if (etiquetasFinales[i].y < minimo) etiquetasFinales[i].y = minimo;
   }
   // Si el de más abajo se sale por abajo, se suben todos lo necesario (y se vuelven a separar hacia arriba)
   const piso = altoTotal - ABAJO - 2;
   for (let i = etiquetasFinales.length - 1; i >= 0; i--) {
-    const techo = i === etiquetasFinales.length - 1 ? piso : etiquetasFinales[i + 1].y - 13;
+    const techo = i === etiquetasFinales.length - 1 ? piso : etiquetasFinales[i + 1].y - 13 * k;
     if (etiquetasFinales[i].y > techo) etiquetasFinales[i].y = techo;
   }
   for (const { elemento, y: posicion } of etiquetasFinales) elemento.setAttribute('y', String(Math.max(10, posicion)));
   contenedor.appendChild(svg);
-  const pocos = numeroEn === 'final' && series.every((serie) => serie.puntos.filter(([, v]) => v !== null).length < 2);
+  // (el aviso "se va dibujando con cada consulta" solo vale para los gráficos de hoy, que avanzan con cada lectura)
+  const pocos = ahora !== null && numeroEn === 'final' && series.every((serie) => serie.puntos.filter(([, v]) => v !== null).length < 2);
   if (!hayPuntos) contenedor.appendChild(crear('p', 'grafico-vacio', vacio));
   else if (pocos) contenedor.appendChild(crear('p', 'grafico-vacio grafico-pocos', t('historial.pocos')));
 }

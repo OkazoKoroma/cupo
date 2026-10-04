@@ -2097,3 +2097,91 @@ body:not(.compacto):not(.franja) .herramientas .boton-icono {
 body:not(.compacto):not(.franja) .cuenta-pestana {
   max-width: 100px;
 }
+
+/* ----- Vistas grandes que se adaptan al tamaño ----- */
+
+/* Las letras de los gráficos crecen con su lugar (--k lo pone widget.js: de 1 a 1,5) */
+.grafico-dia .hora,
+.grafico-dia .escala {
+  font-size: calc(9.5px * var(--k, 1));
+}
+
+.grafico-dia .valor-final {
+  font-size: calc(10px * var(--k, 1));
+}
+
+.grafico-dia .serie {
+  stroke-width: calc(2.4px * var(--k, 1));
+}
+
+/* Panel de control: lo que estiras a lo alto se reparte entre los paneles de arriba y los gráficos de abajo */
+body.tablero:not(.ajustes-abierto) .panel,
+body.tablero:not(.ajustes-abierto).abajo .panel,
+body.tablero:not(.ajustes-abierto).panel-abierto .panel,
+body.tablero:not(.ajustes-abierto).abajo.panel-abierto .panel,
+body.tablero:not(.ajustes-abierto) .panel-interior {
+  height: calc(250px + var(--extra-alto, 0px) - var(--extra-estirado, 0px) * 0.55);
+}
+
+body.tablero:not(.ajustes-abierto) .tablero-graficos {
+  height: calc(360px + var(--extra-estirado, 0px) * 0.55);
+}
+
+/* Vista completa y panel de control: en una ventana ancha (más de 1280), las letras crecen con el ancho */
+body.completo .titulo-vista,
+body.completo .tablero-titulo {
+  font-size: clamp(10.5px, 0.82vw, 14px);
+}
+
+body.completo .historial-opciones {
+  height: auto;
+  min-height: 18px;
+}
+
+body.completo .segmento {
+  font-size: clamp(10px, 0.78vw, 13px);
+}
+
+body.completo .leyenda-cuenta,
+body.completo .historial-promedio {
+  font-size: clamp(11px, 0.86vw, 14px);
+}
+
+body.completo #vista-desglose .fila,
+body.completo .proyeccion-titulo {
+  font-size: clamp(12.5px, 0.98vw, 17px);
+}
+
+body.completo .proyeccion-detalle {
+  font-size: clamp(11.5px, 0.9vw, 15px);
+}
+
+body.completo .proyeccion-etiqueta {
+  font-size: clamp(9.5px, 0.74vw, 12.5px);
+}
+
+body.completo .vista-panel .nota,
+body.completo .enlace-panel {
+  font-size: clamp(10.5px, 0.82vw, 13.5px);
+}
+
+body.completo .tarjeta .etiqueta {
+  font-size: clamp(11.5px, 0.9vw, 15px);
+}
+
+body.completo .tarjeta .porcentaje {
+  font-size: clamp(13px, 1.02vw, 17px);
+}
+
+body.completo .tarjeta .detalle {
+  font-size: clamp(12px, 0.94vw, 16px);
+}
+
+/* Las tarjetas de la proyección también crecen (antes quedaban chicas arriba, con un hueco debajo) */
+body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion:not(.varias) {
+  max-height: clamp(120px, 16vw, 260px);
+}
+
+body.completo .comparacion {
+  font-size: clamp(10px, 0.78vw, 13px);
+}
