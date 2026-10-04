@@ -79,8 +79,8 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 - **Plan type** of each account (Pro, Max 5x, Team…).
 - **History** as line charts: **today** hour by hour, and the last **7 or 30 days**, with your limit marked and your daily average.
 - **Busiest hours:** what time of day most of your quota goes (the average of each hour), with your peak hour.
-- **Comparison with last week:** next to the weekly bar, how many points above or below last week you are at this same point.
-- Weekly **breakdown** by product (Claude Code, Chats, Cowork…) and **usage by product over time**: today, this week (from the day your plan resets), 30 days or week by week.
+- **Comparison with last week:** next to the weekly bar, how many points above or below last week you are at this same point. The same for **Today** (against yesterday at this time) and for the **5-hour session** (against the previous session).
+- Weekly **breakdown** by product (Claude Code, Chats, Cowork…) and **usage by product over time**: today, this week (from the day your plan resets), 30 days or week by week. On plans with a per-model limit (**Fable**), that limit shows up as one more dashed line.
 - **Projection** ("at this pace you'd hit the limit at 6:40 pm").
 - With several accounts, the history, breakdown and projection show every account at once.
 - **Click the name of a bar** to open the official details on claude.ai.
@@ -98,6 +98,7 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 
 ### Views and look
 - **Normal** view (vertical or horizontal), **compact** (one line), **full** (everything at once: bars, history, breakdown and projection) and **Accounts** (all your accounts in rows).
+- **Dashboard:** the full view plus six more charts at once (today hour by hour, 30 days, busiest hours, and usage by product for today, this week and week by week).
 - **Minimal:** a small circle with a ring that fills up with today's usage.
 - **Each account in its own window** (optional): each one moves separately and has its own view.
 - **Parts in their own window:** the history, breakdown, projection, usage by product and context window can be moved out of the widget (button next to the X) and placed wherever you like. With several accounts, each one says which account it belongs to.
@@ -105,6 +106,7 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 - **Resizable windows and panels:** drag the edges of the widget, of an open panel or of a detached part to change its size; text size stays the same and each one remembers its own (double-click an edge to go back to the original size).
 - Light, dark or automatic theme, transparency, scale from 70% to 160% and **custom colors** (accent and bar colors).
 - **Keyboard shortcut** Ctrl + Alt + C to show or hide it from any program.
+- **Show only while Claude is open** (optional): the widget appears when you open the Claude app or Claude Code on that computer, and hides when you close it.
 - Export the history to **CSV** (opens in Excel).
 - **Backup:** save your settings, accounts and history to a file, and restore them on another computer or after reinstalling Windows. (The backup doesn't include your sign-ins: you sign in to each account again.)
 

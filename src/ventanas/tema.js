@@ -22,11 +22,13 @@ function aplicarApariencia(apariencia) {
   const horizontal = modo === 'normal' && apariencia.orientacion === 'horizontal';
   document.body.classList.toggle('compacto', modo === 'compacto');
   document.body.classList.toggle('mini', modo === 'mini');
-  document.body.classList.toggle('completo', modo === 'completo');
+  // (el panel de control es la vista completa con una sección más de gráficos debajo)
+  document.body.classList.toggle('completo', modo === 'completo' || modo === 'tablero');
+  document.body.classList.toggle('tablero', modo === 'tablero');
   document.body.classList.toggle('vista-cuentas', modo === 'cuentas');   // la vista "Cuentas" (todas a la vez, sin la tarjeta)
   document.body.classList.toggle('todas', Boolean(apariencia.todas));   // en vez de la tarjeta se ve la lista con todas las cuentas
   document.body.classList.toggle('horizontal', horizontal);
-  document.body.classList.toggle('franja', horizontal || modo === 'completo');
+  document.body.classList.toggle('franja', horizontal || modo === 'completo' || modo === 'tablero');
   aplicarExtra(apariencia);
   aplicarColores(apariencia.colores);
 }

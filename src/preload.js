@@ -72,6 +72,9 @@ contextBridge.exposeInMainWorld('widget', {
   // Copia de seguridad: guardar todo en un archivo, o restaurarlo (pide confirmación y vuelve a abrir la app).
   guardarCopia: () => ipcRenderer.invoke('guardar-copia'),
   restaurarCopia: () => ipcRenderer.invoke('restaurar-copia'),
+  // Acerca de: buscar ahora si hay una versión nueva ({ ok, version } / { ok, alDia } / { ok: false, error }) e instalarla.
+  buscarActualizacion: () => ipcRenderer.invoke('buscar-actualizacion'),
+  actualizarAhora: () => ipcRenderer.send('actualizar-ahora'),
   abrirUso: () => ipcRenderer.send('abrir-uso'),
   bienvenidaVista: () => ipcRenderer.send('bienvenida-vista'),
   separarParte: (parte) => ipcRenderer.send('separar-parte', parte), // saca una parte del widget a su propia ventana

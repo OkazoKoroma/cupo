@@ -27,6 +27,7 @@ const VALORES_INICIALES = {
   atajoGlobal: true,   // Ctrl + Alt + C muestra u oculta el widget desde cualquier programa
   buscarActualizaciones: true, // revisar en GitHub si hay una versión nueva
   pausarOculto: true,  // no consultar el uso mientras el widget está oculto
+  seguirAClaude: false, // mostrar el widget al abrir Claude (la app o Claude Code) y ocultarlo al cerrarlo
   resumenes: true,     // avisar cuánto usaste ayer (al empezar el día) y en la semana (al reiniciarse)
   bienvenidaVista: false, // true cuando ya se mostró la bienvenida de la primera vez
   partes: {},          // las partes sacadas a su propia ventana: { historial: { abierta, posicion }, ... }
@@ -57,6 +58,10 @@ const CAMPOS_DE_CUENTA = {
   estadoSemana: null,  // estado del aviso de la cuota semanal (lo maneja calculo.js)
   semanaEnCurso: null, // { reinicioMs, semana, productos, curva }: la semana actual, para el resumen y el histórico cuando se reinicia
   semanasPasadas: [],  // [{ inicio, semana, productos }]: las últimas semanas terminadas (para el histórico de semanas)
+  curvaDeHoy: null,    // { dia, puntos: [[horas desde las 00:00, % de hoy], ...] }: cómo va subiendo el uso de hoy
+  curvaDeAyer: null,   // lo mismo, del día anterior (para comparar "ayer a esta misma hora")
+  sesionEnCurso: null, // { reinicioMs, puntos: [[horas desde que empezó, %], ...] }: la sesión de 5 horas actual
+  sesionPasada: null,  // lo mismo, de la sesión anterior (para comparar con esta)
   curvaSemanaPasada: null, // { reinicioMs, puntos: [[horas, %], ...] }: cómo fue subiendo la semana anterior (para comparar con esta)
   lecturasDeHoy: null, // { dia, puntos: [{ t, hoy, sesion, productos }] }: cada lectura de hoy, para los gráficos del día
   nombresDeProductos: {}, // { clave: nombre } de los productos que informa claude.ai (Claude Code, Chats...)

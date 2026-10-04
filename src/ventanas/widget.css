@@ -376,7 +376,7 @@ body.franja .barra {
 body.franja .herramientas {
   position: static;
   display: grid;
-  grid-template-columns: repeat(4, 18px);   /* dos filas ordenadas: paneles arriba, vistas abajo */
+  grid-template-columns: repeat(5, 18px);   /* dos filas ordenadas: paneles arriba, vistas abajo */
   gap: 3px;
 }
 
@@ -1899,4 +1899,201 @@ body.horizontal .comparacion {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
+}
+
+/* ----- Uso por producto: los límites por modelo (Fable...) van con línea punteada y un punto hueco en la leyenda ----- */
+.grafico-dia .serie.punteada {
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  opacity: 1;
+}
+
+.punto.punto-hueco {
+  box-sizing: border-box;
+  border: 2px solid;
+}
+
+/* ----- Muchas cuentas a la vez ----- */
+
+/* El historial reparte su alto: los botones (y la leyenda) arriba, y el gráfico ocupa lo que queda */
+#vista-historial.activa {
+  display: flex;
+  flex-direction: column;
+}
+
+#vista-historial .grafico {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+/* Con tres líneas o más, la leyenda va en su propia línea, bajo los botones, y se ve completa */
+.historial-opciones {
+  flex: none;
+}
+
+.historial-opciones.leyenda-larga {
+  flex-wrap: wrap;
+  height: auto;
+  row-gap: 4px;
+}
+
+.historial-opciones.leyenda-larga .historial-promedio {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  white-space: normal;
+  overflow: visible;
+  margin-left: 0;
+  padding-left: 0;
+  gap: 2px 10px;
+}
+
+/* Vista completa: las tarjetas de la proyección crecen con las cuentas (la ventana ya creció lo mismo) */
+body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion.varias {
+  max-height: none;
+  flex: none;
+}
+
+/* El gráfico llena el lugar que le queda (y no al revés: su dibujo no agranda el lugar) */
+#vista-historial .grafico,
+body.completo:not(.ajustes-abierto) #vista-historial .grafico {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+#vista-historial .grafico .columnas {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+/* ----- Ajustes → Acerca de ----- */
+.acerca-version {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.boton-secundario.destacado {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+/* ----- Paneles y ventanas flotantes agrandados: el contenido se reparte para llenar el espacio (sin dejar un hueco abajo) ----- */
+#vista-desglose.activa,
+#vista-proyeccion.activa {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Desglose: la barra crece un poco y las filas se reparten a lo alto */
+#vista-desglose.activa .barra-total:not(.barra-cuenta) {
+  flex: 0 1 auto;
+  height: clamp(14px, 9%, 30px);
+}
+
+#vista-desglose.activa .lista {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+}
+
+/* Proyección: las dos tarjetas se reparten el alto, con su texto centrado */
+#vista-proyeccion.activa .proyeccion {
+  flex: 1 1 auto;
+  align-content: center;
+}
+
+/* Ventana de contexto: el botón queda en la esquina, aunque la ventana sea ancha */
+.chats-cabecera .chats-titulo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* En la vista compacta (una línea) no hay espacio para las marquitas de comparación */
+body.compacto .comparacion {
+  display: none;
+}
+
+/* ----- Panel de control: debajo de la vista completa, seis gráficos en dos filas ----- */
+.tablero-graficos {
+  display: none;
+}
+
+body.tablero:not(.ajustes-abierto) .tablero-graficos {
+  box-sizing: border-box;
+  order: -1;                 /* debajo de todo (la escena de la vista completa va de abajo hacia arriba) */
+  flex: none;
+  height: 430px;
+  margin-top: 8px;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--borde);
+  background: linear-gradient(155deg,
+    color-mix(in srgb, var(--fondo-a) calc(var(--op) * 100%), transparent) 0%,
+    color-mix(in srgb, var(--fondo-b) calc(var(--op) * 100%), transparent) 100%);
+  -webkit-app-region: drag;
+}
+
+.tablero-celda {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tablero-titulo {
+  margin: 0;
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--etiqueta);
+}
+
+.tablero-celda .historial-opciones {
+  -webkit-app-region: drag;
+}
+
+.tablero-celda .grafico {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.tablero-celda .grafico .columnas {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+}
+
+/* Con Ajustes (u otro panel) abierto en el panel de control, ese panel usa también el lugar de los gráficos de abajo */
+body.tablero.ajustes-abierto .panel,
+body.tablero.ajustes-abierto.abajo .panel,
+body.tablero.ajustes-abierto.panel-abierto .panel,
+body.tablero.ajustes-abierto.abajo.panel-abierto .panel,
+body.tablero.ajustes-abierto .panel-interior {
+  height: calc(250px + 438px + var(--extra-alto, 0px) + var(--panel-extra, 0px));
+}
+
+/* Con los botones del panel de control y de la vista mínima hay diez íconos: en la tarjeta vertical van un poco más juntos */
+body:not(.compacto):not(.franja) .herramientas .boton-icono {
+  width: 16px;
+}
+
+body:not(.compacto):not(.franja) .cuenta-pestana {
+  max-width: 100px;
 }

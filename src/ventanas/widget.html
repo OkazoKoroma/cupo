@@ -68,7 +68,7 @@
           <div class="grafico grafico-productos" id="productos-grafico">
             <div class="columnas" id="productos-columnas"></div>
           </div>
-          <p class="nota" data-i18n="productos.nota">En % de tu cuota semanal: cuánto usó cada producto.</p>
+          <p class="nota" id="productos-nota" data-i18n="productos.nota">En % de tu cuota semanal: cuánto usó cada producto.</p>
         </div>
 
         <!-- Vista de Ajustes: el formulario. La zona del medio se desplaza; Guardar queda fijo abajo. -->
@@ -87,6 +87,7 @@
                       <option value="normal" data-i18n="aj.vista.normal">Normal</option>
                       <option value="compacto" data-i18n="aj.vista.compacto">Compacto (una sola línea)</option>
                       <option value="completo" data-i18n="aj.vista.completo">Completo (todo a la vez)</option>
+                      <option value="tablero" data-i18n="aj.vista.tablero">Panel de control (todos los gráficos)</option>
                       <option value="cuentas" data-i18n="aj.vista.cuentas">Cuentas (todas a la vez)</option>
                       <option value="mini" data-i18n="aj.vista.mini">Mínimo (un círculo)</option>
                     </select>
@@ -199,6 +200,10 @@
                   <label class="casilla">
                     <input id="arrancarConWindows" type="checkbox">
                     <span data-i18n="aj.arranque">Abrir el widget al iniciar Windows</span>
+                  </label>
+                  <label class="casilla">
+                    <input id="seguirAClaude" type="checkbox">
+                    <span data-i18n="aj.seguirAClaude" data-i18n-title="aj.seguirAClaude.ayuda">Mostrar solo mientras Claude está abierto</span>
                   </label>
                   <label class="casilla">
                     <input id="atajoGlobal" type="checkbox">
@@ -329,7 +334,16 @@
                       <option value="1m">1M</option>
                     </select>
                   </label>
-                  <p class="campo-ayuda" data-i18n="aj.contexto.ayuda">Solo funciona si usas Claude Code en este mismo computador, y solo con una cuenta en Headroom. No ve los chats de claude.ai (en la web o en la app), ni los de otros equipos. Muestra los chats de las últimas 3 horas (hasta 5).</p>
+                  <p class="campo-ayuda" id="ayuda-contexto" data-i18n="aj.contexto.ayuda">Solo funciona si usas Claude Code en este mismo computador, y solo con una cuenta en Headroom. No ve los chats de claude.ai (en la web o en la app), ni los de otros equipos. Muestra los chats de las últimas 3 horas (hasta 5).</p>
+                  </section>
+                  <section class="ajustes-grupo">
+                  <h3 data-i18n="acerca.titulo">Acerca de</h3>
+                  <p class="acerca-version" id="acerca-version"></p>
+                  <div class="campo botones-fila">
+                    <button id="buscar-actualizacion" class="boton-secundario" type="button" data-i18n="acerca.buscar">Buscar actualización</button>
+                    <span id="mensaje-actualizacion" class="mensaje-chico" role="status"></span>
+                  </div>
+                  <p class="campo-ayuda" id="acerca-credito"></p>
                   </section>
                 </div>
 
@@ -375,6 +389,7 @@
             <span class="proyeccion-etiqueta" data-i18n="hoy.etiqueta">Hoy</span>
             <span class="proyeccion-titulo" id="proyeccion-hoy-titulo"></span>
             <span class="proyeccion-detalle" id="proyeccion-hoy-detalle"></span>
+            <span class="proyeccion-detalle proyeccion-comparacion" id="proyeccion-hoy-comparacion"></span>
           </div>
           <div class="proyeccion" id="proyeccion-semana">
             <span class="proyeccion-etiqueta" data-i18n="semana.etiqueta">Semana</span>
@@ -384,6 +399,52 @@
           </div>
           <p class="nota" data-i18n="proy.nota">Estimaciones según tu ritmo de uso hasta ahora.</p>
         </div>
+      </div>
+    </section>
+
+    <!-- Panel de control: seis gráficos más, debajo de la vista completa (widget.js los dibuja) -->
+    <section class="tablero-graficos" id="tablero" aria-label="Panel de control" data-i18n-aria="tablero.titulo">
+      <div class="tablero-celda">
+        <div class="historial-opciones">
+          <h4 class="tablero-titulo" data-i18n="tablero.hoy">Hoy, hora a hora</h4>
+          <span class="historial-promedio" id="tablero-hoy-leyenda"></span>
+        </div>
+        <div class="grafico" id="tablero-hoy-grafico"><div class="columnas" id="tablero-hoy"></div></div>
+      </div>
+      <div class="tablero-celda">
+        <div class="historial-opciones">
+          <h4 class="tablero-titulo" data-i18n="tablero.dias">Últimos 30 días</h4>
+          <span class="historial-promedio" id="tablero-dias-leyenda"></span>
+        </div>
+        <div class="grafico" id="tablero-dias-grafico"><div class="columnas" id="tablero-dias"></div></div>
+      </div>
+      <div class="tablero-celda">
+        <div class="historial-opciones">
+          <h4 class="tablero-titulo" data-i18n="tablero.horas">Horas de más uso</h4>
+          <span class="historial-promedio" id="tablero-horas-leyenda"></span>
+        </div>
+        <div class="grafico" id="tablero-horas-grafico"><div class="columnas" id="tablero-horas"></div></div>
+      </div>
+      <div class="tablero-celda">
+        <div class="historial-opciones">
+          <h4 class="tablero-titulo" data-i18n="tablero.prodHoy">Por producto: hoy</h4>
+          <span class="historial-promedio" id="tablero-prod-hoy-leyenda"></span>
+        </div>
+        <div class="grafico" id="tablero-prod-hoy-grafico"><div class="columnas" id="tablero-prod-hoy"></div></div>
+      </div>
+      <div class="tablero-celda">
+        <div class="historial-opciones">
+          <h4 class="tablero-titulo" data-i18n="tablero.prodSemana">Por producto: esta semana</h4>
+          <span class="historial-promedio" id="tablero-prod-semana-leyenda"></span>
+        </div>
+        <div class="grafico" id="tablero-prod-semana-grafico"><div class="columnas" id="tablero-prod-semana"></div></div>
+      </div>
+      <div class="tablero-celda">
+        <div class="historial-opciones">
+          <h4 class="tablero-titulo" data-i18n="tablero.semanas">Por producto: semana a semana</h4>
+          <span class="historial-promedio" id="tablero-semanas-leyenda"></span>
+        </div>
+        <div class="grafico" id="tablero-semanas-grafico"><div class="columnas" id="tablero-semanas"></div></div>
       </div>
     </section>
 
@@ -405,6 +466,13 @@
           <button class="boton-icono" data-alternar="completo" type="button" title="Vista completa (todo a la vez)" data-i18n-title="boton.completo" aria-label="Cambiar entre la vista completa y la normal" data-i18n-aria="boton.completoAria" aria-pressed="false">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>
               </button>
+          <!-- Panel de control (todos los gráficos) y vista mínima (un círculo) -->
+          <button class="boton-icono" data-alternar="tablero" type="button" title="Panel de control (todos los gráficos)" data-i18n-title="boton.tablero" aria-label="Panel de control" data-i18n-aria="boton.tablero" aria-pressed="false">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M4.5 10.5l2.4-3 2 1.8 2.6-3.4"/></svg>
+          </button>
+          <button class="boton-icono" data-alternar="mini" type="button" title="Vista mínima (un círculo)" data-i18n-title="boton.mini" aria-label="Vista mínima" data-i18n-aria="boton.mini">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4.6"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>
+          </button>
           <button class="boton-icono boton-lista-orientacion" data-alternar="orientacion" type="button" title="Cambiar la disposición (vertical / horizontal)" data-i18n-title="boton.orientacion" aria-label="Cambiar entre la disposición vertical y la horizontal" data-i18n-aria="boton.orientacionAria">
                 <svg class="icono-a-horizontal" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10M10 3v10"/></svg>
                 <svg class="icono-a-vertical" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6.3h12M2 9.7h12"/></svg>
@@ -439,6 +507,7 @@
           <div class="medidor-texto">
             <span class="etiqueta-con-boton">
               <span class="etiqueta" id="etiqueta-hoy" data-i18n="hoy.etiqueta">Hoy</span>
+              <span class="comparacion" id="hoy-comparacion"></span>
               </span>
             <span class="detalle" id="hoy-detalle"></span>
           </div>
@@ -450,6 +519,7 @@
             <span class="etiqueta-con-boton">
               <span class="etiqueta" data-i18n="sesion.etiqueta">Sesión 5 h</span>
               <span class="porcentaje" id="sesion-porcentaje"></span>
+              <span class="comparacion" id="sesion-comparacion"></span>
             </span>
             <span class="detalle" id="sesion-detalle"></span>
           </div>
@@ -498,6 +568,13 @@
               <!-- Vista completa: todos los paneles a la vez. Cuatro cuadritos = "todo junto". -->
               <button id="boton-completo" class="boton-icono" type="button" title="Vista completa (todo a la vez)" data-i18n-title="boton.completo" aria-label="Cambiar entre la vista completa y la normal" data-i18n-aria="boton.completoAria" aria-pressed="false">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>
+              </button>
+              <!-- Panel de control (todos los gráficos) y vista mínima (un círculo) -->
+              <button id="boton-tablero" class="boton-icono" data-alternar="tablero" type="button" title="Panel de control (todos los gráficos)" data-i18n-title="boton.tablero" aria-label="Panel de control" data-i18n-aria="boton.tablero" aria-pressed="false">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M4.5 10.5l2.4-3 2 1.8 2.6-3.4"/></svg>
+              </button>
+              <button id="boton-mini" class="boton-icono" data-alternar="mini" type="button" title="Vista mínima (un círculo)" data-i18n-title="boton.mini" aria-label="Vista mínima" data-i18n-aria="boton.mini">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4.6"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>
               </button>
               <!-- Disposición: columnas = "ponerlas lado a lado" (horizontal); filas = "apilarlas" (vertical). Solo en la vista normal. -->
               <button id="boton-orientacion" class="boton-icono" type="button" title="Cambiar la disposición (vertical / horizontal)" data-i18n-title="boton.orientacion" aria-label="Cambiar entre la disposición vertical y la horizontal" data-i18n-aria="boton.orientacionAria">

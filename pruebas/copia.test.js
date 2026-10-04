@@ -57,6 +57,10 @@ test('horas de más uso: si la primera lectura ya trae uso (la semana se reinici
   const horas = calculo.usoPorHora([{ t: a_las('10:00').getTime(), hoy: 4 }], a_las('08:00').getTime());
   assert.deepStrictEqual(horas.slice(8, 10), [2, 2]);
   assert.deepStrictEqual(calculo.usoPorHora([], 0), new Array(24).fill(0));
+  // Más de 3 horas sin lecturas: no se sabe a qué hora fue ese uso, así que no se anota en ninguna
+  const conHueco = calculo.usoPorHora([{ t: a_las('16:00').getTime(), hoy: 8 }, { t: a_las('16:30').getTime(), hoy: 9 }], a_las('00:00').getTime());
+  assert.deepStrictEqual(conHueco.filter((v) => v > 0), [1]);
+  assert.strictEqual(conHueco[16], 1);
 });
 
 test('curva de la semana: un punto por hora, y se lee en línea recta entre dos puntos', () => {
@@ -86,4 +90,21 @@ test('comparar con la semana pasada: con la curva, y si no hay, con el historial
   assert.strictEqual(r.diferencia, -6);
   // Sin datos de la semana pasada no hay comparación
   assert.strictEqual(calculo.compararConSemanaPasada({ semana: 10, inicioSemana, ahora, curvaPasada: null, historial: [] }), null);
+});
+
+test('Claude abierto: se reconoce claude.exe en la lista de programas de Windows', () => {
+  const { hayClaudeEn } = require('../src/claude-abierto');
+  assert.strictEqual(hayClaudeEn('"Claude.exe","1234","Console","1","250.000 KB"\r\n'), true);
+  assert.strictEqual(hayClaudeEn('\r\n"claude.exe","99","Console","1","10 KB"'), true);
+  assert.strictEqual(hayClaudeEn('INFORMACIÓN: no hay tareas ejecutándose que coincidan con los criterios especificados.'), false);
+  assert.strictEqual(hayClaudeEn('"notclaude.exe","1","Console","1","10 KB"'), false);
+});
+
+test('comparar con una curva anterior: ayer a esta hora, la sesión anterior', () => {
+  let curva = [];
+  for (const [h, v] of [[9, 0], [9.1, 1], [9.3, 2], [12, 8]]) curva = calculo.agregarALaCurva(curva, h, v, 0.25);
+  assert.deepStrictEqual(curva, [[9.1, 1], [9.3, 2], [12, 8]]); // un punto por cada 15 minutos
+  assert.deepStrictEqual(calculo.compararConCurva(9, curva, 12), { diferencia: 1, antes: 8, aproximado: false });
+  assert.strictEqual(calculo.compararConCurva(9, curva, 3), null); // ayer a esa hora todavía no había lecturas
+  assert.strictEqual(calculo.compararConCurva(9, [], 12), null);
 });

@@ -14,7 +14,7 @@ const ESCALA_MAXIMA = 160;
 // Vistas del widget y su orientación (la orientación vale para la vista normal).
 const OPCIONES_FORMATO_REINICIO = ['relativo', 'hora'];
 const OPCIONES_TAMANO_CONTEXTO = ['auto', '200k', '1m'];
-const OPCIONES_MODO = ['normal', 'compacto', 'completo', 'cuentas', 'mini'];
+const OPCIONES_MODO = ['normal', 'compacto', 'completo', 'tablero', 'cuentas', 'mini'];
 const OPCIONES_ORIENTACION = ['vertical', 'horizontal'];
 
 // Temas de color: oscuro, claro, o automático (sigue el tema de Windows).
@@ -60,7 +60,8 @@ function validar(datos) {
   const buscarActualizaciones = siNoViene(datos.buscarActualizaciones, true);
   const pausarOculto = siNoViene(datos.pausarOculto, true);
   const resumenes = siNoViene(datos.resumenes, true);
-  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones, pausarOculto, resumenes].some((valor) => typeof valor !== 'boolean')) {
+  const seguirAClaude = siNoViene(datos.seguirAClaude, false);
+  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones, pausarOculto, resumenes, seguirAClaude].some((valor) => typeof valor !== 'boolean')) {
     return { ok: false, error: t('err.opcion') };
   }
   // Contexto de Claude Code
@@ -150,6 +151,7 @@ function validar(datos) {
       buscarActualizaciones,
       pausarOculto,
       resumenes,
+      seguirAClaude,
       formatoReinicio,
       colores,
       umbralSemana: Math.round(umbralSemana),

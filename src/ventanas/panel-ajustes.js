@@ -37,6 +37,7 @@ const panelAjustes = (() => {
   const campoIconoDeColor = document.getElementById('iconoDeColor');
   const campoAtajo = document.getElementById('atajoGlobal');
   const campoResumenes = document.getElementById('resumenes');
+  const campoSeguirAClaude = document.getElementById('seguirAClaude');
   const campoActualizaciones = document.getElementById('buscarActualizaciones');
   const campoPausarOculto = document.getElementById('pausarOculto');
   const camposDeColor = {
@@ -71,6 +72,40 @@ const panelAjustes = (() => {
   const mensaje = document.getElementById('mensaje-ajustes');
   const mensajeExportar = document.getElementById('mensaje-exportar');
   const mensajeCopia = document.getElementById('mensaje-copia');
+  const botonActualizacion = document.getElementById('buscar-actualizacion');
+  const mensajeActualizacion = document.getElementById('mensaje-actualizacion');
+  let acercaDe = { version: '', autor: '', versionNueva: null }; // lo que muestra "Acerca de"
+
+  // Acerca de: la versión instalada y quién la hizo. Si ya hay una versión nueva esperando, el botón pasa a "Actualizar a la X".
+  function mostrarAcercaDe() {
+    document.getElementById('acerca-version').textContent = t('acerca.version', { version: acercaDe.version });
+    document.getElementById('acerca-credito').textContent = t('acerca.credito', { autor: acercaDe.autor });
+    botonActualizacion.textContent = acercaDe.versionNueva ? t('acerca.actualizar', { version: acercaDe.versionNueva }) : t('acerca.buscar');
+    botonActualizacion.classList.toggle('destacado', Boolean(acercaDe.versionNueva));
+  }
+
+  function decirDeLaActualizacion(texto, tipo = '') {
+    mensajeActualizacion.textContent = texto;
+    mensajeActualizacion.className = `mensaje-chico ${tipo}`.trim();
+  }
+
+  botonActualizacion.addEventListener('click', async () => {
+    // Ya se encontró una versión nueva: este clic la descarga y la instala (la app se cierra y se vuelve a abrir sola)
+    if (acercaDe.versionNueva) {
+      window.widget.actualizarAhora();
+      decirDeLaActualizacion(t('acerca.descargando'), 'ok');
+      return;
+    }
+    botonActualizacion.disabled = true;
+    decirDeLaActualizacion(t('acerca.buscando'));
+    const respuesta = await window.widget.buscarActualizacion();
+    botonActualizacion.disabled = false;
+    if (!respuesta.ok) return decirDeLaActualizacion(respuesta.error, 'error');
+    if (respuesta.alDia) return decirDeLaActualizacion(t('acerca.alDia'), 'ok');
+    acercaDe.versionNueva = respuesta.version;
+    mostrarAcercaDe();
+    decirDeLaActualizacion(t('acerca.hayNueva', { version: respuesta.version }), 'ok');
+  });
   const tituloLimite = document.getElementById('titulo-limite');
   let nombreDeCuenta = null; // nombre de la cuenta a la que pertenecen los límites (null si hay una sola cuenta)
 
@@ -152,6 +187,7 @@ const panelAjustes = (() => {
       camposDeDias[posicion].setAttribute('aria-label', t('aj.dia.aria', { dia: nombre }));
     });
     for (const opcion of campoIntervalo.options) opcion.textContent = textoDelIntervalo(Number(opcion.value));
+    mostrarAcercaDe();
   }
 
   // Rellena el formulario con los ajustes que tiene la app ahora.
@@ -179,6 +215,7 @@ const panelAjustes = (() => {
     campoIconoDeColor.checked = actuales.iconoDeColor;
     campoAtajo.checked = actuales.atajoGlobal;
     campoResumenes.checked = actuales.resumenes;
+    campoSeguirAClaude.checked = actuales.seguirAClaude;
     campoActualizaciones.checked = actuales.buscarActualizaciones;
     campoPausarOculto.checked = actuales.pausarOculto;
     coloresPropios = Boolean(actuales.colores);
@@ -210,6 +247,10 @@ const panelAjustes = (() => {
     campoLimiteAuto.checked = actuales.limiteAutomatico;
     limiteDeHoy = actuales.limiteDeHoy;
     mostrarLimiteAuto();
+
+    acercaDe = { version: actuales.version, autor: actuales.autor, versionNueva: actuales.versionNueva };
+    mostrarAcercaDe();
+    decirDeLaActualizacion(actuales.versionNueva ? t('acerca.hayNueva', { version: actuales.versionNueva }) : '', actuales.versionNueva ? 'ok' : '');
 
     decir('', '');
     mensajeExportar.textContent = '';
@@ -259,6 +300,7 @@ const panelAjustes = (() => {
       iconoDeColor: campoIconoDeColor.checked,
       atajoGlobal: campoAtajo.checked,
       resumenes: campoResumenes.checked,
+      seguirAClaude: campoSeguirAClaude.checked,
       buscarActualizaciones: campoActualizaciones.checked,
       pausarOculto: campoPausarOculto.checked,
       colores: coloresPropios

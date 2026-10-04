@@ -340,7 +340,10 @@ function procesarSemana({ estado, semana, reinicio, umbral }) {
 //   inicioMs → desde cuándo se mide el uso de ese día (lo usado antes de la primera lectura se reparte desde ahí)
 // Lo que subió entre dos lecturas se reparte entre las horas que pasaron entre ellas (si el widget estuvo oculto
 // tres horas, no se sabe en cuál de las tres fue: se reparte parejo).
+// Si entre dos lecturas pasaron más de 3 horas (el computador apagado, o la app recién instalada), no hay cómo saber
+// a qué hora fue ese uso: no se anota en ninguna hora (mejor que inventar uso a las 3 de la mañana).
 // Devuelve 24 números (de las 00 a las 23), en % de la cuota semanal.
+const TRAMO_MAXIMO_MS = 3 * 60 * 60 * 1000;
 function usoPorHora(puntos, inicioMs) {
   const horas = new Array(24).fill(0);
   if (!Array.isArray(puntos) || puntos.length === 0) return horas;
@@ -354,7 +357,7 @@ function usoPorHora(puntos, inicioMs) {
       const total = punto.t - antes.t;
       if (total <= 0) {
         horas[new Date(punto.t).getHours()] += subio;
-      } else {
+      } else if (total <= TRAMO_MAXIMO_MS) {
         // Se recorre el tramo de hora en hora, y a cada hora le toca la parte que le corresponde
         let desde = antes.t;
         while (desde < punto.t) {
@@ -377,14 +380,15 @@ function usoPorHora(puntos, inicioMs) {
 
 const MAXIMO_DE_PUNTOS_DE_LA_CURVA = 7 * 24 + 2;
 
-// Agrega una lectura a la curva de la semana: un punto por hora como máximo (el último de cada hora).
-//   curva → [[horas desde que empezó la semana, % de la cuota], ...]
-function agregarALaCurva(curva, horas, semana) {
+// Agrega una lectura a una curva: un punto por tramo como máximo (el último de cada tramo).
+//   curva → [[horas desde que empezó, %], ...]
+//   paso  → de cuántas horas es cada tramo: 1 para la semana, 0.25 (15 minutos) para el día, 0.1 (6 minutos) para la sesión
+function agregarALaCurva(curva, horas, semana, paso = 1) {
   if (!Number.isFinite(horas) || horas < 0 || !Number.isFinite(semana)) return curva || [];
   const punto = [Math.round(horas * 100) / 100, semana];
   const lista = Array.isArray(curva) ? [...curva] : [];
   const ultimo = lista[lista.length - 1];
-  if (ultimo && Math.floor(ultimo[0]) === Math.floor(punto[0])) lista[lista.length - 1] = punto;
+  if (ultimo && Math.floor(ultimo[0] / paso) === Math.floor(punto[0] / paso)) lista[lista.length - 1] = punto;
   else lista.push(punto);
   return lista.slice(-MAXIMO_DE_PUNTOS_DE_LA_CURVA);
 }
@@ -431,6 +435,16 @@ function semanaPasadaSegunHistorial({ historial, inicioSemana, ahora }) {
   return suma;
 }
 
+// Compara un valor de ahora con el de una curva anterior a la misma altura (ayer a esta hora, la sesión anterior...).
+// Devuelve { diferencia, antes } (con un decimal) o null si la curva no llega hasta ahí.
+function compararConCurva(valor, curva, horas) {
+  if (!Number.isFinite(valor)) return null;
+  const antes = valorDeLaCurva(curva, horas);
+  if (antes === null) return null;
+  const redondear = (numero) => Math.round(numero * 10) / 10;
+  return { diferencia: redondear(valor - antes), antes: redondear(antes), aproximado: false };
+}
+
 // Compara lo que llevas esta semana con lo que llevabas la semana pasada a esta misma altura.
 //   curvaPasada → { reinicioMs, puntos } de la semana anterior (o null)
 // Devuelve { diferencia, antes, aproximado } (en puntos de la cuota semanal, con un decimal) o null si no se puede comparar.
@@ -459,6 +473,7 @@ module.exports = {
   valorDeLaCurva,
   semanaPasadaSegunHistorial,
   compararConSemanaPasada,
+  compararConCurva,
   limiteAutomatico,
   semanaAlEmpezarElDia,
   llegadaAlLimiteDeSesion,

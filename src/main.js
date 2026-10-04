@@ -15,6 +15,7 @@ const alertas = require('./alertas');
 const ajustes = require('./ajustes');
 const exportar = require('./exportar');
 const copia = require('./copia');
+const { claudeEstaAbierto } = require('./claude-abierto');
 const actualizaciones = require('./actualizaciones');
 const contexto = require('./contexto');
 const { rutaDeAsset } = require('./rutas');
@@ -46,7 +47,11 @@ const MEDIDAS_DE_VISTA = {
   mini: { ancho: 64, alto: 64 },                   // un círculo con el anillo de Hoy
   completo: { ancho: 760, alto: 92 + 8 + 250 },    // las barras arriba y, abajo, el historial, el desglose y la proyección juntos
   cuentas: { ancho: 760, alto: 0 },                // todas las cuentas a la vez, una fila por cuenta (el alto depende de cuántas haya)
+  // el panel de control: la vista completa (más ancha) y, debajo, seis gráficos más en dos filas (ver #tablero en widget.css)
+  tablero: { ancho: 1000, alto: 92 + 8 + 250 + 8 + 430 },
 };
+// El panel de control es la vista completa con una sección más: casi todo lo que vale para una vale para la otra.
+const esVistaCompleta = (vista) => vista.modo === 'completo' || vista.modo === 'tablero';
 
 // Tamaño del widget (se elige en Ajustes, o con Ctrl + rueda del mouse): todas las medidas de la ventana
 // se multiplican por la escala. 1 = tamaño normal (100%). La pantalla del widget se amplía igual con "zoom".
@@ -238,12 +243,19 @@ function todasALaVez(w, vista = w.vista) {
   if (w.parte) return false;
   if (vista.modo === 'cuentas') return true;
   if (vista.modo === 'mini') return false;
-  if (vista.modo === 'completo' || ventanasSeparadas) return false;
+  if (esVistaCompleta(vista) || ventanasSeparadas) return false;
   return totalDeCuentas >= 2 && verTodasLasCuentas;
 }
 
 // ¿La vista completa lleva el resumen con una fila por cuenta? (Con cada cuenta en su ventana, no hace falta.)
 const hayResumenDeCuentas = () => totalDeCuentas >= 2 && !ventanasSeparadas;
+
+// Con muchas cuentas a la vez, el desglose y la proyección necesitan más alto (una línea por cuenta).
+// (Estas cuentas deben coincidir con las de widget.js → tamanoBaseDePanel.)
+const ALTO_POR_CUENTA_EN_PROYECCION = 36; // una línea en "Hoy" y otra en "Semana"
+const ALTO_POR_CUENTA_EN_DESGLOSE = 24;
+// La vista completa crece lo que le falta a la proyección a partir de la cuarta cuenta.
+const extraDeCompletoPorCuentas = () => (hayResumenDeCuentas() ? Math.max(0, totalDeCuentas - 3) * ALTO_POR_CUENTA_EN_PROYECCION : 0);
 
 function altoDelResumen() {
   return hayResumenDeCuentas() ? RESUMEN_SEPARACION + RESUMEN_RELLENO + RESUMEN_FILA * totalDeCuentas : 0;
@@ -283,22 +295,29 @@ function medidasBase(w, vista = w.vista) {
 const MEDIDAS_DE_PARTE = {
   historial: { ancho: 320, alto: 250 },
   desglose: { ancho: 300, alto: 230 },
-  proyeccion: { ancho: 300, alto: 236 },
+  proyeccion: { ancho: 300, alto: 252 },
   productos: { ancho: 500, alto: 300 },
 };
-function medidasDeParte(parte) {
+// "w": la ventana de esa parte. Si muestra todas las cuentas a la vez, el desglose y la proyección crecen con ellas.
+function medidasDeParte(parte, w) {
   if (parte === 'chats') return { ancho: 300, alto: CHATS_RELLENO + CHATS_CABECERA + CHATS_FILA * Math.max(1, chatsActuales.length) };
-  return MEDIDAS_DE_PARTE[parte];
+  const base = MEDIDAS_DE_PARTE[parte];
+  const cuentas = w && !w.cuentaId && hayResumenDeCuentas() ? totalDeCuentas : 1;
+  if (cuentas < 2) return base;
+  if (parte === 'proyeccion') return { ...base, alto: Math.max(base.alto, 148 + 32 * cuentas) };
+  if (parte === 'desglose') return { ...base, alto: Math.max(base.alto, 154 + ALTO_POR_CUENTA_EN_DESGLOSE * cuentas) };
+  if (parte === 'historial') return { ...base, alto: base.alto + (cuentas >= 3 ? 40 : 0) }; // la leyenda va en sus propias líneas
+  return base;
 }
 
 function medidasSinChats(w, vista) {
-  if (w.parte) return medidasDeParte(w.parte);
+  if (w.parte) return medidasDeParte(w.parte, w);
   const base = MEDIDAS_DE_VISTA[claveDeVista(vista)];
   if (vista.modo === 'mini') return base;
   // La vista completa: más alta con el resumen de cuentas, y más ancha si alguna cuenta tiene límites extra (una columna por cada uno).
-  if (vista.modo === 'completo') {
+  if (esVistaCompleta(vista)) {
     const columnasExtra = hayResumenDeCuentas() ? maximoDeLimitesExtra() : 0;
-    return { ancho: base.ancho + ANCHO_COLUMNA_EXTRA_LISTA * columnasExtra, alto: base.alto + altoDelResumen() };
+    return { ancho: base.ancho + ANCHO_COLUMNA_EXTRA_LISTA * columnasExtra, alto: base.alto + altoDelResumen() + extraDeCompletoPorCuentas() };
   }
   // Cada límite extra (por ejemplo Fable) es una barra más: en la vista vertical la tarjeta crece a lo alto, y en la horizontal a lo ancho.
   if (!todasALaVez(w, vista) && vista.modo === 'normal') {
@@ -567,7 +586,9 @@ function aparienciaActual(w) {
     orientacion: w.vista.orientacion,
     escala: Math.round(escalaActual * 100),
     todas: todasALaVez(w),             // true = en vez de la tarjeta se ve la lista con todas las cuentas
-    extra: extrasDeVista(w),           // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual)
+    // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual); en la vista completa cuenta también
+    // lo que creció por tener muchas cuentas
+    extra: { ...extrasDeVista(w), alto: extrasDeVista(w).alto + (esVistaCompleta(w.vista) && !w.parte ? extraDeCompletoPorCuentas() : 0) },
     redimensionando: Boolean(w.redimension), // true mientras estás arrastrando un borde
     altoPanel: w.expansion.alto || null, // alto del panel abierto (puede achicarse si ya no cabe en la pantalla)
     anchoPanel: w.expansion.anchoPanel || 0, // ancho del panel abierto, si es más ancho que la vista
@@ -749,14 +770,15 @@ function reajustarLaVentana(w) {
 // dónde está el mouse y se va cambiando el tamaño. Queda quieto el borde contrario al que arrastras.
 // (w.redimension = { borde, inicio, cursor, area, clave, temporizador } mientras se arrastra)
 
-// Con un panel desplegado, lo que se estira es ese panel (la tarjeta no cambia): "minimos" es el tamaño de siempre del panel
-// ({ alto, ancho }), que la pantalla manda para que no se pueda achicar más que eso. Cada panel recuerda su tamaño.
+// Con un panel desplegado: a lo alto se estira ese panel (cada panel recuerda su alto); a lo ancho se estira TODO
+// (la tarjeta, el contexto y el panel juntos: es el ancho de la vista, y queda así al cerrar el panel).
+// "minimos" es el tamaño de siempre del panel ({ alto, ancho }), que la pantalla manda para que no quede más chico que eso.
 // (En la vista completa los paneles están siempre a la vista: ahí se estira la vista, sin ningún panel abierto encima.)
 function empezarRedimension(w, borde, minimos) {
   if (w.redimension || !w.ventana || w.ventana.isDestroyed()) return;
   if (typeof borde !== 'string' || !/^(n|s|e|w|ne|nw|se|sw)$/.test(borde)) return;
   const conPanel = w.expansion.extra > 0;
-  if (conPanel && (w.vista.modo === 'completo' || !/^[a-z]{3,20}$/.test(w.panelAbierto || ''))) return;
+  if (conPanel && (esVistaCompleta(w.vista) || !/^[a-z]{3,20}$/.test(w.panelAbierto || ''))) return;
   const inicio = w.ventana.getBounds();
   const numero = (valor) => (Number.isFinite(valor) && valor > 0 ? Math.round(valor) : 0);
   w.redimension = {
@@ -765,6 +787,7 @@ function empezarRedimension(w, borde, minimos) {
     cursor: screen.getCursorScreenPoint(),
     area: screen.getDisplayMatching(inicio).workArea,
     clave: conPanel ? 'panel-' + w.panelAbierto : claveDeTamano(w),
+    claveDeLaVista: claveDeTamano(w),
     // El panel nunca queda más chico que su tamaño de siempre (ni que como está ahora, si la pantalla ya lo había achicado)
     panel: conPanel
       ? { alto: Math.max(PANEL_ALTO_MINIMO, Math.min(numero(minimos && minimos.alto) || PANEL_ALTO_MINIMO, w.expansion.alto)), ancho: numero(minimos && minimos.ancho) }
@@ -775,14 +798,13 @@ function empezarRedimension(w, borde, minimos) {
 
 function moverRedimension(w) {
   if (!w.redimension || !w.ventana || w.ventana.isDestroyed()) return terminarRedimension(w);
-  const { borde, inicio, cursor, area, clave, panel } = w.redimension;
+  const { borde, inicio, cursor, area, clave, panel, claveDeLaVista } = w.redimension;
   const punto = screen.getCursorScreenPoint();
   const dx = punto.x - cursor.x;
   const dy = punto.y - cursor.y;
   const base = medidasBase(w);
-  // Con un panel abierto: la ventana mide la tarjeta más el panel, y lo que cambia es el panel.
-  const anchoDeLaVista = px(medidasDeVista(w).ancho + 2 * MARGEN);
-  const minAncho = panel ? Math.max(anchoDeLaVista, px(panel.ancho)) : px(base.ancho + 2 * MARGEN);
+  // Con un panel abierto: la ventana mide la tarjeta más el panel. A lo alto cambia el panel; a lo ancho, la vista entera.
+  const minAncho = panel ? Math.max(px(base.ancho + 2 * MARGEN), px(panel.ancho)) : px(base.ancho + 2 * MARGEN);
   const minAlto = panel ? altoBase(w) + px(panel.alto + PANEL_SEPARACION) : px(base.alto + 2 * MARGEN);
   const maxAncho = area.width + 2 * margen();
   const maxAlto = panel ? Math.min(area.height + 2 * margen(), altoBase(w) + px(PANEL_ALTO_MAXIMO + PANEL_SEPARACION)) : area.height + 2 * margen();
@@ -802,8 +824,12 @@ function moverRedimension(w) {
     }
     w.expansion.extra = height - altoBase(w);
     w.expansion.alto = Math.round(w.expansion.extra / escalaActual) - PANEL_SEPARACION;
-    w.expansion.anchoPanel = width > anchoDeLaVista ? Math.round(width / escalaActual) : 0;
-    tamanosGuardados[clave] = { ancho: w.expansion.anchoPanel, alto: w.expansion.alto };
+    tamanosGuardados[clave] = { ancho: 0, alto: w.expansion.alto };
+    // El ancho es de la vista: la tarjeta se ensancha con el panel (un panel que de por sí es más ancho, como Ajustes, sigue pidiendo el suyo)
+    if (borde.includes('e') || borde.includes('w')) {
+      const anterior = tamanosGuardados[claveDeLaVista] || {};
+      tamanosGuardados[claveDeLaVista] = { ancho: Math.max(0, Math.round(width / escalaActual) - 2 * MARGEN - base.ancho), alto: anterior.alto || 0 };
+    }
     w.ventana.setBounds({ x, y, width, height });
     enviarApariencia(w);
     return;
@@ -838,7 +864,7 @@ function terminarRedimension(w) {
 function restablecerTamano(w) {
   if (w.redimension) return;
   if (w.expansion.extra > 0) {
-    if (w.vista.modo === 'completo' || !w.panelAbierto) return;
+    if (esVistaCompleta(w.vista) || !w.panelAbierto) return;
     delete tamanosGuardados['panel-' + w.panelAbierto];
     almacen.guardar({ tamanos: tamanosGuardados });
     enviarApariencia(w);
@@ -882,7 +908,9 @@ function crearVentana(w) {
   w.ventana.loadFile(path.join(__dirname, 'ventanas', 'widget.html'), w.parte ? { query: { parte: w.parte } } : {});
   w.ventana.once('ready-to-show', () => {
     // Las ventanas propias de las cuentas solo aparecen si la principal está a la vista (si no, se muestran con ella).
-    if (estaViva(w) && (w === principal || principal.ventana.isVisible())) w.ventana.show();
+    // (y con "mostrar solo mientras Claude está abierto", si Claude está cerrado al arrancar, el widget parte oculto)
+    const esperaAClaude = almacen.leer().seguirAClaude && claudeAbierto === false;
+    if (estaViva(w) && !esperaAClaude && (w === principal || principal.ventana.isVisible())) w.ventana.show();
   });
 
   // Cada vez que se mueve la ventana, guardamos su posición.
@@ -1053,6 +1081,26 @@ function mostrarOcultar() {
   }
 }
 
+// ----- Mostrar solo mientras Claude está abierto (opción de Ajustes) -----
+// Cada 5 segundos se mira si Claude está abierto (la app de escritorio o Claude Code). Cuando se abre, el widget aparece;
+// cuando se cierra, se oculta (Headroom sigue en la bandeja, y con el widget oculto no consulta nada).
+// Solo se actúa cuando CAMBIA: si lo muestras u ocultas a mano mientras tanto, se respeta.
+let claudeAbierto = null; // true / false; null = todavía no se sabe (o la opción está apagada)
+
+async function seguirAClaude() {
+  if (!almacen.leer().seguirAClaude) {
+    claudeAbierto = null;
+    return;
+  }
+  const abierto = await claudeEstaAbierto();
+  if (abierto === null || abierto === claudeAbierto || !estaViva(principal)) return;
+  const primeraVez = claudeAbierto === null;
+  claudeAbierto = abierto;
+  const visible = principal.ventana.isVisible();
+  // (la primera vez que se mira, por ejemplo al activar la opción, no se oculta: sería raro que desaparezca al guardar)
+  if ((abierto && !visible) || (!abierto && visible && !primeraVez)) mostrarOcultar();
+}
+
 // Activa o desactiva "siempre encima" y lo recuerda para la próxima vez.
 function cambiarSiempreEncima(activar) {
   for (const w of todasLasVentanas()) if (estaViva(w)) w.ventana.setAlwaysOnTop(activar);
@@ -1100,6 +1148,7 @@ function ajustesActuales(w) {
     buscarActualizaciones: config.buscarActualizaciones,
     pausarOculto: config.pausarOculto !== false,
     resumenes: config.resumenes !== false,
+    seguirAClaude: config.seguirAClaude === true,
     formatoReinicio: config.formatoReinicio,
     colores: config.colores,
     siempreEncima: config.siempreEncima,
@@ -1111,6 +1160,10 @@ function ajustesActuales(w) {
     idioma: config.idioma,
     escala: Math.round(escalaActual * 100),
     opcionesIntervalo: ajustes.OPCIONES_INTERVALO,
+    // Acerca de: la versión instalada, quién la hizo y, si ya se encontró, la versión nueva que espera
+    version: app.getVersion(),
+    autor: AUTOR,
+    versionNueva: actualizaciones.estado.versionNueva ? actualizaciones.estado.versionNueva.version : null,
   };
 }
 
@@ -1146,6 +1199,7 @@ function guardarAjustes(w, datos) {
     buscarActualizaciones: nuevos.buscarActualizaciones,
     pausarOculto: nuevos.pausarOculto,
     resumenes: nuevos.resumenes,
+    seguirAClaude: nuevos.seguirAClaude,
     formatoReinicio: nuevos.formatoReinicio,
     colores: nuevos.colores,
     siempreEncima: nuevos.siempreEncima,
@@ -1191,6 +1245,7 @@ function guardarAjustes(w, datos) {
   programarProximaConsulta();
   retomarConsultas();
 
+  seguirAClaude(); // (si se acaba de activar la opción y Claude está abierto, el widget queda a la vista)
   // Ícono de la bandeja, atajo de teclado y búsqueda de actualizaciones: al instante.
   actualizarIconoDeBandeja();
   aplicarAtajoGlobal();
@@ -1239,17 +1294,17 @@ function datosDelHistorial(w, cantidadDeDias = 7) {
   return datos;
 }
 
-// El promedio de uso de cada hora del día de una cuenta. Se usan los días ya terminados (hoy está a medias y bajaría el
-// promedio de las horas que faltan); si todavía no hay ninguno, lo que va de hoy.
+// El promedio de uso de cada hora del día de una cuenta, entre los días guardados. Hoy también cuenta (así el gráfico
+// se mueve con cada consulta), pero solo en las horas que ya pasaron: en las que faltan bajaría el promedio sin razón.
 function horasDeCuenta(cuenta) {
-  const hoy = calculo.diaLocal(fechaActual());
+  const ahora = fechaActual();
+  const hoy = calculo.diaLocal(ahora);
   const conHoras = (cuenta.historial || []).filter((d) => Array.isArray(d.horas) && d.horas.length === 24);
-  const terminados = conHoras.filter((d) => d.dia !== hoy);
-  const dias = terminados.length ? terminados : conHoras;
-  const horas = Array.from({ length: 24 }, (_, hora) => (
-    dias.length ? Math.round((dias.reduce((suma, d) => suma + (Number(d.horas[hora]) || 0), 0) / dias.length) * 100) / 100 : null
-  ));
-  return { id: cuenta.id, nombre: nombreDeCuenta(cuenta), horas, dias: dias.length };
+  const horas = Array.from({ length: 24 }, (_, hora) => {
+    const dias = conHoras.filter((d) => d.dia !== hoy || hora <= ahora.getHours());
+    return dias.length ? Math.round((dias.reduce((suma, d) => suma + (Number(d.horas[hora]) || 0), 0) / dias.length) * 100) / 100 : 0;
+  });
+  return { id: cuenta.id, nombre: nombreDeCuenta(cuenta), horas, dias: conHoras.length };
 }
 
 // El historial de una cuenta: los últimos días con su uso y su límite.
@@ -1445,6 +1500,19 @@ async function buscarVersionNueva() {
   }
 }
 
+// "Buscar actualización" (botón de Ajustes): pregunta ahora mismo, aunque el aviso automático esté apagado.
+// Responde { ok: true, version } si hay una más nueva, { ok: true, alDia: true } si no, o { ok: false } si no se pudo saber.
+async function buscarActualizacionAhora() {
+  const ultima = await actualizaciones.ultimaVersion();
+  if (!ultima) return { ok: false, error: t('acerca.sinRespuesta') };
+  if (actualizaciones.compararVersiones(ultima.version, app.getVersion()) <= 0) return { ok: true, alDia: true };
+  const nueva = await actualizaciones.buscarVersionNueva(app.getVersion()); // (deja lista la actualización con un clic)
+  return nueva ? { ok: true, version: nueva.version } : { ok: false, error: t('acerca.sinRespuesta') };
+}
+
+// Quién hizo la app (se muestra en Ajustes → Acerca de).
+const AUTOR = 'OkazoKoroma';
+
 // Crea el ícono junto al reloj y su menú (clic derecho).
 function crearBandeja() {
   const icono = nativeImage.createFromPath(rutaDeAsset('bandeja-normal.png'));
@@ -1511,6 +1579,7 @@ function construirMenu() {
         { label: t('tray.vista.compacto'), type: 'radio', checked: principal.vista.modo === 'compacto', click: () => cambiarVista(principal, { modo: 'compacto' }) },
         { label: t('tray.vista.mini'), type: 'radio', checked: principal.vista.modo === 'mini', click: () => cambiarVista(principal, { modo: 'mini' }) },
         { label: t('tray.vista.completo'), type: 'radio', checked: principal.vista.modo === 'completo', click: () => cambiarVista(principal, { modo: 'completo' }) },
+        { label: t('tray.vista.tablero'), type: 'radio', checked: principal.vista.modo === 'tablero', click: () => cambiarVista(principal, { modo: 'tablero' }) },
         { label: t('tray.vista.cuentas'), type: 'radio', checked: principal.vista.modo === 'cuentas', click: () => cambiarVista(principal, { modo: 'cuentas' }) },
         { type: 'separator' },
         { label: t('tray.disposicion.vertical'), type: 'radio', checked: principal.vista.orientacion === 'vertical', click: () => cambiarVista(principal, { orientacion: 'vertical' }) },
@@ -1709,12 +1778,14 @@ function registrarLectura(cuenta, semana, inicioSemana, reinicio) {
 // Anota la lectura en el gráfico del día: la hora, el uso de hoy y la sesión de 5 horas. Al cambiar el día se empieza de nuevo.
 const MAXIMO_DE_PUNTOS_DEL_DIA = 400; // de sobra para una lectura cada 5 minutos
 // También anota cuánto lleva cada producto en la semana (en % de la cuota) y lo que usó cada uno hoy (en el historial del día).
-function anotarLecturaDeHoy(cuenta, hoy, sesion5h, semana, desglose) {
+// "modelos": cuánto lleva cada límite por modelo (por ejemplo { Fable: 12 }, en % de su propio límite semanal), o null.
+function anotarLecturaDeHoy(cuenta, hoy, sesion5h, semana, desglose, modelos = null) {
   const ahora = fechaActual();
   const dia = calculo.diaLocal(ahora);
   const anteriores = cuenta.lecturasDeHoy && cuenta.lecturasDeHoy.dia === dia ? cuenta.lecturasDeHoy.puntos : [];
   const productos = productosDeLaSemana(semana, desglose);
   const punto = { t: ahora.getTime(), hoy, sesion: sesion5h ? sesion5h.porcentaje : null, productos };
+  if (modelos) punto.modelos = modelos;
   const puntos = [...anteriores, punto].slice(-MAXIMO_DE_PUNTOS_DEL_DIA);
   const cambios = { lecturasDeHoy: { dia, puntos } };
   // Cuánto se usó en cada hora de hoy (para "a qué horas usas más"): se guarda con el día en el historial
@@ -1733,7 +1804,72 @@ function anotarLecturaDeHoy(cuenta, hoy, sesion5h, semana, desglose) {
     }
     cambios.historial = cambios.historial.map((d) => (d.dia === dia ? { ...d, productos: delDia } : d));
   }
+  if (modelos) {
+    // Igual con los límites por modelo: lo que subió cada uno hoy (si su semana se reinició hoy, lo que lleva desde entonces)
+    const inicio = (puntos.find((p) => p.modelos) || punto).modelos;
+    const delDia = {};
+    for (const [nombre, valor] of Object.entries(modelos)) {
+      const antes = inicio[nombre] || 0;
+      delDia[nombre] = Math.round((valor >= antes ? valor - antes : valor) * 100) / 100;
+    }
+    cambios.historial = cambios.historial.map((d) => (d.dia === dia ? { ...d, modelos: delDia } : d));
+  }
   almacen.guardarCuenta(cuenta.id, cambios);
+}
+
+// Los límites por modelo de una lectura (Fable...), como { nombre: % de su propio límite }. null si el plan no tiene ninguno.
+// (El crédito extra no cuenta: es dinero, no un límite de uso.)
+function modelosDeLaLectura(limitesExtra) {
+  const modelos = (limitesExtra || []).filter((extra) => !extra.credito && typeof extra.nombre === 'string' && Number.isFinite(extra.porcentaje));
+  return modelos.length ? Object.fromEntries(modelos.map((extra) => [extra.nombre.slice(0, 30), extra.porcentaje])) : null;
+}
+
+// Guarda cómo va subiendo el uso de hoy y el de la sesión de 5 horas, y los compara con ayer a esta misma hora y con la
+// sesión anterior a esta misma altura. Devuelve { hoy, sesion } (cada una { diferencia, antes } o null si no hay con qué comparar).
+function anotarCurvas(cuenta, hoy, sesion5h) {
+  const ahora = fechaActual();
+  const dia = calculo.diaLocal(ahora);
+  const ayer = calculo.ultimosDias(ahora, 2)[0];
+  const inicioDelDia = new Date(ahora);
+  inicioDelDia.setHours(0, 0, 0, 0);
+  const horasDelDia = (ahora.getTime() - inicioDelDia.getTime()) / HORAS;
+  const cambios = {};
+
+  // --- Hoy contra ayer
+  let deHoy = cuenta.curvaDeHoy;
+  let deAyer = cuenta.curvaDeAyer;
+  if (!deHoy || deHoy.dia !== dia) {
+    if (deHoy && deHoy.dia === ayer) deAyer = deHoy; // el día cambió: la curva de hoy pasa a ser la de ayer
+    // (la primera vez, la curva de hoy se arma con las lecturas de hoy que ya estaban guardadas)
+    const guardadas = cuenta.lecturasDeHoy && cuenta.lecturasDeHoy.dia === dia ? cuenta.lecturasDeHoy.puntos : [];
+    const puntos = guardadas.reduce((curva, p) => calculo.agregarALaCurva(curva, (p.t - inicioDelDia.getTime()) / HORAS, p.hoy, 0.25), []);
+    deHoy = { dia, puntos };
+  }
+  if (deAyer && deAyer.dia !== ayer) deAyer = null;
+  deHoy = { dia, puntos: calculo.agregarALaCurva(deHoy.puntos, horasDelDia, hoy, 0.25) };
+  cambios.curvaDeHoy = deHoy;
+  cambios.curvaDeAyer = deAyer;
+  const comparacionHoy = deAyer ? calculo.compararConCurva(hoy, deAyer.puntos, horasDelDia) : null;
+
+  // --- La sesión de 5 horas contra la anterior
+  let comparacionSesion = null;
+  if (sesion5h) {
+    const reinicioMs = Math.round(sesion5h.reinicio.getTime() / 60000) * 60000;
+    const horasDeSesion = (ahora.getTime() - (reinicioMs - 5 * HORAS)) / HORAS;
+    let enCurso = cuenta.sesionEnCurso;
+    let pasada = cuenta.sesionPasada;
+    // (la hora de reinicio que entrega claude.ai baila unos segundos: es la misma sesión si difiere en menos de 5 minutos)
+    if (!enCurso || Math.abs(enCurso.reinicioMs - reinicioMs) > 5 * 60 * 1000) {
+      if (enCurso && enCurso.puntos.length >= 2) pasada = enCurso;
+      enCurso = { reinicioMs, puntos: [] };
+    }
+    enCurso = { reinicioMs: enCurso.reinicioMs, puntos: calculo.agregarALaCurva(enCurso.puntos, horasDeSesion, sesion5h.porcentaje, 0.1) };
+    cambios.sesionEnCurso = enCurso;
+    cambios.sesionPasada = pasada;
+    comparacionSesion = pasada ? calculo.compararConCurva(sesion5h.porcentaje, pasada.puntos, horasDeSesion) : null;
+  }
+  almacen.guardarCuenta(cuenta.id, cambios);
+  return { hoy: comparacionHoy, sesion: comparacionSesion };
 }
 
 // Cuánto lleva cada producto en la semana, en % de la cuota: { claude_code: 12.4, chat: 3.1, ... } (null si no hay desglose).
@@ -1750,20 +1886,30 @@ function datosDeProductos(w, modo) {
   const nombres = cuenta.nombresDeProductos || {};
   const ordenar = (lista) => lista.sort((a, b) => b.total - a.total).map(({ total, ...resto }) => resto);
   const cantidadDeDias = Number(modo);
+  // Los límites por modelo (Fable...) van como una línea más, marcada "propio": su % es de su propio límite, no de la cuota semanal.
+  //   registros → de dónde se saca cada punto: [{ x, modelos }] (modelos = { nombre: valor } o nada)
+  const lineasDeModelos = (registros) => {
+    const nombresDeModelos = [...new Set(registros.flatMap((registro) => Object.keys(registro.modelos || {})))];
+    return nombresDeModelos.map((nombre) => ({
+      clave: 'modelo:' + nombre, nombre, propio: true,
+      puntos: registros.map((registro) => [registro.x, registro.sinDato || !registro.modelos ? null : registro.modelos[nombre] || 0]),
+    }));
+  };
 
   // Histórico de semanas: lo que usó cada producto en cada semana (la semana en curso va al final, con lo que lleva)
   if (modo === 'semanas') {
     const lectura = lecturaDe(cuenta.id);
     const semanas = [...(cuenta.semanasPasadas || [])];
     if (cuenta.semanaEnCurso && lectura.inicioSemana) {
-      semanas.push({ inicio: calculo.diaLocal(lectura.inicioSemana), semana: cuenta.semanaEnCurso.semana, productos: cuenta.semanaEnCurso.productos, enCurso: true });
+      semanas.push({ inicio: calculo.diaLocal(lectura.inicioSemana), semana: cuenta.semanaEnCurso.semana, productos: cuenta.semanaEnCurso.productos, modelos: cuenta.semanaEnCurso.modelos, enCurso: true });
     }
     const claves = [...new Set(semanas.flatMap((s) => Object.keys(s.productos || {})))];
     const productos = claves.map((clave) => {
       const puntos = semanas.map((s, j) => [j, s.productos ? s.productos[clave] || 0 : null]);
       return { clave, nombre: nombres[clave] || clave, puntos, total: puntos.reduce((suma, [, v]) => suma + (v || 0), 0) };
     });
-    return { semanas: semanas.map((s) => ({ inicio: s.inicio, enCurso: Boolean(s.enCurso) })), productos: ordenar(productos) };
+    const modelos = lineasDeModelos(semanas.map((s, j) => ({ x: j, modelos: s.modelos })));
+    return { semanas: semanas.map((s) => ({ inicio: s.inicio, enCurso: Boolean(s.enCurso) })), productos: [...ordenar(productos), ...modelos] };
   }
 
   // Esta semana: los 7 días desde el día en que se reinicia tu plan (los que aún no llegan quedan vacíos)
@@ -1783,7 +1929,8 @@ function datosDeProductos(w, modo) {
       });
       return { clave, nombre: nombres[clave] || clave, puntos, total: puntos.reduce((suma, [, v]) => suma + (v || 0), 0) };
     });
-    return { delDia: false, dias, hoy, productos: ordenar(productos) };
+    const modelos = lineasDeModelos(dias.map((d, j) => ({ x: j, sinDato: d > hoy, modelos: (porDia.get(d) || {}).modelos })));
+    return { delDia: false, dias, hoy, productos: [...ordenar(productos), ...modelos] };
   }
   if (cantidadDeDias === 1) {
     const dia = calculo.diaLocal(fechaActual());
@@ -1800,7 +1947,17 @@ function datosDeProductos(w, modo) {
       });
       return { clave, nombre: nombres[clave] || clave, puntos: serie, total: serie.length ? serie[serie.length - 1][1] : 0 };
     });
-    return { delDia: true, inicioMs: inicio.getTime(), ahoraMs: fechaActual().getTime(), productos: ordenar(productos) };
+    // Los límites por modelo: lo que subió cada uno desde la primera lectura de hoy
+    const conModelos = (cuenta.lecturasDeHoy && cuenta.lecturasDeHoy.dia === dia ? cuenta.lecturasDeHoy.puntos : []).filter((p) => p.modelos);
+    const alEmpezar = conModelos.length ? conModelos[0].modelos : {};
+    const modelos = lineasDeModelos(conModelos.map((p) => ({
+      x: p.t,
+      modelos: Object.fromEntries(Object.entries(p.modelos).map(([nombre, valor]) => {
+        const antes = alEmpezar[nombre] || 0;
+        return [nombre, Math.round((valor >= antes ? valor - antes : valor) * 100) / 100];
+      })),
+    })));
+    return { delDia: true, inicioMs: inicio.getTime(), ahoraMs: fechaActual().getTime(), productos: [...ordenar(productos), ...modelos] };
   }
   const cantidad = cantidadDeDias === 30 ? 30 : 7;
   const dias = calculo.ultimosDias(fechaActual(), cantidad);
@@ -1813,7 +1970,8 @@ function datosDeProductos(w, modo) {
     });
     return { clave, nombre: nombres[clave] || clave, puntos, total: puntos.reduce((suma, [, v]) => suma + (v || 0), 0) };
   });
-  return { delDia: false, dias, hoy: calculo.diaLocal(fechaActual()), productos: ordenar(productos) };
+  const modelos = lineasDeModelos(dias.map((dia, j) => ({ x: j, modelos: (porDia.get(dia) || {}).modelos })));
+  return { delDia: false, dias, hoy: calculo.diaLocal(fechaActual()), productos: [...ordenar(productos), ...modelos] };
 }
 
 // Los datos del gráfico del día de una cuenta (vacío si hoy aún no hay lecturas).
@@ -1828,20 +1986,21 @@ function graficoDelDia(cuenta) {
 // se avisa cuánto se usó y cuál fue el día más alto de esa semana.
 // También guarda cada semana que termina en el histórico de semanas (con lo que usó cada producto), hasta 26 semanas.
 const MAXIMO_DE_SEMANAS = 26;
-function resumirSemanaSiTermino(cuenta, semana, reinicio, desglose) {
+function resumirSemanaSiTermino(cuenta, semana, reinicio, desglose, modelos = null) {
   const anterior = cuenta.semanaEnCurso;
   const reinicioMs = reinicio.getTime();
   const termino = anterior && reinicioMs - anterior.reinicioMs > 12 * HORAS;
   // La curva de la semana: cuánto llevaba a cada hora desde que empezó (para comparar la semana que viene con esta)
   const horasDeSemana = (fechaActual().getTime() - (reinicioMs - 7 * 24 * HORAS)) / HORAS;
   const curva = calculo.agregarALaCurva(anterior && !termino ? anterior.curva : [], horasDeSemana, semana);
-  const cambios = { semanaEnCurso: { reinicioMs, semana, productos: productosDeLaSemana(semana, desglose), curva } };
+  const cambios = { semanaEnCurso: { reinicioMs, semana, productos: productosDeLaSemana(semana, desglose), curva, modelos } };
   if (termino) {
     cambios.curvaSemanaPasada = { reinicioMs: anterior.reinicioMs, puntos: anterior.curva || [] };
     const terminada = {
       inicio: calculo.diaLocal(new Date(anterior.reinicioMs - 7 * 24 * HORAS)),
       semana: anterior.semana,
       productos: anterior.productos || null,
+      modelos: anterior.modelos || null,
     };
     cambios.semanasPasadas = [...(cuenta.semanasPasadas || []).filter((s) => s.inicio !== terminada.inicio), terminada].slice(-MAXIMO_DE_SEMANAS);
   }
@@ -2042,7 +2201,7 @@ function enviarUso() {
       reajustarLaVentana(w);
     }
     // En la vista normal vertical con todas las cuentas, el alto de la ventana depende de cuáles tienen datos.
-    if (todasALaVez(w) || w.vista.modo === 'completo') reajustarLaVentana(w);
+    if (todasALaVez(w) || esVistaCompleta(w.vista)) reajustarLaVentana(w);
     if (estaViva(w)) w.ventana.webContents.send('datos-uso', datosParaLaPantalla(w));
   }
 }
@@ -2059,9 +2218,12 @@ async function leerCuenta(cuenta, indice) {
     const hoy = registrarLectura(almacen.cuenta(cuenta.id), resultado.semana, lectura.inicioSemana, resultado.reinicio);
     lectura.inicioHoyMs = hoy.inicioMs;
     registrarSesion(almacen.cuenta(cuenta.id), resultado.sesion5h);
-    anotarLecturaDeHoy(almacen.cuenta(cuenta.id), hoy.hoy, resultado.sesion5h, resultado.semana, resultado.desglose);
+    const limitesExtra = armarLimitesExtra(resultado); // barras extra: límites por modelo (Fable...) y crédito extra (puede ser null)
+    const modelos = modelosDeLaLectura(limitesExtra);
+    anotarLecturaDeHoy(almacen.cuenta(cuenta.id), hoy.hoy, resultado.sesion5h, resultado.semana, resultado.desglose, modelos);
+    const comparaciones = anotarCurvas(almacen.cuenta(cuenta.id), hoy.hoy, resultado.sesion5h);
     registrarSemana(almacen.cuenta(cuenta.id), resultado.semana, resultado.reinicio);
-    resumirSemanaSiTermino(almacen.cuenta(cuenta.id), resultado.semana, resultado.reinicio, resultado.desglose);
+    resumirSemanaSiTermino(almacen.cuenta(cuenta.id), resultado.semana, resultado.reinicio, resultado.desglose, modelos);
     lectura.uso = {
       semana: resultado.semana,
       hoy: hoy.hoy,                   // % usado hoy
@@ -2076,12 +2238,14 @@ async function leerCuenta(cuenta, indice) {
       },
       desglose: resultado.desglose, // reparto de la semana por producto (puede ser null)
       plan: resultado.plan,         // { clave, multiplo } del plan de esta cuenta (puede ser null)
-      limitesExtra: armarLimitesExtra(resultado), // barras extra: límites por modelo (Fable...) y crédito extra (puede ser null)
+      limitesExtra,
       actualizado: ahora,
     };
     lectura.uso.proyeccion = calcularProyecciones(cuenta.id); // "a este ritmo..." de hoy y de la semana
     // Cómo vas contra la semana pasada a esta misma altura (null si todavía no hay con qué comparar)
     const guardada = almacen.cuenta(cuenta.id);
+    lectura.uso.comparacionHoy = comparaciones.hoy;       // contra ayer a esta misma hora
+    lectura.uso.comparacionSesion = comparaciones.sesion; // contra la sesión anterior a esta misma altura
     lectura.uso.comparacion = calculo.compararConSemanaPasada({
       semana: resultado.semana, inicioSemana: lectura.inicioSemana, ahora: fechaActual(),
       curvaPasada: guardada.curvaSemanaPasada, historial: guardada.historial,
@@ -2308,7 +2472,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('obtener-apariencia', (evento) => aparienciaActual(ventanaDelEvento(evento)));
     ipcMain.handle('obtener-idioma', () => datosDeIdioma());
     ipcMain.on('alternar-modo', (evento, modo) => {
-      if (!['compacto', 'completo', 'cuentas', 'mini'].includes(modo)) return;
+      if (!['compacto', 'completo', 'tablero', 'cuentas', 'mini'].includes(modo)) return;
       const w = ventanaDelEvento(evento);
       cambiarVista(w, { modo: w.vista.modo === modo ? 'normal' : modo }); // pulsar el mismo botón otra vez vuelve a la vista normal
     });
@@ -2335,6 +2499,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.on('juntar-parte', (evento) => { const w = ventanaDelEvento(evento); if (w.parte) juntarParte(w.clave); });
     ipcMain.on('bienvenida-vista', () => { if (!almacen.leer().bienvenidaVista) almacen.guardar({ bienvenidaVista: true }); });
     ipcMain.handle('exportar-historial', (evento) => exportarHistorial(ventanaDelEvento(evento), BrowserWindow.fromWebContents(evento.sender)));
+    ipcMain.handle('buscar-actualizacion', () => buscarActualizacionAhora());
+    ipcMain.on('actualizar-ahora', () => actualizaciones.actualizarAhora());
     ipcMain.handle('guardar-copia', (evento) => guardarCopia(BrowserWindow.fromWebContents(evento.sender)));
     ipcMain.handle('restaurar-copia', (evento) => restaurarCopia(BrowserWindow.fromWebContents(evento.sender)));
     ipcMain.handle('ajustar-ventana', (evento, abierto, alto, anchoPanel, preferirAbajo, panel) => {
@@ -2366,6 +2532,9 @@ if (!app.requestSingleInstanceLock()) {
     const guardada = almacen.leer().escala;   // y del tamaño elegido (en %)
     escalaActual = Math.max(ajustes.ESCALA_MINIMA, Math.min(guardada, ajustes.ESCALA_MAXIMA)) / 100;
     ajustes.migrarArranqueDeCupo(); // (la app antes se llamaba Cupo)
+    // "Mostrar solo mientras Claude está abierto": se mira antes de crear la ventana, para que no aparezca y desaparezca.
+    if (almacen.leer().seguirAClaude) claudeAbierto = await claudeEstaAbierto();
+    setInterval(seguirAClaude, 5 * 1000);
     crearVentana(principal);
     crearBandeja();
     sincronizarVentanas(); // las ventanas propias de las demás cuentas (si está activada esa opción)
