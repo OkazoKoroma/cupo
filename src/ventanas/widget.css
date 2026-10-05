@@ -2185,3 +2185,35 @@ body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion:not(.varias) {
 body.completo .comparacion {
   font-size: clamp(10px, 0.78vw, 13px);
 }
+
+/* ----- Solo números: la tarjeta no dibuja las barras y queda más baja (las medidas coinciden con main.js) ----- */
+body.sin-barras .tarjeta .barra {
+  display: none;
+}
+
+body.sin-barras .tarjeta .medidor-texto {
+  margin-bottom: 0;
+}
+
+body.sin-barras:not(.compacto):not(.franja):not(.mini) .tarjeta {
+  height: calc(115px + 25px * var(--n-extras, 0) + var(--extra-alto, 0px));
+}
+
+body.sin-barras.franja .tarjeta {
+  height: calc(77px + var(--extra-alto, 0px));
+}
+
+body.sin-barras.completo .tarjeta {
+  height: 77px;
+}
+
+/* Sin la barra, el color (verde, amarillo o rojo) pasa al número */
+body.sin-barras .tarjeta .porcentaje,
+body.sin-barras .tarjeta #hoy-detalle {
+  font-weight: 700;
+}
+
+/* Las barras muestran una manito de ayuda: al dejar el mouse encima se explica qué es cada una */
+.tarjeta .medidor .barra {
+  cursor: help;
+}

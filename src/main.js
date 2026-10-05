@@ -133,6 +133,9 @@ const RESUMEN_SEPARACION = 8;
 const RESUMEN_RELLENO = 16;
 const RESUMEN_FILA = 22;
 let totalDeCuentas = 1; // cuántas cuentas hay (se actualiza al agregar o eliminar)
+let sinBarras = false; // ajuste "solo números": la tarjeta sin barras es más baja (ver AHORRO_SIN_BARRA_* y widget.css)
+const AHORRO_SIN_BARRA_VERTICAL = 13; // por cada medidor de la tarjeta vertical: la barra (10) y su separación (3)
+const AHORRO_SIN_BARRA_FRANJA = 15;   // en las vistas de franja (horizontal, completa y panel de control): la barra (9) y su separación (6)
 let verTodasLasCuentas = true; // ajuste: en la vista normal y la compacta, mostrar todas las cuentas a la vez (si hay más de una)
 
 // Cuando se muestran todas las cuentas a la vez, la tarjeta de siempre se reemplaza por una lista (una fila o un bloque por cuenta).
@@ -318,13 +321,15 @@ function medidasSinChats(w, vista) {
   // La vista completa: más alta con el resumen de cuentas, y más ancha si alguna cuenta tiene límites extra (una columna por cada uno).
   if (esVistaCompleta(vista)) {
     const columnasExtra = hayResumenDeCuentas() ? maximoDeLimitesExtra() : 0;
-    return { ancho: base.ancho + ANCHO_COLUMNA_EXTRA_LISTA * columnasExtra, alto: base.alto + altoDelResumen() + extraDeCompletoPorCuentas() };
+    return { ancho: base.ancho + ANCHO_COLUMNA_EXTRA_LISTA * columnasExtra, alto: base.alto + altoDelResumen() + extraDeCompletoPorCuentas() - (sinBarras ? AHORRO_SIN_BARRA_FRANJA : 0) };
   }
   // Cada límite extra (por ejemplo Fable) es una barra más: en la vista vertical la tarjeta crece a lo alto, y en la horizontal a lo ancho.
   if (!todasALaVez(w, vista) && vista.modo === 'normal') {
-    return vista.orientacion === 'vertical'
-      ? { ...base, alto: base.alto + ALTO_POR_LIMITE_EXTRA * w.limitesExtra }
-      : { ...base, ancho: base.ancho + ANCHO_POR_LIMITE_EXTRA * w.limitesExtra };
+    if (vista.orientacion === 'vertical') {
+      const porMedidor = sinBarras ? AHORRO_SIN_BARRA_VERTICAL : 0;
+      return { ...base, alto: base.alto - 3 * porMedidor + (ALTO_POR_LIMITE_EXTRA - porMedidor) * w.limitesExtra };
+    }
+    return { ...base, ancho: base.ancho + ANCHO_POR_LIMITE_EXTRA * w.limitesExtra, alto: base.alto - (sinBarras ? AHORRO_SIN_BARRA_FRANJA : 0) };
   }
   if (todasALaVez(w, vista)) {
     const cabecera = RESUMEN_RELLENO + LISTA_CABECERA;
@@ -587,6 +592,7 @@ function aparienciaActual(w) {
     orientacion: w.vista.orientacion,
     escala: Math.round(escalaActual * 100),
     todas: todasALaVez(w),             // true = en vez de la tarjeta se ve la lista con todas las cuentas
+    sinBarras,                         // true = la tarjeta muestra solo los números, sin barras
     // cuánto estiraste la ventana de esta vista (la pantalla estira su contenido igual); en la vista completa cuenta también
     // lo que creció por tener muchas cuentas
     extra: { ...extrasDeVista(w), alto: extrasDeVista(w).alto + (esVistaCompleta(w.vista) && !w.parte ? extraDeCompletoPorCuentas() : 0) },
@@ -904,6 +910,9 @@ function crearVentana(w) {
   });
 
   w.ventana.setMenuBarVisibility(false);
+  // "Siempre encima": se vuelve a afirmar cada vez que la ventana aparece (al mostrarla desde la bandeja, al abrir Claude...)
+  ponerEncima(w, almacen.leer().siempreEncima);
+  w.ventana.on('show', () => ponerEncima(w, almacen.leer().siempreEncima));
   if (w === principal) w.ventana.on('show', retomarConsultas); // al volver a mostrarla, se retoman las consultas
   // Cada vez que la pantalla del widget termina de cargar, se le aplica el tamaño elegido (zoom).
   w.ventana.webContents.on('did-finish-load', () => w.ventana.webContents.setZoomFactor(escalaActual));
@@ -1103,9 +1112,17 @@ async function seguirAClaude() {
   if ((abierto && !visible) || (!abierto && visible && !primeraVez)) mostrarOcultar();
 }
 
+// Deja una ventana por encima de las demás (o no). Se usa el nivel más alto de Windows: con el nivel normal, otra ventana
+// que también esté "siempre encima" (o una a pantalla completa) podía tapar el widget.
+function ponerEncima(w, activar) {
+  if (!estaViva(w)) return;
+  if (activar) w.ventana.setAlwaysOnTop(true, 'screen-saver');
+  else w.ventana.setAlwaysOnTop(false);
+}
+
 // Activa o desactiva "siempre encima" y lo recuerda para la próxima vez.
 function cambiarSiempreEncima(activar) {
-  for (const w of todasLasVentanas()) if (estaViva(w)) w.ventana.setAlwaysOnTop(activar);
+  for (const w of todasLasVentanas()) if (estaViva(w)) ponerEncima(w, activar);
   almacen.guardar({ siempreEncima: activar });
 }
 
@@ -1151,6 +1168,7 @@ function ajustesActuales(w) {
     pausarOculto: config.pausarOculto !== false,
     resumenes: config.resumenes !== false,
     seguirAClaude: config.seguirAClaude === true,
+    sinBarras,
     formatoReinicio: config.formatoReinicio,
     colores: config.colores,
     siempreEncima: config.siempreEncima,
@@ -1202,6 +1220,7 @@ function guardarAjustes(w, datos) {
     pausarOculto: nuevos.pausarOculto,
     resumenes: nuevos.resumenes,
     seguirAClaude: nuevos.seguirAClaude,
+    sinBarras: nuevos.sinBarras,
     formatoReinicio: nuevos.formatoReinicio,
     colores: nuevos.colores,
     siempreEncima: nuevos.siempreEncima,
@@ -1216,6 +1235,12 @@ function guardarAjustes(w, datos) {
   // Tamaño del widget: se aplica al instante (el widget queda quieto en su borde más cercano de la pantalla).
   if (nuevos.escala !== Math.round(escalaActual * 100)) aplicarEscala(nuevos.escala);
 
+  // Solo números (sin barras): la tarjeta cambia de alto.
+  if (nuevos.sinBarras !== sinBarras) {
+    sinBarras = nuevos.sinBarras;
+    reajustarTodas();
+    for (const otra of todasLasVentanas()) enviarApariencia(otra);
+  }
   // Ver todas las cuentas a la vez: cambia el tamaño de la ventana (en la vista normal y en la compacta).
   if (nuevos.todasLasCuentas !== verTodasLasCuentas) {
     verTodasLasCuentas = nuevos.todasLasCuentas;
@@ -2521,6 +2546,7 @@ if (!app.requestSingleInstanceLock()) {
     actualizarTotalDeCuentas();
     verTodasLasCuentas = almacen.leer().todasLasCuentas !== false;
     ventanasSeparadas = almacen.leer().ventanasSeparadas === true;
+    sinBarras = almacen.leer().sinBarras === true;
     tamanosGuardados = almacen.leer().tamanos || {};
     await sesion.iniciar(cuentasGuardadas, alCambiarSesion, MODO_PRUEBA);
     idiomas.fijar(almacen.leer().idioma); // el idioma guardado, antes de crear el menú y las pantallas

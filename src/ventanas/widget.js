@@ -128,7 +128,7 @@ function dibujarLimitesExtra(extras) {
         </div>
         <div class="barra"><div class="barra-relleno" id="extra-${i}-relleno"></div></div>`;
       medidor.querySelector('.etiqueta').textContent = extra.nombre;
-      medidor.querySelector('.medidor-texto').title = t('boton.verEnClaude');
+
       contenedor.appendChild(medidor);
     });
   }
@@ -136,6 +136,7 @@ function dibujarLimitesExtra(extras) {
     pintarBarra(`extra-${i}-relleno`, extra.porcentaje);
     animarNumero(`extra-${i}-porcentaje`, extra.porcentaje, (v) => `${formatear(v)}%`);
     // Los límites por modelo muestran cuándo se reinician; el crédito extra, cuánto se gastó ("US$16 / US$50")
+    ponerAyuda(`extra-${i}-relleno`, extra.detalleTexto !== undefined ? t('ayuda.credito') : t('ayuda.modelo', { nombre: extra.nombre }));
     if (extra.detalleTexto !== undefined) escribirDetalle(`extra-${i}-detalle`, extra.detalleTexto);
     else escribirReinicio(`extra-${i}-detalle`, extra.reinicioTexto, extra.reinicio);
   });
@@ -241,6 +242,20 @@ function dibujarChats(chats) {
   });
 }
 
+// ----- Ayuda de cada barra: al dejar el mouse encima, explica qué muestra -----
+function ponerAyuda(idDelRelleno, texto) {
+  const medidor = document.getElementById(idDelRelleno).closest('.medidor');
+  if (!medidor) return;
+  medidor.title = texto;
+  medidor.querySelector('.medidor-texto').title = texto;
+}
+
+function ponerAyudasDeLasBarras(uso) {
+  ponerAyuda('relleno-hoy', t('ayuda.hoy', { hoy: uso ? formatear(uso.hoy) : '—', limite: uso ? formatear(uso.limiteDiario) : '—' }));
+  ponerAyuda('relleno-sesion', t('ayuda.sesion'));
+  ponerAyuda('relleno-semana', t('ayuda.semana'));
+}
+
 // ----- Comparación con la semana pasada -----
 // "c" es { diferencia, antes, aproximado }: cuántos puntos llevas de más (o de menos) que antes a esta misma altura.
 // "contra" dice contra qué se compara: '' (la semana pasada), 'hoy.' (ayer a esta hora) o 'sesion.' (la sesión anterior).
@@ -248,11 +263,15 @@ function dibujarChats(chats) {
 function textosDeLaComparacion(c, contra = '') {
   if (!c || !Number.isFinite(c.diferencia)) return null;
   const puntos = Math.abs(c.diferencia);
-  const valores = { n: formatear(Math.round(puntos * 10) / 10), antes: formatear(c.antes) };
+  // Se dice en porcentaje: cuánto más (o menos) que antes. "Ibas en 10% y vas en 13%" = un 30% más.
+  // (si antes ibas en 0, no hay porcentaje que valga: no se compara)
+  if (!(c.antes > 0) && puntos >= 1) return null;
+  const porcentaje = c.antes > 0 ? Math.round((puntos / c.antes) * 100) : 0;
+  const valores = { n: formatear(porcentaje), antes: formatear(c.antes) };
   const tipo = puntos < 1 ? 'igual' : c.diferencia > 0 ? 'arriba' : 'abajo';
   const frase = t(`comp.${contra}${tipo}`, valores) + (c.aproximado ? ' ' + t('comp.aprox') : '');
   return {
-    corto: tipo === 'igual' ? '=' : `${tipo === 'arriba' ? '▲' : '▼'} ${formatear(Math.round(puntos))}`,
+    corto: tipo === 'igual' ? '=' : `${tipo === 'arriba' ? '▲' : '▼'} ${formatear(porcentaje)}%`,
     linea: t(`comp.${contra}corto.${tipo}`, valores),
     frase,
     tono: tipo === 'arriba' ? AMARILLO : tipo === 'abajo' ? VERDE : 'var(--texto-suave)',
@@ -295,6 +314,7 @@ function mostrarUso(datos) {
   if (PARTE) mostrarVistaDeLaParte();
   pintarMini(error || !uso ? null : uso);
 
+  ponerAyudasDeLasBarras(error || !uso ? null : uso);
   if (error || !uso) {
     // Con error (o mientras carga) las barras quedan vacías y se explica qué pasa.
     pintarBarra('relleno-hoy', null);
@@ -1423,7 +1443,7 @@ function aplicarAparienciaAnimada(apariencia) {
   // basta con actualizar eso, sin repintar el resto.
   const antes = aparienciaMostrada;
   const coloresIguales = antes !== null && JSON.stringify(apariencia.colores || null) === JSON.stringify(antes.colores || null);
-  const soloTamano = antes !== null && coloresIguales && ['tema', 'opacidad', 'modo', 'orientacion', 'escala', 'todas', 'formatoReinicio']
+  const soloTamano = antes !== null && coloresIguales && ['tema', 'opacidad', 'modo', 'orientacion', 'escala', 'todas', 'formatoReinicio', 'sinBarras']
     .every((clave) => apariencia[clave] === antes[clave]);
   // El formato del reinicio: se aplica al instante a todos los "Reinicio: ...".
   if (apariencia.formatoReinicio && apariencia.formatoReinicio !== formatoReinicio) {
@@ -1600,7 +1620,6 @@ document.querySelector('.tarjeta').addEventListener('animationend', ubicarBarraD
 
 // Cuando cambie el idioma (desde Ajustes), se vuelven a escribir todos los textos al instante.
 function aplicarIdioma(datos) {
-  for (const texto of document.querySelectorAll('.tarjeta .medidor-texto')) texto.title = t('boton.verEnClaude');
   definirIdioma(datos);                       // i18n.js: guarda los textos y reescribe los textos fijos de la página
   if (panelActual) document.getElementById('panel-titulo').textContent = PARTE ? tituloDeLaParte() : t(TITULOS_DE_PANEL[panelActual]);
   if (ultimoEstado && ultimoEstado !== 'conectado') escribirTextosDeSesion(ultimoEstado);

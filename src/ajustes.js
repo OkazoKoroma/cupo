@@ -61,7 +61,8 @@ function validar(datos) {
   const pausarOculto = siNoViene(datos.pausarOculto, true);
   const resumenes = siNoViene(datos.resumenes, true);
   const seguirAClaude = siNoViene(datos.seguirAClaude, false);
-  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones, pausarOculto, resumenes, seguirAClaude].some((valor) => typeof valor !== 'boolean')) {
+  const sinBarras = siNoViene(datos.sinBarras, false);
+  if ([avisoRitmo, iconoDeColor, atajoGlobal, buscarActualizaciones, pausarOculto, resumenes, seguirAClaude, sinBarras].some((valor) => typeof valor !== 'boolean')) {
     return { ok: false, error: t('err.opcion') };
   }
   // Contexto de Claude Code
@@ -152,6 +153,7 @@ function validar(datos) {
       pausarOculto,
       resumenes,
       seguirAClaude,
+      sinBarras,
       formatoReinicio,
       colores,
       umbralSemana: Math.round(umbralSemana),

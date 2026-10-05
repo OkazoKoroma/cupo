@@ -38,6 +38,7 @@ const panelAjustes = (() => {
   const campoAtajo = document.getElementById('atajoGlobal');
   const campoResumenes = document.getElementById('resumenes');
   const campoSeguirAClaude = document.getElementById('seguirAClaude');
+  const campoSinBarras = document.getElementById('sinBarras');
   const campoActualizaciones = document.getElementById('buscarActualizaciones');
   const campoPausarOculto = document.getElementById('pausarOculto');
   const camposDeColor = {
@@ -216,6 +217,7 @@ const panelAjustes = (() => {
     campoAtajo.checked = actuales.atajoGlobal;
     campoResumenes.checked = actuales.resumenes;
     campoSeguirAClaude.checked = actuales.seguirAClaude;
+    campoSinBarras.checked = actuales.sinBarras;
     campoActualizaciones.checked = actuales.buscarActualizaciones;
     campoPausarOculto.checked = actuales.pausarOculto;
     coloresPropios = Boolean(actuales.colores);
@@ -301,6 +303,7 @@ const panelAjustes = (() => {
       atajoGlobal: campoAtajo.checked,
       resumenes: campoResumenes.checked,
       seguirAClaude: campoSeguirAClaude.checked,
+      sinBarras: campoSinBarras.checked,
       buscarActualizaciones: campoActualizaciones.checked,
       pausarOculto: campoPausarOculto.checked,
       colores: coloresPropios

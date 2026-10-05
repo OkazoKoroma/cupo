@@ -27,6 +27,7 @@ const VALORES_INICIALES = {
   atajoGlobal: true,   // Ctrl + Alt + C muestra u oculta el widget desde cualquier programa
   buscarActualizaciones: true, // revisar en GitHub si hay una versión nueva
   pausarOculto: true,  // no consultar el uso mientras el widget está oculto
+  sinBarras: false,    // "solo números": la tarjeta no dibuja las barras (queda más baja)
   seguirAClaude: false, // mostrar el widget al abrir Claude (la app o Claude Code) y ocultarlo al cerrarlo
   resumenes: true,     // avisar cuánto usaste ayer (al empezar el día) y en la semana (al reiniciarse)
   bienvenidaVista: false, // true cuando ya se mostró la bienvenida de la primera vez
