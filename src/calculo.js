@@ -10,7 +10,7 @@
 
 // Los días y las horas son los de la zona horaria de tu computador (en Chile, America/Santiago).
 const ZONA_HORARIA = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const DIAS_DE_HISTORIAL = 30;
+const DIAS_DE_HISTORIAL = 400; // un poco más de un año (para ver tendencias mes a mes); los gráficos usan los últimos 30
 
 // Devuelve el día en hora de Chile como texto "2026-10-02".
 // El día va de 00:00 a 23:59 hora de Chile.
@@ -93,7 +93,7 @@ function procesarLectura({ estado, historial, semana, ahora, limite, umbralAviso
     nuevo.avisoEnviado = true;
   }
 
-  // ----- Historial: el uso de cada día, últimos 30 días -----
+  // ----- Historial: el uso de cada día (hasta DIAS_DE_HISTORIAL días) -----
   const otrosDias = (historial || []).filter((entrada) => entrada.dia !== dia);
   // Se guarda también el límite de ese día, para que el historial siga siendo correcto aunque cambies el límite después.
   // (se conserva lo demás que ya tenía ese día, como el detalle por producto)
@@ -323,13 +323,28 @@ function procesarSesion({ estado, sesion5h, umbral, ahora, avisoRitmo = false })
 //   reinicio → fecha en que se reinicia la cuota semanal (cada semana es distinta)
 //   umbral   → % en que llega el aviso (ej. 85)
 // Devuelve { estado, alertas } con alertas = [] o ['semana-aviso'].
-function procesarSemana({ estado, semana, reinicio, umbral }) {
+// Con "avisoRitmo" (y sabiendo cuándo empezó la semana), avisa además UNA vez por semana si a este ritmo llegarías al 100%
+// antes del reinicio ('semana-ritmo'; el estado guarda "llegadaMs": cuándo llegarías). Para no avisar por un arranque fuerte,
+// se espera a que pase un día de la semana y a llevar al menos 30%; y no se avisa si llegarías a menos de 6 horas del reinicio.
+const RITMO_SEMANAL_HORAS_MINIMAS = 24;
+const RITMO_SEMANAL_PORCENTAJE_MINIMO = 30;
+const RITMO_SEMANAL_MARGEN_MS = 6 * HORA_MS;
+function procesarSemana({ estado, semana, reinicio, umbral, avisoRitmo = false, inicioSemana = null, ahora = null }) {
   const reinicioMs = reinicioRedondeado(reinicio);
   let nuevo = estado && estado.reinicioMs === reinicioMs ? { ...estado } : { reinicioMs, avisoEnviado: false };
   const alertas = [];
   if (semana >= umbral && !nuevo.avisoEnviado) {
     alertas.push('semana-aviso');
     nuevo.avisoEnviado = true;
+  }
+  if (avisoRitmo && inicioSemana && ahora && !nuevo.ritmoAvisado && semana >= RITMO_SEMANAL_PORCENTAJE_MINIMO && semana < 100) {
+    const horas = (ahora.getTime() - inicioSemana.getTime()) / HORA_MS;
+    const proyeccion = proyeccionSemanal({ semana, inicioSemana, reinicio, ahora });
+    if (horas >= RITMO_SEMANAL_HORAS_MINIMAS && proyeccion.tipo === 'llegaras' && proyeccion.cuando.getTime() < reinicio.getTime() - RITMO_SEMANAL_MARGEN_MS) {
+      alertas.push('semana-ritmo');
+      nuevo.ritmoAvisado = true;
+      nuevo.llegadaMs = proyeccion.cuando.getTime();
+    }
   }
   return { estado: nuevo, alertas };
 }
@@ -467,8 +482,24 @@ function compararConSemanaPasada({ semana, inicioSemana, ahora, curvaPasada, his
   return { diferencia: redondear(semana - antes), antes: redondear(antes), aproximado };
 }
 
+// Lo mismo para el límite semanal propio de un modelo (Fable...), que tiene su propia fecha de reinicio.
+//   guardado → { reinicioMs, puntos, pasada: { reinicioMs, puntos } o null } de ese modelo (o nada si es la primera vez)
+// Devuelve { guardado, comparacion }: lo que hay que guardar ahora, y cómo va contra su semana anterior a esta misma altura
+// (comparacion es null mientras no haya una semana anterior guardada).
+function seguirCurvaDeModelo(guardado, { porcentaje, reinicioMs, ahoraMs }) {
+  const horas = (ahoraMs - (reinicioMs - 7 * DIA_MS)) / HORA_MS;
+  const sigue = Boolean(guardado) && Math.abs(reinicioMs - guardado.reinicioMs) <= 12 * HORA_MS;
+  // Si la fecha de reinicio saltó, la semana de ese modelo terminó: su curva pasa a ser "la pasada"
+  const pasada = guardado ? (sigue ? guardado.pasada || null : { reinicioMs: guardado.reinicioMs, puntos: guardado.puntos || [] }) : null;
+  const puntos = agregarALaCurva(sigue ? guardado.puntos : [], horas, porcentaje);
+  // La pasada sirve solo si es la semana justo anterior (terminó cuando empezó esta)
+  const sirve = pasada && Math.abs(pasada.reinicioMs - (reinicioMs - 7 * DIA_MS)) < 12 * HORA_MS;
+  return { guardado: { reinicioMs, puntos, pasada }, comparacion: sirve ? compararConCurva(porcentaje, pasada.puntos, horas) : null };
+}
+
 module.exports = {
   usoPorHora,
+  seguirCurvaDeModelo,
   agregarALaCurva,
   valorDeLaCurva,
   semanaPasadaSegunHistorial,

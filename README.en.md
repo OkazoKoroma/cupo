@@ -29,6 +29,10 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 
 ![Full view with one account](docs/captura-completo-una.png)
 
+**Dashboard.** Everything at once: the full view plus a row of tiles with your numbers (highest day, average, streak, suggested limit...) and eight charts, each on its own card: today hour by hour, the last 30 days, by day of the week, the day-and-hour map, usage by product (today, this week and week by week) and your busiest hours. It adapts to whatever size you give it:
+
+![Dashboard with one account](docs/captura-panel.png)
+
 **History as line charts.** Today hour by hour, and the last 7 or 30 days, with your limit marked:
 
 ![History for today and for 7 days](docs/captura-historial.png)
@@ -42,6 +46,10 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 | This week | Week by week |
 | --- | --- |
 | ![Usage by product this week](docs/captura-productos.png) | ![Usage by product by weeks](docs/captura-semanas.png) |
+
+**Numbers only.** If you don't want the bars, hide them and the card gets shorter, with the little marks that compare against yesterday, the previous session and last week (▲ more, ▼ less):
+
+![The card without bars](docs/captura-numeros.png)
 
 **Whatever size you want.** Minimal (a circle), compact (one line) or horizontal:
 
@@ -65,6 +73,10 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 
 ![Full view with two accounts](docs/captura-completo.png)
 
+**And the dashboard**, with one line per account in every chart:
+
+![Dashboard with two accounts](docs/captura-panel-varias.png)
+
 **Or each account in its own window**, to move each one separately:
 
 ![Two accounts, each in its own window](docs/captura-ventanas.png)
@@ -82,15 +94,17 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 - **Comparison with last week:** next to the weekly bar, how many points above or below last week you are at this same point. The same for **Today** (against yesterday at this time) and for the **5-hour session** (against the previous session).
 - Weekly **breakdown** by product (Claude Code, Chats, Cowork…) and **usage by product over time**: today, this week (from the day your plan resets), 30 days or week by week. On plans with a per-model limit (**Fable**), that limit shows up as one more dashed line.
 - **Projection** ("at this pace you'd hit the limit at 6:40 pm").
+- **Statistics** from what is already stored: your highest day, your average, your streak under the limit, which weekdays and hours you use it most (a day-by-hour map), how much is left over each week, a suggested daily limit and how many 5-hour sessions you use up. It keeps up to a year of history and can produce a **report** to print or save as PDF.
 - With several accounts, the history, breakdown and projection show every account at once.
-- **Click the name of a bar** to open the official details on claude.ai.
+- **Hover over a bar** to see what it shows.
+- **Numbers only** (optional): hides the bars and leaves just the data.
 - **Claude Code context window:** how much of its context window each Claude Code chat you used in the last 3 hours (up to 5) has used, so you know when to compact it. See [below](#claude-code-context-window) for when it works.
 - **Tray icon** next to the clock that turns green, yellow or red with today's usage.
 
 ### Alerts (Windows notifications)
 - When you approach and reach your **daily limit**.
 - 5-hour session: at the percentage you choose, when it runs out, when it resets and when **at this pace you'd run out** before the reset.
-- High **weekly quota** (85% by default), once per week.
+- High **weekly quota** (85% by default), once per week, and when **at this pace you'd use up the week** before the reset.
 - **Compact a Claude Code chat** when it reaches the percentage you choose (70% by default), and again every 10% more.
 - **Summary** of your day yesterday (when the day starts) and of your week (when it resets).
 - **Do not disturb:** mute alerts for 1 hour or until tomorrow from the tray menu.
@@ -98,7 +112,7 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 
 ### Views and look
 - **Normal** view (vertical or horizontal), **compact** (one line), **full** (everything at once: bars, history, breakdown and projection) and **Accounts** (all your accounts in rows).
-- **Dashboard:** the full view plus six more charts at once (today hour by hour, 30 days, busiest hours, and usage by product for today, this week and week by week).
+- **Dashboard:** the full view plus the tiles with your numbers and eight charts at once (today hour by hour, 30 days, by day of the week, the day-and-hour map, busiest hours, and usage by product for today, this week and week by week).
 - **Minimal:** a small circle with a ring that fills up with today's usage.
 - **Each account in its own window** (optional): each one moves separately and has its own view.
 - **Parts in their own window:** the history, breakdown, projection, usage by product and context window can be moved out of the widget (button next to the X) and placed wherever you like. With several accounts, each one says which account it belongs to.
@@ -143,7 +157,7 @@ Anthropic doesn't offer an official way to query plan usage, so Headroom does wh
 - **Your password never goes through Headroom.** Signing in happens on the real claude.ai page.
 - Each account keeps its session on your computer, in its own space. Headroom only checks whether the session cookie exists (yes / no); it doesn't read or copy it.
 - The only data it saves is your settings and the daily usage percentages, in a local file (`%APPDATA%\widget-uso-claude\datos.json`).
-- **Checks every 5 minutes** by default (you can choose 5 to 60; never less than 5, so as not to bother claude.ai). **While the widget is hidden it doesn't check at all**; when you show it, it updates right away (can be changed in Settings).
+- **Checks every 5 minutes** by default (you can choose 5 to 60; never less than 5, so as not to bother claude.ai). Optionally, **every 2 minutes only while the 5-hour session is above 70%**, which is when timely alerts matter. **While the widget is hidden it doesn't check at all**; when you show it, it updates right away (can be changed in Settings).
 - No servers, no accounts, no telemetry. What goes out to the internet: the requests to claude.ai and, once a day, a request to GitHub to check for a new version (can be turned off in Settings). The Claude Code context window only reads files on your computer.
 
 ## Honest limitations

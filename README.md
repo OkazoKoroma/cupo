@@ -29,6 +29,10 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 
 ![Vista completa con una cuenta](docs/captura-completo-una.png)
 
+**Panel de control.** Todo a la vez: lo de la vista completa y, debajo, una fila de fichas con tus números (día más alto, promedio, racha, límite sugerido...) y ocho gráficos, cada uno en su tarjeta: hoy hora a hora, los últimos 30 días, por día de la semana, el mapa de día y hora, el uso por producto (hoy, esta semana y semana a semana) y tus horas de más uso. Se adapta al tamaño que le des:
+
+![Panel de control con una cuenta](docs/captura-panel.png)
+
 **Historial en gráficos de línea.** Hoy hora a hora, y los últimos 7 o 30 días, con tu límite marcado:
 
 ![Historial de hoy y de 7 días](docs/captura-historial.png)
@@ -42,6 +46,10 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 | Esta semana | Semana a semana |
 | --- | --- |
 | ![Uso por producto esta semana](docs/captura-productos.png) | ![Uso por producto por semanas](docs/captura-semanas.png) |
+
+**Solo números.** Si no quieres las barras, se ocultan y la tarjeta queda más baja, con las marquitas que comparan con ayer, con la sesión anterior y con la semana pasada (▲ más, ▼ menos):
+
+![La tarjeta sin barras](docs/captura-numeros.png)
 
 **Del tamaño que quieras.** Mínimo (un círculo), compacto (una línea) u horizontal:
 
@@ -65,6 +73,10 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 
 ![Vista completa con dos cuentas](docs/captura-completo.png)
 
+**Y el panel de control**, con una línea por cuenta en cada gráfico:
+
+![Panel de control con dos cuentas](docs/captura-panel-varias.png)
+
 **O cada cuenta en su propia ventana**, para mover cada una por separado:
 
 ![Dos cuentas, cada una en su ventana](docs/captura-ventanas.png)
@@ -82,15 +94,17 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 - **Comparación con la semana pasada:** junto a la barra de la semana, cuántos puntos llevas de más o de menos que la semana pasada a esta misma altura. Lo mismo para **Hoy** (contra ayer a esta hora) y para la **sesión de 5 horas** (contra la sesión anterior).
 - **Desglose** de la semana por producto (Claude Code, Chats, Cowork…) y **uso por producto a lo largo del tiempo**: hoy, esta semana (desde el día en que se reinicia tu plan), 30 días o semana a semana. En los planes con límite por modelo (**Fable**), ese límite sale como una línea punteada más.
 - **Proyección** ("a este ritmo llegarías al límite a las 18:40").
+- **Estadísticas** con lo que ya está guardado: tu día más alto, tu promedio, tu racha bajo el límite, qué días de la semana y a qué horas usas más (un mapa de día por hora), cuánto te sobra cada semana, un límite diario sugerido y cuántas sesiones de 5 horas agotas. Guarda hasta un año de historial y puede sacar un **informe** para imprimir o guardar como PDF.
 - Con varias cuentas, el historial, el desglose y la proyección muestran todas las cuentas a la vez.
-- **Clic en el nombre de una barra** abre el detalle oficial en claude.ai.
+- **Al dejar el mouse sobre una barra** se explica qué muestra.
+- **Solo números** (opcional): oculta las barras y deja solo los datos.
 - **Ventana de contexto de Claude Code:** cuánto de su ventana de contexto lleva cada chat de Claude Code que usaste en las últimas 3 horas (hasta 5), para saber cuándo conviene compactarlo. Ver [más abajo](#ventana-de-contexto-de-claude-code) cuándo funciona.
 - **Ícono junto al reloj** que se pone verde, amarillo o rojo según tu uso de hoy.
 
 ### Avisos (notificaciones de Windows)
 - Al acercarte y al llegar a tu **límite diario**.
 - Sesión de 5 horas: al llegar al porcentaje que elijas, al agotarse, cuando se reinicia y cuando **a este ritmo te quedarías sin sesión** antes del reinicio.
-- **Cuota semanal** alta (85% por defecto), una vez por semana.
+- **Cuota semanal** alta (85% por defecto), una vez por semana, y cuando **a este ritmo agotarías la semana** antes del reinicio.
 - **Compactar un chat de Claude Code** cuando llega al porcentaje que elijas (70% por defecto), y de nuevo cada 10% más.
 - **Resumen** de tu día de ayer (al empezar el día) y de tu semana (cuando se reinicia).
 - **No molestar:** silencia los avisos por 1 hora o hasta mañana desde el menú de la bandeja.
@@ -98,7 +112,7 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 
 ### Vistas y aspecto
 - Vista **normal** (vertical u horizontal), **compacta** (una línea), **completa** (todo a la vez: barras, historial, desglose y proyección) y **Cuentas** (todas tus cuentas en filas).
-- **Panel de control:** la vista completa y, debajo, seis gráficos más a la vez (hoy hora a hora, 30 días, horas de más uso y el uso por producto de hoy, de la semana y semana a semana).
+- **Panel de control:** la vista completa y, debajo, las fichas con tus números y ocho gráficos a la vez (hoy hora a hora, 30 días, por día de la semana, el mapa de día y hora, horas de más uso y el uso por producto de hoy, de la semana y semana a semana).
 - **Mínimo:** un círculo pequeño con un anillo que se llena con tu uso de hoy.
 - **Cada cuenta en su propia ventana** (opcional): cada una se mueve por separado y tiene su propia vista.
 - **Partes en su propia ventana:** el historial, el desglose, la proyección, el uso por producto y la ventana de contexto se pueden sacar del widget (botón junto a la X) y poner donde quieras. Con varias cuentas, cada una dice de qué cuenta es.
@@ -143,7 +157,7 @@ Anthropic no ofrece una forma oficial de consultar el uso del plan, así que Hea
 - **Tu contraseña nunca pasa por Headroom.** El inicio de sesión ocurre en la página real de claude.ai.
 - Cada cuenta tiene su sesión guardada en tu computador, en un espacio propio. Headroom solo comprueba si existe la cookie de sesión (sí / no); no la lee ni la copia.
 - Los únicos datos que guarda son tus ajustes y el historial de porcentajes de uso por día, en un archivo local (`%APPDATA%\widget-uso-claude\datos.json`).
-- **Consulta cada 5 minutos** por defecto (puedes elegir de 5 a 60; nunca menos de 5, para no molestar a claude.ai). **Mientras el widget está oculto no consulta nada**; al mostrarlo se actualiza al instante (se puede cambiar en Ajustes).
+- **Consulta cada 5 minutos** por defecto (puedes elegir de 5 a 60; nunca menos de 5, para no molestar a claude.ai). Opcionalmente, **cada 2 minutos solo mientras la sesión de 5 horas va sobre 70%**, que es cuando importa enterarse a tiempo. **Mientras el widget está oculto no consulta nada**; al mostrarlo se actualiza al instante (se puede cambiar en Ajustes).
 - No hay servidores, ni cuentas, ni telemetría. Lo que sale a internet: las consultas a claude.ai y, una vez al día, una consulta a GitHub para saber si hay una versión nueva (se puede apagar en Ajustes). La ventana de contexto de Claude Code solo lee archivos de tu computador.
 
 ## Limitaciones honestas

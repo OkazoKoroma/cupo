@@ -376,7 +376,7 @@ body.franja .barra {
 body.franja .herramientas {
   position: static;
   display: grid;
-  grid-template-columns: repeat(5, 18px);   /* dos filas ordenadas: paneles arriba, vistas abajo */
+  grid-template-columns: repeat(6, 18px);   /* dos filas ordenadas: paneles arriba, vistas abajo */
   gap: 3px;
 }
 
@@ -1499,14 +1499,11 @@ body.abajo .panel, body.completo .panel { order: 0; }
 /* Sin tarjeta (todas las cuentas a la vez), la lista de cuentas ocupa su lugar: arriba de los chats */
 body.abajo.todas .resumen-cuentas { order: 3; }
 
-/* El nombre de cada barra de la tarjeta se puede pulsar: abre el uso en claude.ai (el resto de la tarjeta sigue arrastrando la ventana) */
+/* Al dejar el mouse sobre el nombre o el número de una barra, se explica qué muestra (para eso esa fila no arrastra la ventana;
+   el resto de la tarjeta, barras incluidas, sí la arrastra) */
 .tarjeta .medidor-texto {
   -webkit-app-region: no-drag;
-  cursor: pointer;
-}
-
-.tarjeta .medidor-texto:hover .etiqueta {
-  color: var(--acento);
+  cursor: help;
 }
 
 /* ----- Bienvenida ----- */
@@ -2020,7 +2017,7 @@ body.compacto .comparacion {
   display: none;
 }
 
-/* ----- Panel de control: debajo de la vista completa, seis gráficos en dos filas ----- */
+/* ----- Panel de control: debajo de la vista completa, las fichas con los números y ocho gráficos en tarjetas ----- */
 .tablero-graficos {
   display: none;
 }
@@ -2031,11 +2028,10 @@ body.tablero:not(.ajustes-abierto) .tablero-graficos {
   flex: none;
   height: 360px;
   margin-top: 8px;
-  padding: 12px 16px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 14px 16px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   border-radius: 18px;
   border: 1px solid var(--borde);
   background: linear-gradient(155deg,
@@ -2044,11 +2040,39 @@ body.tablero:not(.ajustes-abierto) .tablero-graficos {
   -webkit-app-region: drag;
 }
 
+/* Las fichas: las ocho en una fila, más bajas que en Estadísticas (el número y su detalle van en la misma línea) */
+.est-fichas.tablero-fichas {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.tablero-fichas .est-ficha {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0 6px;
+  padding: 5px 10px 6px;
+}
+
+.tablero-fichas .est-ficha-titulo {
+  grid-column: 1 / -1;
+}
+
+.tablero-rejilla {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .tablero-celda {
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  padding: 7px 10px 6px;
+  border-radius: 10px;
+  background: var(--fila);
 }
 
 .tablero-titulo {
@@ -2213,7 +2237,147 @@ body.sin-barras .tarjeta #hoy-detalle {
   font-weight: 700;
 }
 
-/* Las barras muestran una manito de ayuda: al dejar el mouse encima se explica qué es cada una */
-.tarjeta .medidor .barra {
-  cursor: help;
+
+/* ----- Estadísticas ----- */
+#vista-estadisticas.activa {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  -webkit-app-region: no-drag;
+}
+
+.est-fichas {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.est-ficha {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--fila);
+}
+
+.est-ficha-titulo,
+.est-ficha-detalle {
+  font-size: 10px;
+  color: var(--texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.est-ficha-titulo {
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.est-ficha-valor {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--texto);
+  white-space: nowrap;
+}
+
+.est-graficos {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 14px;
+}
+
+/* El mapa: una columna para el nombre del día y 24 casillas (una por hora); más color donde más se usa */
+.est-mapa {
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto repeat(24, minmax(0, 1fr));
+  grid-template-rows: auto repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  align-items: stretch;
+}
+
+.est-mapa-dia,
+.est-mapa-hora {
+  font-size: 9.5px;
+  color: var(--texto-suave);
+  line-height: 1;
+}
+
+.est-mapa-dia {
+  align-self: center;
+  padding-right: 4px;
+  text-transform: lowercase;
+}
+
+.est-mapa-casilla {
+  min-height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--acento) calc(6% + var(--fuerza, 0) * 0.94%), transparent);
+}
+
+.est-mapa-casilla.sin-dato {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--texto-suave) 14%, transparent);
+}
+
+.est-pie {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.est-pie .nota {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+/* Con el ícono de estadísticas hay once íconos: en la tarjeta vertical, la etiqueta de la cuenta cede un poco de lugar */
+body:not(.compacto):not(.franja) .cuenta-pestana {
+  max-width: 88px;
+}
+
+/* (once íconos de 15 px y sin la rayita: así la etiqueta de la cuenta conserva su ancho) */
+body:not(.compacto):not(.franja) .herramientas .boton-icono {
+  width: 15px;
+}
+
+body:not(.compacto):not(.franja) .herramientas-separador {
+  display: none;
+}
+
+body:not(.compacto):not(.franja) .cuenta-pestana {
+  max-width: 102px;
+}
+
+/* Panel de control: en cada tarjeta la leyenda va en una sola línea (lo que no cabe se corta: los colores son los mismos
+   que en el Historial de arriba), así el gráfico no pierde alto ni se sale de su tarjeta */
+.tablero-celda {
+  overflow: hidden;
+}
+
+.tablero-celda .historial-opciones.leyenda-larga .historial-promedio,
+.tablero-celda .historial-promedio {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  justify-content: flex-start;
+  gap: 2px 8px;
+}
+
+.tablero-celda .historial-opciones:not(.leyenda-larga) .historial-promedio {
+  justify-content: flex-end;
+}
+
+.tablero-celda .leyenda-cuenta {
+  font-size: 10px;
+  gap: 4px;
 }

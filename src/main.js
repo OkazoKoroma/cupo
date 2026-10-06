@@ -15,6 +15,8 @@ const alertas = require('./alertas');
 const ajustes = require('./ajustes');
 const exportar = require('./exportar');
 const copia = require('./copia');
+const estadisticas = require('./estadisticas');
+const informe = require('./informe');
 const { claudeEstaAbierto } = require('./claude-abierto');
 const actualizaciones = require('./actualizaciones');
 const contexto = require('./contexto');
@@ -24,6 +26,9 @@ const { rutaDeAsset } = require('./rutas');
 // En este modo el uso es INVENTADO (lo controlas desde el menú de la bandeja) y se guarda
 // en un archivo aparte, así que no toca tu historial real. Sirve para probar las alertas.
 const MODO_PRUEBA = process.argv.includes('--prueba');
+// Con "--invisible" (solo en el modo de prueba) las ventanas no se ven ni reciben el mouse: así las pruebas automáticas
+// corren sin estorbar en la pantalla. Por dentro todo funciona igual (se dibujan, cambian de tamaño...).
+const INVISIBLE = MODO_PRUEBA && process.argv.includes('--invisible');
 
 // La página de claude.ai con el detalle oficial del uso (se abre en tu navegador).
 const PAGINA_DE_USO = 'https://claude.ai/settings/usage';
@@ -77,6 +82,10 @@ const ZONA_HORARIA = Intl.DateTimeFormat().resolvedOptions().timeZone;
 // Nunca se consulta más seguido que esto (para no molestar a claude.ai).
 // El intervalo normal lo eliges tú en Ajustes (por defecto 5 minutos).
 const MINIMO_ENTRE_CONSULTAS_MS = 5 * 60 * 1000;
+// Con la opción "consulta rápida", mientras la sesión de 5 horas de alguna cuenta va sobre 70% se consulta cada 2 minutos
+// (es cuando más importa enterarse a tiempo); el resto del tiempo vale el intervalo normal.
+const CONSULTA_RAPIDA_MS = 2 * 60 * 1000;
+const CONSULTA_RAPIDA_DESDE = 70; // % de la sesión de 5 horas
 // Si la última lectura falló, se reintenta a los 5 minutos (o antes, si tu intervalo es más corto).
 const REINTENTO_TRAS_ERROR_MS = 5 * 60 * 1000;
 
@@ -441,7 +450,7 @@ function ponerTamano(w, medidas) {
   clearTimeout(w.temporizadorOpacidad);
   w.ventana.setOpacity(0);
   w.ventana.setBounds(medidas);
-  w.temporizadorOpacidad = setTimeout(() => { if (estaViva(w)) w.ventana.setOpacity(1); }, 32);
+  w.temporizadorOpacidad = setTimeout(() => { if (estaViva(w)) w.ventana.setOpacity(INVISIBLE ? 0 : 1); }, 32);
 }
 
 // Lo guardado de cada ventana (posición y vista): el de la principal va en los ajustes generales; el de la ventana
@@ -910,6 +919,10 @@ function crearVentana(w) {
   });
 
   w.ventana.setMenuBarVisibility(false);
+  if (INVISIBLE) {
+    w.ventana.setOpacity(0);
+    w.ventana.setIgnoreMouseEvents(true);
+  }
   // "Siempre encima": se vuelve a afirmar cada vez que la ventana aparece (al mostrarla desde la bandeja, al abrir Claude...)
   ponerEncima(w, almacen.leer().siempreEncima);
   w.ventana.on('show', () => ponerEncima(w, almacen.leer().siempreEncima));
@@ -1168,6 +1181,8 @@ function ajustesActuales(w) {
     pausarOculto: config.pausarOculto !== false,
     resumenes: config.resumenes !== false,
     seguirAClaude: config.seguirAClaude === true,
+    consultaRapida: config.consultaRapida === true,
+    avisoRitmoSemana: config.avisoRitmoSemana !== false,
     sinBarras,
     formatoReinicio: config.formatoReinicio,
     colores: config.colores,
@@ -1220,6 +1235,8 @@ function guardarAjustes(w, datos) {
     pausarOculto: nuevos.pausarOculto,
     resumenes: nuevos.resumenes,
     seguirAClaude: nuevos.seguirAClaude,
+    consultaRapida: nuevos.consultaRapida,
+    avisoRitmoSemana: nuevos.avisoRitmoSemana,
     sinBarras: nuevos.sinBarras,
     formatoReinicio: nuevos.formatoReinicio,
     colores: nuevos.colores,
@@ -1326,7 +1343,8 @@ function datosDelHistorial(w, cantidadDeDias = 7) {
 function horasDeCuenta(cuenta) {
   const ahora = fechaActual();
   const hoy = calculo.diaLocal(ahora);
-  const conHoras = (cuenta.historial || []).filter((d) => Array.isArray(d.horas) && d.horas.length === 24);
+  const desde = calculo.ultimosDias(ahora, 30)[0]; // (el historial guarda más de un año: aquí valen los últimos 30 días)
+  const conHoras = (cuenta.historial || []).filter((d) => d.dia >= desde && Array.isArray(d.horas) && d.horas.length === 24);
   const horas = Array.from({ length: 24 }, (_, hora) => {
     const dias = conHoras.filter((d) => d.dia !== hoy || hora <= ahora.getHours());
     return dias.length ? Math.round((dias.reduce((suma, d) => suma + (Number(d.horas[hora]) || 0), 0) / dias.length) * 100) / 100 : 0;
@@ -1385,6 +1403,39 @@ async function exportarHistorial(w, ventanaPadre) {
     const cantidad = exportar.guardarCsv(eleccion.filePath, config.historial, config.limiteDiario);
     alertas.enviarExportado(cantidad, eleccion.filePath);
     return { ok: true, ruta: eleccion.filePath, cantidad };
+  } catch (error) {
+    return { ok: false, error: t('exportar.error', { mensaje: error.message }) };
+  }
+}
+
+// ----- Estadísticas e informe -----
+// Todo sale de lo que ya está guardado (ver estadisticas.js); no se consulta nada a claude.ai.
+function estadisticasDe(w) {
+  const cuenta = almacen.cuenta(cuentaDe(w)) || almacen.cuentaActiva();
+  const uso = lecturaDe(cuenta.id).uso;
+  return {
+    nombre: nombreSiHayVarias(cuenta) || null,
+    limite: uso ? uso.limiteDiario : cuenta.limiteDiario,
+    ...estadisticas.calcular({
+      historial: cuenta.historial, semanasPasadas: cuenta.semanasPasadas, sesiones: cuenta.sesiones,
+      limiteDiario: cuenta.limiteDiario, ahora: fechaActual(),
+    }),
+  };
+}
+
+// Guarda el informe como una página (se abre en el navegador; desde ahí se imprime o se guarda como PDF).
+async function guardarInforme(w, ventanaPadre) {
+  const datos = estadisticasDe(w);
+  const eleccion = await dialog.showSaveDialog(...cuadroCon(ventanaPadre), {
+    title: t('est.informe'),
+    defaultPath: path.join(app.getPath('documents'), t('informe.archivo', { fecha: calculo.diaLocal(new Date()) })),
+    filters: [{ name: t('informe.filtro'), extensions: ['html'] }],
+  });
+  if (eleccion.canceled || !eleccion.filePath) return { ok: false, cancelado: true };
+  try {
+    fs.writeFileSync(eleccion.filePath, informe.construir(datos, { cuenta: datos.nombre, ahora: new Date() }), 'utf8');
+    shell.openPath(eleccion.filePath); // se abre para verlo (es un archivo tuyo, en tu computador)
+    return { ok: true, mensaje: t('est.informe.listo') };
   } catch (error) {
     return { ok: false, error: t('exportar.error', { mensaje: error.message }) };
   }
@@ -1851,8 +1902,28 @@ function modelosDeLaLectura(limitesExtra) {
   return modelos.length ? Object.fromEntries(modelos.map((extra) => [extra.nombre.slice(0, 30), extra.porcentaje])) : null;
 }
 
+// Guarda cómo va subiendo el límite semanal de cada modelo (Fable...) y le pone a cada barra su "comparacion"
+// contra la semana anterior de ese modelo a esta misma altura (null mientras no haya una semana anterior guardada).
+const MAXIMO_DE_MODELOS = 8;
+function anotarCurvasDeModelos(cuenta, limitesExtra) {
+  const deModelo = (limitesExtra || []).filter((extra) => !extra.credito && extra.reinicio instanceof Date && Number.isFinite(extra.porcentaje));
+  if (deModelo.length === 0) return;
+  const curvas = { ...(cuenta.curvasDeModelos || {}) };
+  for (const extra of deModelo) {
+    const nombre = extra.nombre.slice(0, 30);
+    const { guardado, comparacion } = calculo.seguirCurvaDeModelo(curvas[nombre], {
+      porcentaje: extra.porcentaje, reinicioMs: extra.reinicio.getTime(), ahoraMs: fechaActual().getTime(),
+    });
+    delete curvas[nombre]; // (así el que se acaba de leer queda al final y no se pierde al recortar)
+    curvas[nombre] = guardado;
+    extra.comparacion = comparacion;
+  }
+  almacen.guardarCuenta(cuenta.id, { curvasDeModelos: Object.fromEntries(Object.entries(curvas).slice(-MAXIMO_DE_MODELOS)) });
+}
+
 // Guarda cómo va subiendo el uso de hoy y el de la sesión de 5 horas, y los compara con ayer a esta misma hora y con la
 // sesión anterior a esta misma altura. Devuelve { hoy, sesion } (cada una { diferencia, antes } o null si no hay con qué comparar).
+const MAXIMO_DE_SESIONES = 300; // unas diez semanas de sesiones
 function anotarCurvas(cuenta, hoy, sesion5h) {
   const ahora = fechaActual();
   const dia = calculo.diaLocal(ahora);
@@ -1888,9 +1959,24 @@ function anotarCurvas(cuenta, hoy, sesion5h) {
     // (la hora de reinicio que entrega claude.ai baila unos segundos: es la misma sesión si difiere en menos de 5 minutos)
     if (!enCurso || Math.abs(enCurso.reinicioMs - reinicioMs) > 5 * 60 * 1000) {
       if (enCurso && enCurso.puntos.length >= 2) pasada = enCurso;
+      // La sesión que terminó queda anotada en el historial de sesiones (hasta dónde llegó y, si se agotó, cuándo)
+      if (enCurso && enCurso.puntos.length >= 1) {
+        const terminada = {
+          inicioMs: enCurso.reinicioMs - 5 * HORAS,
+          finMs: enCurso.reinicioMs,
+          maximo: Math.max(...enCurso.puntos.map(([, valor]) => valor)),
+          llenaMs: Number.isFinite(enCurso.llenaMs) ? enCurso.llenaMs : null,
+        };
+        cambios.sesiones = [...(cuenta.sesiones || []).filter((sesionVieja) => sesionVieja.finMs !== terminada.finMs), terminada].slice(-MAXIMO_DE_SESIONES);
+      }
       enCurso = { reinicioMs, puntos: [] };
     }
-    enCurso = { reinicioMs: enCurso.reinicioMs, puntos: calculo.agregarALaCurva(enCurso.puntos, horasDeSesion, sesion5h.porcentaje, 0.1) };
+    enCurso = {
+      reinicioMs: enCurso.reinicioMs,
+      puntos: calculo.agregarALaCurva(enCurso.puntos, horasDeSesion, sesion5h.porcentaje, 0.1),
+      // (el momento en que la sesión llegó al 100%, si llegó)
+      llenaMs: Number.isFinite(enCurso.llenaMs) ? enCurso.llenaMs : sesion5h.porcentaje >= 100 ? ahora.getTime() : null,
+    };
     cambios.sesionEnCurso = enCurso;
     cambios.sesionPasada = pasada;
     comparacionSesion = pasada ? calculo.compararConCurva(sesion5h.porcentaje, pasada.puntos, horasDeSesion) : null;
@@ -2074,13 +2160,22 @@ function registrarSesion(cuenta, sesion5h) {
 }
 
 // Revisa la cuota semanal y avisa una vez por semana al llegar al porcentaje elegido (si lo tienes activado en Ajustes).
+// Y, una vez por semana, si a este ritmo la agotarías antes del reinicio (otra opción de Ajustes).
 function registrarSemana(cuenta, semana, reinicio) {
   const config = almacen.leer();
-  if (!config.alertasSemana) return;
-  const resultado = calculo.procesarSemana({ estado: cuenta.estadoSemana, semana, reinicio, umbral: config.umbralSemana });
+  const conRitmo = config.avisoRitmoSemana !== false;
+  if (!config.alertasSemana && !conRitmo) return;
+  const resultado = calculo.procesarSemana({
+    estado: cuenta.estadoSemana, semana, reinicio,
+    umbral: config.alertasSemana ? config.umbralSemana : Infinity, // (apagado: nunca llega)
+    avisoRitmo: conRitmo, inicioSemana: lecturaDe(cuenta.id).inicioSemana, ahora: fechaActual(),
+  });
   almacen.guardarCuenta(cuenta.id, { estadoSemana: resultado.estado });
   for (const tipo of resultado.alertas) {
     if (tipo === 'semana-aviso') alertas.enviarSemana(semana, textoDeReinicio(reinicio), nombreSiHayVarias(cuenta));
+    if (tipo === 'semana-ritmo') {
+      alertas.enviarRitmoSemana(textoDeReinicio(new Date(resultado.estado.llegadaMs)), textoDeReinicio(reinicio), nombreSiHayVarias(cuenta));
+    }
   }
 }
 
@@ -2249,6 +2344,7 @@ async function leerCuenta(cuenta, indice) {
     const modelos = modelosDeLaLectura(limitesExtra);
     anotarLecturaDeHoy(almacen.cuenta(cuenta.id), hoy.hoy, resultado.sesion5h, resultado.semana, resultado.desglose, modelos);
     const comparaciones = anotarCurvas(almacen.cuenta(cuenta.id), hoy.hoy, resultado.sesion5h);
+    anotarCurvasDeModelos(almacen.cuenta(cuenta.id), limitesExtra);
     registrarSemana(almacen.cuenta(cuenta.id), resultado.semana, resultado.reinicio);
     resumirSemanaSiTermino(almacen.cuenta(cuenta.id), resultado.semana, resultado.reinicio, resultado.desglose, modelos);
     lectura.uso = {
@@ -2325,7 +2421,7 @@ async function actualizarUso({ solo } = {}) {
   // (En el modo de prueba no hay consulta real, así que no hace falta esperar.)
   // Se dan 2 segundos de margen, porque el temporizador puede despertar unos milisegundos antes
   // de tiempo (con el intervalo en 5 minutos, igual al mínimo, eso dejaba la app sin actualizar).
-  if (!solo && !MODO_PRUEBA && Date.now() - ultimaConsulta < MINIMO_ENTRE_CONSULTAS_MS - 2000) {
+  if (!solo && !MODO_PRUEBA && Date.now() - ultimaConsulta < minimoEntreConsultas() - 2000) {
     // Aunque no consultemos ahora, la próxima consulta automática tiene que seguir programada.
     programarProximaConsulta();
     return;
@@ -2366,12 +2462,25 @@ function retomarConsultas() {
 // Programa la próxima consulta automática: pasado el intervalo de Ajustes desde la última consulta,
 // o a los 5 minutos si la última falló (para recuperarse pronto).
 // También se llama al cambiar el intervalo en Ajustes, para que se aplique sin reiniciar.
+// ¿Toca consultar más seguido ahora? Sí, si la opción está activada y la sesión de alguna cuenta va alta.
+function hayConsultaRapida() {
+  if (!almacen.leer().consultaRapida) return false;
+  return almacen.leer().cuentas.some((c) => {
+    const { uso: datos, error } = lecturaDe(c.id);
+    return !error && datos && datos.sesion5h && datos.sesion5h.porcentaje >= CONSULTA_RAPIDA_DESDE && datos.sesion5h.porcentaje < 100;
+  });
+}
+// El mínimo entre dos consultas en este momento (2 minutos con la consulta rápida; si no, 5).
+const minimoEntreConsultas = () => (hayConsultaRapida() ? CONSULTA_RAPIDA_MS : MINIMO_ENTRE_CONSULTAS_MS);
+
 function programarProximaConsulta() {
   clearTimeout(temporizadorUso);
   if (!hayAlgunaConectada()) return;
 
   const hayError = almacen.leer().cuentas.some((c) => lecturaDe(c.id).error);
-  const intervalo = Math.max(MINIMO_ENTRE_CONSULTAS_MS, almacen.leer().intervaloMin * 60 * 1000); // nunca más seguido que el mínimo
+  const intervalo = hayConsultaRapida()
+    ? CONSULTA_RAPIDA_MS
+    : Math.max(MINIMO_ENTRE_CONSULTAS_MS, almacen.leer().intervaloMin * 60 * 1000); // nunca más seguido que el mínimo
   const espera = hayError ? Math.min(REINTENTO_TRAS_ERROR_MS, intervalo) : intervalo;
   const yaPasado = Date.now() - ultimaConsulta;
   const faltan = Math.max(1000, espera - yaPasado);
@@ -2521,13 +2630,14 @@ if (!app.requestSingleInstanceLock()) {
       const nueva = Math.round(escalaActual * 100 + paso);
       aplicarEscala(Math.max(ajustes.ESCALA_MINIMA, Math.min(nueva, ajustes.ESCALA_MAXIMA)));
     });
-    ipcMain.on('abrir-uso', () => shell.openExternal(PAGINA_DE_USO));
     ipcMain.on('separar-parte', (evento, parte) => separarParte(String(parte), ventanaDelEvento(evento).cuentaId));
     ipcMain.on('juntar-parte', (evento) => { const w = ventanaDelEvento(evento); if (w.parte) juntarParte(w.clave); });
     ipcMain.on('bienvenida-vista', () => { if (!almacen.leer().bienvenidaVista) almacen.guardar({ bienvenidaVista: true }); });
     ipcMain.handle('exportar-historial', (evento) => exportarHistorial(ventanaDelEvento(evento), BrowserWindow.fromWebContents(evento.sender)));
     ipcMain.handle('buscar-actualizacion', () => buscarActualizacionAhora());
     ipcMain.on('actualizar-ahora', () => actualizaciones.actualizarAhora());
+    ipcMain.handle('obtener-estadisticas', (evento) => estadisticasDe(ventanaDelEvento(evento)));
+    ipcMain.handle('guardar-informe', (evento) => guardarInforme(ventanaDelEvento(evento), BrowserWindow.fromWebContents(evento.sender)));
     ipcMain.handle('guardar-copia', (evento) => guardarCopia(BrowserWindow.fromWebContents(evento.sender)));
     ipcMain.handle('restaurar-copia', (evento) => restaurarCopia(BrowserWindow.fromWebContents(evento.sender)));
     ipcMain.handle('ajustar-ventana', (evento, abierto, alto, anchoPanel, preferirAbajo, panel) => {

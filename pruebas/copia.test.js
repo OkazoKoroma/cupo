@@ -108,3 +108,86 @@ test('comparar con una curva anterior: ayer a esta hora, la sesión anterior', (
   assert.strictEqual(calculo.compararConCurva(9, curva, 3), null); // ayer a esa hora todavía no había lecturas
   assert.strictEqual(calculo.compararConCurva(9, [], 12), null);
 });
+
+test('límite por modelo (Fable): se compara con su semana anterior a esta misma altura', () => {
+  const HORA = 60 * 60 * 1000;
+  const reinicio1 = new Date('2026-10-08T10:00:00').getTime();
+  const inicio1 = reinicio1 - 7 * 24 * HORA;
+  let guardado;
+  let comparacion;
+  // Primera semana: no hay con qué comparar
+  for (const [horas, porcentaje] of [[24, 10], [48, 20], [72, 40]]) {
+    ({ guardado, comparacion } = calculo.seguirCurvaDeModelo(guardado, { porcentaje, reinicioMs: reinicio1, ahoraMs: inicio1 + horas * HORA }));
+    assert.strictEqual(comparacion, null);
+  }
+  // Semana siguiente: a las 48 horas la pasada iba en 20
+  const reinicio2 = reinicio1 + 7 * 24 * HORA;
+  ({ guardado, comparacion } = calculo.seguirCurvaDeModelo(guardado, { porcentaje: 26, reinicioMs: reinicio2, ahoraMs: reinicio1 + 48 * HORA }));
+  assert.deepStrictEqual(comparacion, { diferencia: 6, antes: 20, aproximado: false });
+  assert.deepStrictEqual(guardado.puntos, [[48, 26]]);
+  assert.strictEqual(guardado.pasada.reinicioMs, reinicio1);
+  // Si se saltó una semana entera, la curva guardada ya no es la anterior: no se compara
+  const reinicio4 = reinicio2 + 14 * 24 * HORA;
+  ({ comparacion } = calculo.seguirCurvaDeModelo(guardado, { porcentaje: 5, reinicioMs: reinicio4, ahoraMs: reinicio4 - 6 * 24 * HORA }));
+  assert.strictEqual(comparacion, null);
+});
+
+test('aviso de ritmo semanal: una vez por semana, si llegarías al 100% bastante antes del reinicio', () => {
+  const inicioSemana = new Date('2026-10-05T04:00:00');
+  const reinicio = new Date('2026-10-12T04:00:00');
+  const base = { reinicio, umbral: 85, avisoRitmo: true, inicioSemana };
+  // 50% a los dos días: a ese ritmo, 100% a los cuatro días (tres antes del reinicio)
+  let r = calculo.procesarSemana({ ...base, estado: null, semana: 50, ahora: new Date('2026-10-07T04:00:00') });
+  assert.deepStrictEqual(r.alertas, ['semana-ritmo']);
+  assert.strictEqual(new Date(r.estado.llegadaMs).toISOString(), new Date('2026-10-09T04:00:00').toISOString());
+  r = calculo.procesarSemana({ ...base, estado: r.estado, semana: 55, ahora: new Date('2026-10-07T10:00:00') });
+  assert.deepStrictEqual(r.alertas, []); // ya se avisó esta semana
+  // Ritmo tranquilo, el primer día o con poco uso: no se avisa
+  assert.deepStrictEqual(calculo.procesarSemana({ ...base, estado: null, semana: 30, ahora: new Date('2026-10-09T04:00:00') }).alertas, []);
+  assert.deepStrictEqual(calculo.procesarSemana({ ...base, estado: null, semana: 40, ahora: new Date('2026-10-05T14:00:00') }).alertas, []);
+  assert.deepStrictEqual(calculo.procesarSemana({ ...base, estado: null, semana: 20, ahora: new Date('2026-10-06T04:00:00') }).alertas, []);
+  // Con la opción apagada, tampoco
+  assert.deepStrictEqual(calculo.procesarSemana({ ...base, avisoRitmo: false, estado: null, semana: 50, ahora: new Date('2026-10-07T04:00:00') }).alertas, []);
+});
+
+test('estadísticas: récords, racha, días de la semana, lo que sobra, límite sugerido y sesiones', () => {
+  const estadisticas = require('../src/estadisticas');
+  const ahora = new Date('2026-10-11T15:00:00'); // domingo
+  const horas = (hora, valor) => Array.from({ length: 24 }, (_, h) => (h === hora ? valor : 0));
+  const historial = [
+    { dia: '2026-10-05', uso: 10, limite: 14, horas: horas(10, 10) },  // lunes
+    { dia: '2026-10-06', uso: 16, limite: 14, horas: horas(16, 16) },  // martes: sobre el límite
+    { dia: '2026-10-07', uso: 8, limite: 14 },
+    { dia: '2026-10-08', uso: 0, limite: 14 },
+    { dia: '2026-10-09', uso: 12, limite: 14 },
+    { dia: '2026-10-10', uso: 0.2, limite: 14 },
+    { dia: '2026-10-11', uso: 6, limite: 14 },                         // hoy
+  ];
+  const sesiones = [
+    { inicioMs: new Date('2026-10-09T10:00:00').getTime(), finMs: new Date('2026-10-09T15:00:00').getTime(), maximo: 100, llenaMs: new Date('2026-10-09T13:20:00').getTime() },
+    { inicioMs: new Date('2026-10-10T10:00:00').getTime(), finMs: new Date('2026-10-10T15:00:00').getTime(), maximo: 40, llenaMs: null },
+    { inicioMs: new Date('2026-09-01T10:00:00').getTime(), finMs: new Date('2026-09-01T15:00:00').getTime(), maximo: 100, llenaMs: new Date('2026-09-01T13:50:00').getTime() },
+  ];
+  const r = estadisticas.calcular({ historial, semanasPasadas: [{ inicio: '2026-09-21', semana: 80 }, { inicio: '2026-09-28', semana: 60 }], sesiones, limiteDiario: 14, ahora });
+  assert.deepStrictEqual(r.masAlto, { dia: '2026-10-06', uso: 16 });
+  assert.strictEqual(r.sobreElLimite, 1);
+  assert.strictEqual(r.racha, 5);                       // del miércoles a hoy
+  assert.deepStrictEqual(r.porDiaSemana, [10, 16, 8, 0, 12, 0.2, 6]);
+  assert.strictEqual(r.mapa[0][10], 10);                // lunes a las 10
+  assert.strictEqual(r.mapa[2][10], null);              // el miércoles no guardó su uso por hora
+  assert.deepStrictEqual(r.semanas, { cantidad: 2, termina: 70, sobra: 30 });
+  assert.deepStrictEqual(r.sugerido, { limite: 19, diasPorSemana: 5 }); // 5 de 7 días con uso: 95 / 5
+  assert.deepStrictEqual(r.sesiones, { total7: 2, agotadas7: 1, horaTipica: 13 });
+  assert.strictEqual(r.porMes.length, 1);
+  assert.strictEqual(r.porMes[0].dias, 5);
+});
+
+test('estadísticas: sin datos no falla (todo queda vacío)', () => {
+  const r = require('../src/estadisticas').calcular({ ahora: new Date('2026-10-11T15:00:00') });
+  assert.strictEqual(r.masAlto, null);
+  assert.strictEqual(r.mapa, null);
+  assert.strictEqual(r.semanas, null);
+  assert.strictEqual(r.sugerido, null);
+  assert.strictEqual(r.sesiones, null);
+  assert.strictEqual(r.racha, 0);
+});

@@ -71,6 +71,31 @@
           <p class="nota" id="productos-nota" data-i18n="productos.nota">En % de tu cuota semanal: cuánto usó cada producto.</p>
         </div>
 
+        <!-- Estadísticas: lo que se puede saber con lo ya guardado (widget.js lo dibuja) -->
+        <div class="vista-panel" id="vista-estadisticas">
+          <div class="est-fichas" id="est-fichas"></div>
+          <div class="est-graficos">
+            <div class="tablero-celda">
+              <div class="historial-opciones">
+                <h4 class="tablero-titulo" data-i18n="est.porDia">Por día de la semana</h4>
+                <span class="historial-promedio" id="est-dias-leyenda"></span>
+              </div>
+              <div class="grafico" id="est-dias-grafico"><div class="columnas" id="est-dias"></div></div>
+            </div>
+            <div class="tablero-celda">
+              <div class="historial-opciones">
+                <h4 class="tablero-titulo" data-i18n="est.mapa">Cuándo usas más (día y hora)</h4>
+              </div>
+              <div class="est-mapa" id="est-mapa"></div>
+            </div>
+          </div>
+          <div class="est-pie">
+            <span class="nota" data-i18n="est.nota">Con los últimos 30 días (las semanas y sesiones, con todo lo guardado).</span>
+            <span id="mensaje-informe" class="mensaje-chico" role="status"></span>
+            <button id="guardar-informe" class="boton-secundario" type="button" data-i18n="est.informe">Guardar informe…</button>
+          </div>
+        </div>
+
         <!-- Vista de Ajustes: el formulario. La zona del medio se desplaza; Guardar queda fijo abajo. -->
         <div class="vista-panel" id="vista-ajustes">
           <form id="formulario-ajustes" novalidate>
@@ -294,6 +319,10 @@
                     <span data-i18n="aj.pausarOculto">No consultar mientras el widget está oculto</span>
                   </label>
                   <p class="campo-ayuda" data-i18n="aj.pausarOculto.ayuda">Mientras está oculto no hay avisos de uso. Al mostrarlo, se actualiza al instante.</p>
+                  <label class="casilla">
+                    <input id="consultaRapida" type="checkbox">
+                    <span data-i18n="aj.consultaRapida" data-i18n-title="aj.consultaRapida.ayuda">Cada 2 minutos cuando la sesión pasa de 70%</span>
+                  </label>
                   </section>
                 </div>
 
@@ -311,6 +340,10 @@
                   <label class="casilla">
                     <input id="alertasSemana" type="checkbox">
                     <span data-i18n="aj.semana.activar">Activar el aviso de la semana</span>
+                  </label>
+                  <label class="casilla">
+                    <input id="avisoRitmoSemana" type="checkbox">
+                    <span data-i18n="aj.semana.ritmo">Avisarme si a este ritmo agotaré la semana</span>
                   </label>
                   </section>
                   <section class="ajustes-grupo">
@@ -379,7 +412,6 @@
           <ul class="bienvenida-lista">
             <li><b data-i18n="bienvenida.hoy.titulo">Hoy</b> <span data-i18n="bienvenida.hoy">lo que llevas usado hoy contra tu límite diario. El límite lo eliges tú en Ajustes, o deja que se calcule solo.</span></li>
             <li><b data-i18n="bienvenida.plan.titulo">Sesión 5 h y Semana</b> <span data-i18n="bienvenida.plan">los límites de tu plan de Claude, y cuánto falta para que se reinicien.</span></li>
-            <li><b data-i18n="bienvenida.clic.titulo">Clic en el nombre de una barra</b> <span data-i18n="bienvenida.clic">abre el detalle oficial en claude.ai.</span></li>
             <li><b data-i18n="bienvenida.cuentas.titulo">Varias cuentas</b> <span data-i18n="bienvenida.cuentas">clic en la etiqueta con el nombre de la cuenta, arriba a la izquierda.</span></li>
             <li><b data-i18n="bienvenida.mover.titulo">Moverlo y ocultarlo</b> <span data-i18n="bienvenida.mover">arrástralo a donde quieras; Ctrl + Alt + C lo oculta o lo muestra.</span></li>
           </ul>
@@ -406,49 +438,65 @@
       </div>
     </section>
 
-    <!-- Panel de control: seis gráficos más, debajo de la vista completa (widget.js los dibuja) -->
+    <!-- Panel de control: debajo de la vista completa, las fichas con los números y ocho gráficos en tarjetas (widget.js los dibuja) -->
     <section class="tablero-graficos" id="tablero" aria-label="Panel de control" data-i18n-aria="tablero.titulo">
-      <div class="tablero-celda">
-        <div class="historial-opciones">
-          <h4 class="tablero-titulo" data-i18n="tablero.hoy">Hoy, hora a hora</h4>
-          <span class="historial-promedio" id="tablero-hoy-leyenda"></span>
+      <div class="est-fichas tablero-fichas" id="tablero-fichas"></div>
+      <div class="tablero-rejilla">
+        <div class="tablero-celda">
+          <div class="historial-opciones">
+            <h4 class="tablero-titulo" data-i18n="tablero.hoy">Hoy, hora a hora</h4>
+            <span class="historial-promedio" id="tablero-hoy-leyenda"></span>
+          </div>
+          <div class="grafico" id="tablero-hoy-grafico"><div class="columnas" id="tablero-hoy"></div></div>
         </div>
-        <div class="grafico" id="tablero-hoy-grafico"><div class="columnas" id="tablero-hoy"></div></div>
-      </div>
-      <div class="tablero-celda">
-        <div class="historial-opciones">
-          <h4 class="tablero-titulo" data-i18n="tablero.dias">Últimos 30 días</h4>
-          <span class="historial-promedio" id="tablero-dias-leyenda"></span>
+        <div class="tablero-celda">
+          <div class="historial-opciones">
+            <h4 class="tablero-titulo" data-i18n="tablero.dias">Últimos 30 días</h4>
+            <span class="historial-promedio" id="tablero-dias-leyenda"></span>
+          </div>
+          <div class="grafico" id="tablero-dias-grafico"><div class="columnas" id="tablero-dias"></div></div>
         </div>
-        <div class="grafico" id="tablero-dias-grafico"><div class="columnas" id="tablero-dias"></div></div>
-      </div>
-      <div class="tablero-celda">
-        <div class="historial-opciones">
-          <h4 class="tablero-titulo" data-i18n="tablero.horas">Horas de más uso</h4>
-          <span class="historial-promedio" id="tablero-horas-leyenda"></span>
+        <div class="tablero-celda">
+          <div class="historial-opciones">
+            <h4 class="tablero-titulo" data-i18n="est.porDia">Por día de la semana</h4>
+            <span class="historial-promedio" id="tablero-por-dia-leyenda"></span>
+          </div>
+          <div class="grafico" id="tablero-por-dia-grafico"><div class="columnas" id="tablero-por-dia"></div></div>
         </div>
-        <div class="grafico" id="tablero-horas-grafico"><div class="columnas" id="tablero-horas"></div></div>
-      </div>
-      <div class="tablero-celda">
-        <div class="historial-opciones">
-          <h4 class="tablero-titulo" data-i18n="tablero.prodHoy">Por producto: hoy</h4>
-          <span class="historial-promedio" id="tablero-prod-hoy-leyenda"></span>
+        <div class="tablero-celda">
+          <div class="historial-opciones">
+            <h4 class="tablero-titulo" data-i18n="est.mapa">Cuándo usas más (día y hora)</h4>
+          </div>
+          <div class="est-mapa" id="tablero-mapa"></div>
         </div>
-        <div class="grafico" id="tablero-prod-hoy-grafico"><div class="columnas" id="tablero-prod-hoy"></div></div>
-      </div>
-      <div class="tablero-celda">
-        <div class="historial-opciones">
-          <h4 class="tablero-titulo" data-i18n="tablero.prodSemana">Por producto: esta semana</h4>
-          <span class="historial-promedio" id="tablero-prod-semana-leyenda"></span>
+        <div class="tablero-celda">
+          <div class="historial-opciones">
+            <h4 class="tablero-titulo" data-i18n="tablero.prodHoy">Por producto: hoy</h4>
+            <span class="historial-promedio" id="tablero-prod-hoy-leyenda"></span>
+          </div>
+          <div class="grafico" id="tablero-prod-hoy-grafico"><div class="columnas" id="tablero-prod-hoy"></div></div>
         </div>
-        <div class="grafico" id="tablero-prod-semana-grafico"><div class="columnas" id="tablero-prod-semana"></div></div>
-      </div>
-      <div class="tablero-celda">
-        <div class="historial-opciones">
-          <h4 class="tablero-titulo" data-i18n="tablero.semanas">Por producto: semana a semana</h4>
-          <span class="historial-promedio" id="tablero-semanas-leyenda"></span>
+        <div class="tablero-celda">
+          <div class="historial-opciones">
+            <h4 class="tablero-titulo" data-i18n="tablero.prodSemana">Por producto: esta semana</h4>
+            <span class="historial-promedio" id="tablero-prod-semana-leyenda"></span>
+          </div>
+          <div class="grafico" id="tablero-prod-semana-grafico"><div class="columnas" id="tablero-prod-semana"></div></div>
         </div>
-        <div class="grafico" id="tablero-semanas-grafico"><div class="columnas" id="tablero-semanas"></div></div>
+        <div class="tablero-celda">
+          <div class="historial-opciones">
+            <h4 class="tablero-titulo" data-i18n="tablero.semanas">Por producto: semana a semana</h4>
+            <span class="historial-promedio" id="tablero-semanas-leyenda"></span>
+          </div>
+          <div class="grafico" id="tablero-semanas-grafico"><div class="columnas" id="tablero-semanas"></div></div>
+        </div>
+        <div class="tablero-celda">
+          <div class="historial-opciones">
+            <h4 class="tablero-titulo" data-i18n="tablero.horas">Horas de más uso</h4>
+            <span class="historial-promedio" id="tablero-horas-leyenda"></span>
+          </div>
+          <div class="grafico" id="tablero-horas-grafico"><div class="columnas" id="tablero-horas"></div></div>
+        </div>
       </div>
     </section>
 
@@ -559,6 +607,9 @@
               </button>
               <button id="boton-productos" class="boton-icono" data-panel="productos" type="button" title="Uso por producto a lo largo del tiempo" data-i18n-title="boton.productos" aria-label="Ver el uso por producto a lo largo del tiempo" data-i18n-aria="boton.productos" aria-pressed="false">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5h12"/><path d="M2.5 10.5c2-3 3.5-3.5 5-1.5s3 1 6-4"/><path d="M2.5 12c2.5-1.5 4-1.5 5.5-.5s3.5.5 5.5-1.5" opacity=".55"/></svg>
+              </button>
+              <button id="boton-estadisticas" class="boton-icono" data-panel="estadisticas" type="button" title="Estadísticas: récords, rachas y costumbres" data-i18n-title="boton.estadisticas" aria-label="Estadísticas" data-i18n-aria="boton.estadisticas" aria-pressed="false">
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.2l1.75 3.55 3.9.55-2.8 2.75.65 3.9L8 11.1l-3.5 1.85.65-3.9-2.8-2.75 3.9-.55z"/></svg>
               </button>
               <button id="boton-ajustes" class="boton-icono" data-panel="ajustes" type="button" title="Ajustes" data-i18n-title="boton.ajustes" aria-label="Abrir los ajustes" data-i18n-aria="boton.ajustesAria" aria-pressed="false">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>

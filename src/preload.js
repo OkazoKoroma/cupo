@@ -70,12 +70,14 @@ contextBridge.exposeInMainWorld('widget', {
   // Responde { ok, ruta, cantidad } o { ok: false, error } o { ok: false, cancelado: true }.
   exportarHistorial: () => ipcRenderer.invoke('exportar-historial'),
   // Copia de seguridad: guardar todo en un archivo, o restaurarlo (pide confirmación y vuelve a abrir la app).
+  // Estadísticas (récords, rachas, costumbres) y el informe para guardar o imprimir.
+  obtenerEstadisticas: () => ipcRenderer.invoke('obtener-estadisticas'),
+  guardarInforme: () => ipcRenderer.invoke('guardar-informe'),
   guardarCopia: () => ipcRenderer.invoke('guardar-copia'),
   restaurarCopia: () => ipcRenderer.invoke('restaurar-copia'),
   // Acerca de: buscar ahora si hay una versión nueva ({ ok, version } / { ok, alDia } / { ok: false, error }) e instalarla.
   buscarActualizacion: () => ipcRenderer.invoke('buscar-actualizacion'),
   actualizarAhora: () => ipcRenderer.send('actualizar-ahora'),
-  abrirUso: () => ipcRenderer.send('abrir-uso'),
   bienvenidaVista: () => ipcRenderer.send('bienvenida-vista'),
   separarParte: (parte) => ipcRenderer.send('separar-parte', parte), // saca una parte del widget a su propia ventana
   juntarParte: () => ipcRenderer.send('juntar-parte'),               // (desde la ventana de una parte) la devuelve al widget // la bienvenida ya se mostró: no vuelve a salir sola // abre claude.ai → Configuración → Uso en el navegador

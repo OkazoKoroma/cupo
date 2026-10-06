@@ -123,6 +123,7 @@ function dibujarLimitesExtra(extras) {
           <span class="etiqueta-con-boton">
             <span class="etiqueta"></span>
             <span class="porcentaje" id="extra-${i}-porcentaje"></span>
+            <span class="comparacion" id="extra-${i}-comparacion"></span>
           </span>
           <span class="detalle" id="extra-${i}-detalle"></span>
         </div>
@@ -137,6 +138,7 @@ function dibujarLimitesExtra(extras) {
     animarNumero(`extra-${i}-porcentaje`, extra.porcentaje, (v) => `${formatear(v)}%`);
     // Los límites por modelo muestran cuándo se reinician; el crédito extra, cuánto se gastó ("US$16 / US$50")
     ponerAyuda(`extra-${i}-relleno`, extra.detalleTexto !== undefined ? t('ayuda.credito') : t('ayuda.modelo', { nombre: extra.nombre }));
+    pintarComparacion(extra.comparacion || null, `extra-${i}`, ''); // contra la semana anterior de ese modelo
     if (extra.detalleTexto !== undefined) escribirDetalle(`extra-${i}-detalle`, extra.detalleTexto);
     else escribirReinicio(`extra-${i}-detalle`, extra.reinicioTexto, extra.reinicio);
   });
@@ -154,10 +156,6 @@ document.getElementById('separar-panel').addEventListener('click', () => {
 document.getElementById('separar-chats').addEventListener('click', () => window.widget.separarParte('chats'));
 document.getElementById('juntar-chats').addEventListener('click', () => window.widget.juntarParte());
 
-// ----- Clic en el nombre de una barra: abre el detalle oficial en claude.ai -----
-document.querySelector('.tarjeta').addEventListener('click', (evento) => {
-  if (evento.target.closest('.medidor-texto') && !evento.target.closest('button')) window.widget.abrirUso();
-});
 
 // En la ventana de una parte: el título y la vista de esa parte (una sola vez; después solo se refresca con los datos).
 // Con varias cuentas, el título dice de cuál es ("Historial · Trabajo") o "Todas las cuentas".
@@ -279,10 +277,10 @@ function textosDeLaComparacion(c, contra = '') {
 }
 
 // La marquita junto al % de la semana ("▲ 12"); la frase completa sale al pasar el mouse.
-// "donde": 'semana', 'hoy' o 'sesion'.
-function pintarComparacion(c, donde = 'semana') {
+// "donde": 'semana', 'hoy', 'sesion' o la barra de un modelo ('extra-0'...); "contra": con qué frases se dice.
+function pintarComparacion(c, donde = 'semana', contra = donde === 'semana' ? '' : donde + '.') {
   const marca = document.getElementById(`${donde}-comparacion`);
-  const textos = textosDeLaComparacion(c, donde === 'semana' ? '' : donde + '.');
+  const textos = textosDeLaComparacion(c, contra);
   marca.textContent = textos ? textos.corto : '';
   marca.title = textos ? textos.frase : '';
   marca.style.color = textos ? textos.tono : '';
@@ -378,6 +376,7 @@ const TITULOS_DE_PANEL = {
   cuentas: 'panel.cuentas',
   bienvenida: 'panel.bienvenida',
   productos: 'panel.productos',
+  estadisticas: 'panel.estadisticas',
 };
 // Tamaño que pide cada panel, en píxeles: el alto, y el ancho solo si es más ancho que la vista (Ajustes lo es).
 const TAMANOS_DE_PANEL = {
@@ -388,6 +387,7 @@ const TAMANOS_DE_PANEL = {
   cuentas: { alto: 350 },
   bienvenida: { alto: 390 },
   productos: { alto: 300, ancho: 500 }, // más grande: muchas líneas a lo largo del tiempo
+  estadisticas: { alto: 470, ancho: 640 }, // ocho fichas, un gráfico y el mapa de la semana
 };
 const DURACION_PANEL_MS = 340; // debe coincidir con --duracion-panel en widget.css
 
@@ -441,7 +441,7 @@ function ponerAltoExtraCompleto(alto) {
 }
 
 // Ajustes y Cuentas, en la vista completa, ocupan el lugar de esos tres paneles.
-const PANELES_EN_LUGAR = ['ajustes', 'cuentas', 'bienvenida', 'productos'];
+const PANELES_EN_LUGAR = ['ajustes', 'cuentas', 'bienvenida', 'productos', 'estadisticas'];
 
 // ¿Hay que dibujar este panel ahora? Si está abierto, o si la vista completa lo muestra junto a los demás.
 function panelVisible(nombre) {
@@ -602,10 +602,100 @@ function refrescarPanel(animar = true) {
   if (panelVisible('historial')) dibujarHistorial();
   if (panelVisible('desglose')) dibujarDesglose();
   if (panelVisible('proyeccion')) dibujarProyeccion();
+  if (panelVisible('estadisticas')) dibujarEstadisticas();
   dibujarTablero();
 }
 
-// ----- Panel de control: seis gráficos más, debajo de la vista completa -----
+// ----- Estadísticas: lo que se puede saber con lo ya guardado -----
+// Ocho fichas (récords, rachas, lo que sobra, límite sugerido, sesiones), el promedio de cada día de la semana
+// y un mapa de la semana (día × hora: más color donde más se usa).
+const nombreCortoDelDia = (n) => new Date(Date.UTC(2024, 0, 1 + n, 12)).toLocaleDateString(localeActual, { weekday: 'short', timeZone: 'UTC' }).replace('.', ''); // (el 1/1/2024 fue lunes)
+let turnoDeEstadisticas = 0;
+
+async function dibujarEstadisticas() {
+  const turno = ++turnoDeEstadisticas;
+  const datos = await window.widget.obtenerEstadisticas();
+  if (!panelVisible('estadisticas') || turno !== turnoDeEstadisticas) return;
+  if (panelActual === 'estadisticas' && datos.nombre) document.getElementById('panel-titulo').textContent = `${t('panel.estadisticas')} · ${datos.nombre}`;
+
+  pintarFichas(datos, document.getElementById('est-fichas'));
+  pintarPorDiaDeSemana(datos, { grafico: document.getElementById('est-dias-grafico'), contenedor: document.getElementById('est-dias'), leyenda: document.getElementById('est-dias-leyenda') });
+  pintarMapa(datos, document.getElementById('est-mapa'));
+}
+
+// Las fichas con los números (día más alto, promedio, racha...). "datos" es lo que devuelve obtenerEstadisticas.
+function pintarFichas(datos, contenedor) {
+  const porcentaje = (valor) => `${formatear(valor)}%`;
+  const fechaCorta = (dia) => new Date(`${dia}T12:00:00Z`).toLocaleDateString(localeActual, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const fichas = [
+    [t('est.masAlto'), datos.masAlto ? porcentaje(datos.masAlto.uso) : '—', datos.masAlto ? fechaCorta(datos.masAlto.dia) : t('est.faltan')],
+    [t('est.promedio'), datos.promedio !== null ? porcentaje(datos.promedio) : '—', t('est.de30')],
+    [t('est.racha'), t('est.dias', { n: datos.racha }), ''],
+    [t('est.sobre'), t('est.dias', { n: datos.sobreElLimite }), t('est.de30')],
+    [t('est.sobra'), datos.semanas ? porcentaje(datos.semanas.sobra) : '—', datos.semanas ? t('est.semanas', { n: datos.semanas.cantidad }) : t('est.faltan')],
+    [t('est.sugerido'), datos.sugerido ? porcentaje(datos.sugerido.limite) : '—', datos.sugerido ? t('est.sugerido.detalle', { n: datos.sugerido.diasPorSemana }) : t('est.faltan')],
+    [t('est.sesiones'), datos.sesiones ? `${datos.sesiones.agotadas7} / ${datos.sesiones.total7}` : '—', datos.sesiones ? t('est.en7') : t('est.faltan')],
+    [t('est.horaAgota'), datos.sesiones && datos.sesiones.horaTipica !== null ? `${String(datos.sesiones.horaTipica).padStart(2, '0')}:00` : '—',
+      datos.sesiones && datos.sesiones.horaTipica !== null ? t('est.horaAgota.detalle') : t('est.faltan')],
+  ];
+  contenedor.replaceChildren(...fichas.map(([titulo, valor, detalle]) => {
+    const ficha = crear('div', 'est-ficha');
+    ficha.append(crear('span', 'est-ficha-titulo', titulo), crear('b', 'est-ficha-valor', valor), crear('span', 'est-ficha-detalle', detalle));
+    ficha.title = [datos.nombre, titulo, valor, detalle].filter(Boolean).join(' · ');
+    return ficha;
+  }));
+}
+
+// Por día de la semana (una línea: el promedio de cada día)
+function pintarPorDiaDeSemana(datos, en) {
+  dibujarLineas({
+    series: [{ nombre: t('est.promedio'), color: 'var(--acento)', relleno: true, puntos: datos.porDiaSemana.map((valor, n) => [n, valor]) }],
+    marcas: [0, 1, 2, 3, 4, 5, 6].map((n) => ({ x: n, texto: nombreCortoDelDia(n) })),
+    limites: datos.limite ? [[0, datos.limite]] : [],
+    desde: 0, hasta: 6, conPuntos: true, numeroEn: 'maximo',
+    vacio: t('est.faltan'),
+    en,
+  });
+}
+
+// El mapa de la semana: una fila por día, una casilla por hora
+function pintarMapa(datos, mapa) {
+  const porcentaje = (valor) => `${formatear(valor)}%`;
+  mapa.replaceChildren();
+  if (!datos.mapa) {
+    mapa.appendChild(crear('p', 'grafico-vacio', t('horas.vacio')));
+    return;
+  }
+  const maximo = Math.max(0.01, ...datos.mapa.flat().filter((valor) => valor !== null));
+  mapa.appendChild(crear('span', 'est-mapa-dia', ''));
+  for (let hora = 0; hora < 24; hora++) mapa.appendChild(crear('span', 'est-mapa-hora', hora % 3 === 0 ? String(hora).padStart(2, '0') : ''));
+  datos.mapa.forEach((fila, n) => {
+    mapa.appendChild(crear('span', 'est-mapa-dia', nombreCortoDelDia(n)));
+    fila.forEach((valor, hora) => {
+      const casilla = crear('span', 'est-mapa-casilla');
+      if (valor === null) casilla.classList.add('sin-dato');
+      else casilla.style.setProperty('--fuerza', String(Math.round((valor / maximo) * 100)));
+      casilla.title = `${nombreCortoDelDia(n)} ${String(hora).padStart(2, '0')}:00 · ${valor === null ? '—' : porcentaje(valor)}`;
+      mapa.appendChild(casilla);
+    });
+  });
+}
+
+document.getElementById('guardar-informe').addEventListener('click', async () => {
+  const mensaje = document.getElementById('mensaje-informe');
+  mensaje.textContent = '';
+  mensaje.className = 'mensaje-chico';
+  const respuesta = await window.widget.guardarInforme();
+  if (respuesta.ok) {
+    mensaje.textContent = respuesta.mensaje;
+    mensaje.className = 'mensaje-chico ok';
+  } else if (!respuesta.cancelado) {
+    mensaje.textContent = respuesta.error;
+    mensaje.className = 'mensaje-chico error';
+  }
+});
+
+// ----- Panel de control: las fichas con los números y ocho gráficos, debajo de la vista completa -----
 const esTablero = () => document.body.classList.contains('tablero');
 const ALTO_DEL_TABLERO = 368; // lo que ocupa esa sección con su separación (igual que en widget.css y en main.js)
 let turnoDelTablero = 0;      // si llegan dos pedidos seguidos, solo se dibuja el último
@@ -618,9 +708,10 @@ async function dibujarTablero() {
     contenedor: document.getElementById(`tablero-${id}`),
     leyenda: document.getElementById(`tablero-${id}-leyenda`),
   });
-  const [hoy, dias, horas, productosHoy, productosSemana, semanas] = await Promise.all([
+  const [hoy, dias, horas, productosHoy, productosSemana, semanas, numeros] = await Promise.all([
     window.widget.obtenerHistorial(1), window.widget.obtenerHistorial(30), window.widget.obtenerHistorial('horas'),
     window.widget.obtenerProductos('1'), window.widget.obtenerProductos('semana'), window.widget.obtenerProductos('semanas'),
+    window.widget.obtenerEstadisticas(),
   ]);
   if (!esTablero() || turno !== turnoDelTablero) return;
   dibujarGraficoDelDia(hoy, lugar('hoy'));
@@ -629,6 +720,9 @@ async function dibujarTablero() {
   dibujarProductosEn(productosHoy, lugar('prod-hoy'));
   dibujarProductosEn(productosSemana, lugar('prod-semana'));
   dibujarProductosEn(semanas, lugar('semanas'));
+  pintarFichas(numeros, document.getElementById('tablero-fichas'));
+  pintarPorDiaDeSemana(numeros, lugar('por-dia'));
+  pintarMapa(numeros, document.getElementById('tablero-mapa'));
 }
 
 // Pone cada elemento en su tamaño final: [[elemento, 'height' o 'width', valor], ...].
@@ -770,7 +864,7 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
   }
 
   const anchoTotal = Math.max(140, contenedor.clientWidth || 260);
-  const altoTotal = Math.max(90, contenedor.clientHeight || 150);
+  const altoTotal = Math.max(60, contenedor.clientHeight || 150);
   // En un lugar grande (panel agrandado, panel de control a pantalla completa) las letras del gráfico crecen, hasta 1,5 veces
   const k = Math.min(1.5, Math.max(1, Math.min(anchoTotal / 400, altoTotal / 170)));
   const IZQ = Math.round(30 * k);
@@ -1116,12 +1210,14 @@ const observadorDeTamano = new ResizeObserver((cambios) => {
     temporizadorDeRedibujo = setTimeout(() => {
       if (panelVisible('historial')) dibujarHistorial();
       if (panelVisible('productos')) dibujarProductos();
+      if (panelVisible('estadisticas')) dibujarEstadisticas();
       dibujarTablero();
     }, 120);
   }
 });
 observadorDeTamano.observe(document.getElementById('columnas'));
 observadorDeTamano.observe(document.getElementById('productos-columnas'));
+observadorDeTamano.observe(document.getElementById('est-dias'));
 observadorDeTamano.observe(document.getElementById('tablero-hoy')); // (las seis celdas del panel de control miden lo mismo)
 
 // --- Uso por producto a lo largo del tiempo ---

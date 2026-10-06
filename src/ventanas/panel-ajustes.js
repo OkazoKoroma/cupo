@@ -39,6 +39,8 @@ const panelAjustes = (() => {
   const campoResumenes = document.getElementById('resumenes');
   const campoSeguirAClaude = document.getElementById('seguirAClaude');
   const campoSinBarras = document.getElementById('sinBarras');
+  const campoConsultaRapida = document.getElementById('consultaRapida');
+  const campoRitmoSemana = document.getElementById('avisoRitmoSemana');
   const campoActualizaciones = document.getElementById('buscarActualizaciones');
   const campoPausarOculto = document.getElementById('pausarOculto');
   const camposDeColor = {
@@ -218,6 +220,8 @@ const panelAjustes = (() => {
     campoResumenes.checked = actuales.resumenes;
     campoSeguirAClaude.checked = actuales.seguirAClaude;
     campoSinBarras.checked = actuales.sinBarras;
+    campoConsultaRapida.checked = actuales.consultaRapida;
+    campoRitmoSemana.checked = actuales.avisoRitmoSemana;
     campoActualizaciones.checked = actuales.buscarActualizaciones;
     campoPausarOculto.checked = actuales.pausarOculto;
     coloresPropios = Boolean(actuales.colores);
@@ -304,6 +308,8 @@ const panelAjustes = (() => {
       resumenes: campoResumenes.checked,
       seguirAClaude: campoSeguirAClaude.checked,
       sinBarras: campoSinBarras.checked,
+      consultaRapida: campoConsultaRapida.checked,
+      avisoRitmoSemana: campoRitmoSemana.checked,
       buscarActualizaciones: campoActualizaciones.checked,
       pausarOculto: campoPausarOculto.checked,
       colores: coloresPropios

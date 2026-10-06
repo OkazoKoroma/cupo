@@ -113,6 +113,11 @@ function enviarSemana(porcentaje, reinicioTexto, cuenta) {
   );
 }
 
+// Avisa que, a este ritmo, la cuota semanal se agotaría antes del reinicio.
+function enviarRitmoSemana(cuandoTexto, reinicioTexto, cuenta) {
+  mostrar(conCuenta(t('alerta.semanaRitmo.titulo'), cuenta), t('alerta.semanaRitmo.cuerpo', { cuando: cuandoTexto, reinicio: reinicioTexto }));
+}
+
 // Recuerda compactar el chat de Claude Code que se está llenando.
 function enviarContexto(porcentaje, chat) {
   mostrar(t('alerta.contexto.titulo'), t('alerta.contexto.cuerpo', { porcentaje: formatear(porcentaje), chat: chat || 'Claude Code' }));
@@ -131,4 +136,4 @@ function enviarResumenSemana(semana, diaMasAlto, cuenta) {
   mostrar(conCuenta(t('alerta.resumenSemana.titulo'), cuenta), cuerpo);
 }
 
-module.exports = { enviarResumenDia, enviarResumenSemana, enviarContexto, silenciarHasta, estaSilenciado, enviarVersionNueva, enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };
+module.exports = { enviarRitmoSemana, enviarResumenDia, enviarResumenSemana, enviarContexto, silenciarHasta, estaSilenciado, enviarVersionNueva, enviar, enviarSesion, enviarSemana, enviarProblemaDeFormato, enviarExportado };
