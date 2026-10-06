@@ -942,16 +942,19 @@ function dibujarLineas({ series, desde, hasta, marcas, limites, ahora = null, co
     etiqueta.textContent = `${formatear(Math.round(valorFinal * 10) / 10)}%`;
     etiquetasFinales.push({ elemento: etiqueta, y: Math.max(11, yf - 5) });
   }
-  // Separar los números que quedaron a menos de 13 px uno de otro (de arriba hacia abajo)
+  // Separar los números que quedaron a menos de 13 px uno de otro (de arriba hacia abajo).
+  // Con muchas líneas en un gráfico bajo no caben todos a 13 px: se juntan lo justo y se achican las letras.
+  const piso = altoTotal - ABAJO - 2;
+  const paso = Math.max(8, Math.min(13 * k, etiquetasFinales.length > 1 ? (piso - 10) / (etiquetasFinales.length - 1) : 13 * k));
+  if (paso < 13 * k) for (const { elemento } of etiquetasFinales) elemento.style.fontSize = `${Math.max(7.5, paso - 2).toFixed(1)}px`;
   etiquetasFinales.sort((a, b) => a.y - b.y);
   for (let i = 1; i < etiquetasFinales.length; i++) {
-    const minimo = etiquetasFinales[i - 1].y + 13 * k;
+    const minimo = etiquetasFinales[i - 1].y + paso;
     if (etiquetasFinales[i].y < minimo) etiquetasFinales[i].y = minimo;
   }
   // Si el de más abajo se sale por abajo, se suben todos lo necesario (y se vuelven a separar hacia arriba)
-  const piso = altoTotal - ABAJO - 2;
   for (let i = etiquetasFinales.length - 1; i >= 0; i--) {
-    const techo = i === etiquetasFinales.length - 1 ? piso : etiquetasFinales[i + 1].y - 13 * k;
+    const techo = i === etiquetasFinales.length - 1 ? piso : etiquetasFinales[i + 1].y - paso;
     if (etiquetasFinales[i].y > techo) etiquetasFinales[i].y = techo;
   }
   for (const { elemento, y: posicion } of etiquetasFinales) elemento.setAttribute('y', String(Math.max(10, posicion)));

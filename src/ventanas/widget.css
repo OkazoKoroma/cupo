@@ -2349,3 +2349,28 @@ body:not(.compacto):not(.franja) .cuenta-pestana {
   font-size: 10px;
   gap: 4px;
 }
+
+/* "Solo números" también en la lista de cuentas: cada medidor queda con su etiqueta y su número, sin la barrita */
+body.sin-barras .resumen-medidor {
+  grid-template-columns: 62px auto;
+}
+
+body.sin-barras .resumen-medidor .barra {
+  display: none;
+}
+
+body.sin-barras .resumen-valor {
+  text-align: left;
+}
+
+body.sin-barras.todas.compacto .resumen-medidor {
+  grid-template-columns: auto;
+}
+
+/* El número del final de cada línea lleva un borde del color del fondo: así se lee aunque quede sobre otras líneas */
+.grafico-dia .valor-final {
+  paint-order: stroke;
+  stroke: var(--fondo-a, #1d1d22);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}

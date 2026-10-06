@@ -424,10 +424,13 @@ function calcularPosicionInicial(w) {
     const junto = principal.ventana.getBounds();
     const area = screen.getDisplayMatching(junto).workArea;
     const yaHay = todasLasVentanas().filter((otra) => otra !== w && otra !== principal && estaViva(otra)).length;
-    return {
-      x: Math.max(area.x, junto.x - (ancho(w) + 12) * (yaHay + 1)),
-      y: Math.max(area.y, Math.min(junto.y + junto.height - altoBase(w), area.y + area.height - altoBase(w))),
-    };
+    const y = Math.max(area.y, Math.min(junto.y + junto.height - altoBase(w), area.y + area.height - altoBase(w)));
+    // A la izquierda del widget (una al lado de la otra); si por ese lado no cabe, a la derecha
+    const izquierda = junto.x - (ancho(w) + 12) * (yaHay + 1);
+    if (izquierda >= area.x) return { x: izquierda, y };
+    const derecha = junto.x + junto.width + 12 + (ancho(w) + 12) * yaHay;
+    if (derecha + ancho(w) <= area.x + area.width) return { x: derecha, y };
+    return { x: Math.max(area.x, izquierda), y }; // (no cabe en ningún lado: acomodarSinTapar la correrá a donde pueda)
   }
 
   const area = screen.getPrimaryDisplay().workArea;
@@ -915,6 +918,8 @@ function crearVentana(w) {
     backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), // puente seguro hacia la pantalla
+      // En las pruebas invisibles las ventanas están tapadas y Windows las 'duerme': así siguen contestando
+      backgroundThrottling: !INVISIBLE,
     },
   });
 
@@ -1060,7 +1065,11 @@ function separarParte(parte, cuentaId = null) {
   partes.set(clave, w);
   crearVentana(w);
   guardarDeVentana(w, { abierta: true });
-  w.ventana.once('ready-to-show', () => setTimeout(() => acomodarSinTapar(w), 50));
+  // Se acomoda al aparecer y otra vez cuando ya tomó su tamaño final (el contenido la agranda después de cargar)
+  w.ventana.once('ready-to-show', () => {
+    setTimeout(() => acomodarSinTapar(w), 50);
+    setTimeout(() => acomodarSinTapar(w, true), 700);
+  });
   if (parte === 'chats') reajustarLaVentana(principal); // los chats salen del widget principal
   enviarUso();
 }
