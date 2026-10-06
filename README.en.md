@@ -37,7 +37,7 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 
 ![History for today and for 7 days](docs/captura-historial.png)
 
-**What time of day you use it most.** The average of each hour of the day, with your peak hour. And next to the week, how you're doing against **last week at this same point** (▼ 12 = you're 12 points below). Panels grow when you drag their edges:
+**What time of day you use it most.** The average of each hour of the day, with your peak hour. And next to the week, how you're doing against **last week at this same point** (▼ 12% = you're 12% below). Panels grow when you drag their edges:
 
 ![Busiest hours, with the panel enlarged](docs/captura-horas.png)
 
@@ -94,7 +94,7 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 - **Comparison with last week:** next to the weekly bar, how many points above or below last week you are at this same point. The same for **Today** (against yesterday at this time) and for the **5-hour session** (against the previous session).
 - Weekly **breakdown** by product (Claude Code, Chats, Cowork…) and **usage by product over time**: today, this week (from the day your plan resets), 30 days or week by week. On plans with a per-model limit (**Fable**), that limit shows up as one more dashed line.
 - **Projection** ("at this pace you'd hit the limit at 6:40 pm").
-- **Statistics** from what is already stored: your highest day, your average, your streak under the limit, which weekdays and hours you use it most (a day-by-hour map), how much is left over each week, a suggested daily limit and how many 5-hour sessions you use up. It keeps up to a year of history and can produce a **report** to print or save as PDF.
+- **Statistics** on the dashboard, from what is already stored: your highest day, your average, your streak under the limit, which weekdays and hours you use most (a day-by-hour map), how much you have left each week, a suggested daily limit and how many 5-hour sessions you exhaust. It keeps up to a year of history and, from Settings, saves a **report** to print or save as PDF.
 - With several accounts, the history, breakdown and projection show every account at once.
 - **Hover over a bar** to see what it shows.
 - **Numbers only** (optional): hides the bars and leaves just the data.
@@ -111,9 +111,8 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 - **One-click update** when a new version is out: it downloads, installs and reopens by itself.
 
 ### Views and look
-- **Normal** view (vertical or horizontal), **compact** (one line), **full** (everything at once: bars, history, breakdown and projection) and **Accounts** (all your accounts in rows).
-- **Dashboard:** the full view plus the tiles with your numbers and eight charts at once (today hour by hour, 30 days, by day of the week, the day-and-hour map, busiest hours, and usage by product for today, this week and week by week).
-- **Minimal:** a small circle with a ring that fills up with today's usage.
+- Views go from least to most information: **Minimal** (a circle with a ring that fills up with today's usage), **Compact** (one line with the bars), **Normal** (the card, vertical or horizontal; panels open from their icons), **Full** (the card with history, breakdown and projection in view) and **Dashboard** (everything, plus the tiles with your numbers and eight charts: today hour by hour, 30 days, by day of the week, the day-and-hour map, busiest hours, and usage by product for today, this week and week by week).
+- **Accounts:** all your accounts in a list, one row per account.
 - **Each account in its own window** (optional): each one moves separately and has its own view.
 - **Parts in their own window:** the history, breakdown, projection, usage by product and context window can be moved out of the widget (button next to the X) and placed wherever you like. With several accounts, each one says which account it belongs to.
 - **Windows never overlap:** drop one on top of another and it moves aside and snaps to the edges. Only Settings may cover others while it's open.

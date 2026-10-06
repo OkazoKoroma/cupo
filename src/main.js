@@ -1653,9 +1653,10 @@ function construirMenu() {
     {
       label: t('tray.vista'),
       submenu: [
-        { label: t('tray.vista.normal'), type: 'radio', checked: principal.vista.modo === 'normal', click: () => cambiarVista(principal, { modo: 'normal' }) },
-        { label: t('tray.vista.compacto'), type: 'radio', checked: principal.vista.modo === 'compacto', click: () => cambiarVista(principal, { modo: 'compacto' }) },
+        // De menos a más información
         { label: t('tray.vista.mini'), type: 'radio', checked: principal.vista.modo === 'mini', click: () => cambiarVista(principal, { modo: 'mini' }) },
+        { label: t('tray.vista.compacto'), type: 'radio', checked: principal.vista.modo === 'compacto', click: () => cambiarVista(principal, { modo: 'compacto' }) },
+        { label: t('tray.vista.normal'), type: 'radio', checked: principal.vista.modo === 'normal', click: () => cambiarVista(principal, { modo: 'normal' }) },
         { label: t('tray.vista.completo'), type: 'radio', checked: principal.vista.modo === 'completo', click: () => cambiarVista(principal, { modo: 'completo' }) },
         { label: t('tray.vista.tablero'), type: 'radio', checked: principal.vista.modo === 'tablero', click: () => cambiarVista(principal, { modo: 'tablero' }) },
         { label: t('tray.vista.cuentas'), type: 'radio', checked: principal.vista.modo === 'cuentas', click: () => cambiarVista(principal, { modo: 'cuentas' }) },

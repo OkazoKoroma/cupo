@@ -37,7 +37,7 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 
 ![Historial de hoy y de 7 días](docs/captura-historial.png)
 
-**A qué horas usas más.** El promedio de cada hora del día, con tu hora pico. Y junto a la semana, cómo vas contra la **semana pasada a esta misma altura** (▼ 12 = vas 12 puntos por debajo). Los paneles se agrandan arrastrando sus bordes:
+**A qué horas usas más.** El promedio de cada hora del día, con tu hora pico. Y junto a la semana, cómo vas contra la **semana pasada a esta misma altura** (▼ 12% = vas un 12% por debajo). Los paneles se agrandan arrastrando sus bordes:
 
 ![Horas de más uso, con el panel agrandado](docs/captura-horas.png)
 
@@ -94,7 +94,7 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 - **Comparación con la semana pasada:** junto a la barra de la semana, cuántos puntos llevas de más o de menos que la semana pasada a esta misma altura. Lo mismo para **Hoy** (contra ayer a esta hora) y para la **sesión de 5 horas** (contra la sesión anterior).
 - **Desglose** de la semana por producto (Claude Code, Chats, Cowork…) y **uso por producto a lo largo del tiempo**: hoy, esta semana (desde el día en que se reinicia tu plan), 30 días o semana a semana. En los planes con límite por modelo (**Fable**), ese límite sale como una línea punteada más.
 - **Proyección** ("a este ritmo llegarías al límite a las 18:40").
-- **Estadísticas** con lo que ya está guardado: tu día más alto, tu promedio, tu racha bajo el límite, qué días de la semana y a qué horas usas más (un mapa de día por hora), cuánto te sobra cada semana, un límite diario sugerido y cuántas sesiones de 5 horas agotas. Guarda hasta un año de historial y puede sacar un **informe** para imprimir o guardar como PDF.
+- **Estadísticas** en el panel de control, con lo que ya está guardado: tu día más alto, tu promedio, tu racha bajo el límite, qué días de la semana y a qué horas usas más (un mapa de día por hora), cuánto te sobra cada semana, un límite diario sugerido y cuántas sesiones de 5 horas agotas. Guarda hasta un año de historial y, desde Ajustes, saca un **informe** para imprimir o guardar como PDF.
 - Con varias cuentas, el historial, el desglose y la proyección muestran todas las cuentas a la vez.
 - **Al dejar el mouse sobre una barra** se explica qué muestra.
 - **Solo números** (opcional): oculta las barras y deja solo los datos.
@@ -111,9 +111,8 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 - **Actualizar con un clic** cuando hay una versión nueva: se descarga, se instala y vuelve a abrirse sola.
 
 ### Vistas y aspecto
-- Vista **normal** (vertical u horizontal), **compacta** (una línea), **completa** (todo a la vez: barras, historial, desglose y proyección) y **Cuentas** (todas tus cuentas en filas).
-- **Panel de control:** la vista completa y, debajo, las fichas con tus números y ocho gráficos a la vez (hoy hora a hora, 30 días, por día de la semana, el mapa de día y hora, horas de más uso y el uso por producto de hoy, de la semana y semana a semana).
-- **Mínimo:** un círculo pequeño con un anillo que se llena con tu uso de hoy.
+- Las vistas van de menos a más información: **Mínima** (un círculo con un anillo que se llena con tu uso de hoy), **Compacta** (una línea con las barras), **Normal** (la tarjeta, vertical u horizontal; los paneles se abren con sus íconos), **Completa** (la tarjeta con historial, desglose y proyección a la vista) y **Panel de control** (todo: además, las fichas con tus números y ocho gráficos: hoy hora a hora, 30 días, por día de la semana, el mapa de día y hora, horas de más uso y el uso por producto de hoy, de la semana y semana a semana).
+- **Cuentas:** todas tus cuentas en una lista, una fila por cuenta.
 - **Cada cuenta en su propia ventana** (opcional): cada una se mueve por separado y tiene su propia vista.
 - **Partes en su propia ventana:** el historial, el desglose, la proyección, el uso por producto y la ventana de contexto se pueden sacar del widget (botón junto a la X) y poner donde quieras. Con varias cuentas, cada una dice de qué cuenta es.
 - **Las ventanas no se tapan:** si sueltas una encima de otra, se acomoda al lado y se imanta a los bordes. Solo Ajustes puede quedar encima mientras está abierto.

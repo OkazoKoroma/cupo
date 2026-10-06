@@ -2238,14 +2238,7 @@ body.sin-barras .tarjeta #hoy-detalle {
 }
 
 
-/* ----- Estadísticas ----- */
-#vista-estadisticas.activa {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  -webkit-app-region: no-drag;
-}
-
+/* ----- Estadísticas: las fichas y el mapa del panel de control ----- */
 .est-fichas {
   flex: none;
   display: grid;
@@ -2284,14 +2277,6 @@ body.sin-barras .tarjeta #hoy-detalle {
   white-space: nowrap;
 }
 
-.est-graficos {
-  flex: 1 1 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  gap: 14px;
-}
-
 /* El mapa: una columna para el nombre del día y 24 casillas (una por hora); más color donde más se usa */
 .est-mapa {
   flex: 1 1 0;
@@ -2328,24 +2313,7 @@ body.sin-barras .tarjeta #hoy-detalle {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--texto-suave) 14%, transparent);
 }
 
-.est-pie {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.est-pie .nota {
-  flex: 1 1 auto;
-  margin: 0;
-}
-
-/* Con el ícono de estadísticas hay once íconos: en la tarjeta vertical, la etiqueta de la cuenta cede un poco de lugar */
-body:not(.compacto):not(.franja) .cuenta-pestana {
-  max-width: 88px;
-}
-
-/* (once íconos de 15 px y sin la rayita: así la etiqueta de la cuenta conserva su ancho) */
+/* (diez íconos de 15 px y sin la rayita: así la etiqueta de la cuenta conserva su ancho) */
 body:not(.compacto):not(.franja) .herramientas .boton-icono {
   width: 15px;
 }

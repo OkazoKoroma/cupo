@@ -376,7 +376,6 @@ const TITULOS_DE_PANEL = {
   cuentas: 'panel.cuentas',
   bienvenida: 'panel.bienvenida',
   productos: 'panel.productos',
-  estadisticas: 'panel.estadisticas',
 };
 // Tamaño que pide cada panel, en píxeles: el alto, y el ancho solo si es más ancho que la vista (Ajustes lo es).
 const TAMANOS_DE_PANEL = {
@@ -387,7 +386,6 @@ const TAMANOS_DE_PANEL = {
   cuentas: { alto: 350 },
   bienvenida: { alto: 390 },
   productos: { alto: 300, ancho: 500 }, // más grande: muchas líneas a lo largo del tiempo
-  estadisticas: { alto: 470, ancho: 640 }, // ocho fichas, un gráfico y el mapa de la semana
 };
 const DURACION_PANEL_MS = 340; // debe coincidir con --duracion-panel en widget.css
 
@@ -441,7 +439,7 @@ function ponerAltoExtraCompleto(alto) {
 }
 
 // Ajustes y Cuentas, en la vista completa, ocupan el lugar de esos tres paneles.
-const PANELES_EN_LUGAR = ['ajustes', 'cuentas', 'bienvenida', 'productos', 'estadisticas'];
+const PANELES_EN_LUGAR = ['ajustes', 'cuentas', 'bienvenida', 'productos'];
 
 // ¿Hay que dibujar este panel ahora? Si está abierto, o si la vista completa lo muestra junto a los demás.
 function panelVisible(nombre) {
@@ -602,27 +600,13 @@ function refrescarPanel(animar = true) {
   if (panelVisible('historial')) dibujarHistorial();
   if (panelVisible('desglose')) dibujarDesglose();
   if (panelVisible('proyeccion')) dibujarProyeccion();
-  if (panelVisible('estadisticas')) dibujarEstadisticas();
   dibujarTablero();
 }
 
-// ----- Estadísticas: lo que se puede saber con lo ya guardado -----
+// ----- Estadísticas: lo que se puede saber con lo ya guardado (se muestran en el panel de control) -----
 // Ocho fichas (récords, rachas, lo que sobra, límite sugerido, sesiones), el promedio de cada día de la semana
 // y un mapa de la semana (día × hora: más color donde más se usa).
 const nombreCortoDelDia = (n) => new Date(Date.UTC(2024, 0, 1 + n, 12)).toLocaleDateString(localeActual, { weekday: 'short', timeZone: 'UTC' }).replace('.', ''); // (el 1/1/2024 fue lunes)
-let turnoDeEstadisticas = 0;
-
-async function dibujarEstadisticas() {
-  const turno = ++turnoDeEstadisticas;
-  const datos = await window.widget.obtenerEstadisticas();
-  if (!panelVisible('estadisticas') || turno !== turnoDeEstadisticas) return;
-  if (panelActual === 'estadisticas' && datos.nombre) document.getElementById('panel-titulo').textContent = `${t('panel.estadisticas')} · ${datos.nombre}`;
-
-  pintarFichas(datos, document.getElementById('est-fichas'));
-  pintarPorDiaDeSemana(datos, { grafico: document.getElementById('est-dias-grafico'), contenedor: document.getElementById('est-dias'), leyenda: document.getElementById('est-dias-leyenda') });
-  pintarMapa(datos, document.getElementById('est-mapa'));
-}
-
 // Las fichas con los números (día más alto, promedio, racha...). "datos" es lo que devuelve obtenerEstadisticas.
 function pintarFichas(datos, contenedor) {
   const porcentaje = (valor) => `${formatear(valor)}%`;
@@ -681,6 +665,7 @@ function pintarMapa(datos, mapa) {
   });
 }
 
+// "Guardar informe…" (en Ajustes): la app pide dónde guardarlo y lo abre en el navegador.
 document.getElementById('guardar-informe').addEventListener('click', async () => {
   const mensaje = document.getElementById('mensaje-informe');
   mensaje.textContent = '';
@@ -1210,14 +1195,12 @@ const observadorDeTamano = new ResizeObserver((cambios) => {
     temporizadorDeRedibujo = setTimeout(() => {
       if (panelVisible('historial')) dibujarHistorial();
       if (panelVisible('productos')) dibujarProductos();
-      if (panelVisible('estadisticas')) dibujarEstadisticas();
-      dibujarTablero();
+          dibujarTablero();
     }, 120);
   }
 });
 observadorDeTamano.observe(document.getElementById('columnas'));
 observadorDeTamano.observe(document.getElementById('productos-columnas'));
-observadorDeTamano.observe(document.getElementById('est-dias'));
 observadorDeTamano.observe(document.getElementById('tablero-hoy')); // (las seis celdas del panel de control miden lo mismo)
 
 // --- Uso por producto a lo largo del tiempo ---

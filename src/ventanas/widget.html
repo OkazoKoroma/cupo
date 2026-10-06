@@ -71,31 +71,6 @@
           <p class="nota" id="productos-nota" data-i18n="productos.nota">En % de tu cuota semanal: cuánto usó cada producto.</p>
         </div>
 
-        <!-- Estadísticas: lo que se puede saber con lo ya guardado (widget.js lo dibuja) -->
-        <div class="vista-panel" id="vista-estadisticas">
-          <div class="est-fichas" id="est-fichas"></div>
-          <div class="est-graficos">
-            <div class="tablero-celda">
-              <div class="historial-opciones">
-                <h4 class="tablero-titulo" data-i18n="est.porDia">Por día de la semana</h4>
-                <span class="historial-promedio" id="est-dias-leyenda"></span>
-              </div>
-              <div class="grafico" id="est-dias-grafico"><div class="columnas" id="est-dias"></div></div>
-            </div>
-            <div class="tablero-celda">
-              <div class="historial-opciones">
-                <h4 class="tablero-titulo" data-i18n="est.mapa">Cuándo usas más (día y hora)</h4>
-              </div>
-              <div class="est-mapa" id="est-mapa"></div>
-            </div>
-          </div>
-          <div class="est-pie">
-            <span class="nota" data-i18n="est.nota">Con los últimos 30 días (las semanas y sesiones, con todo lo guardado).</span>
-            <span id="mensaje-informe" class="mensaje-chico" role="status"></span>
-            <button id="guardar-informe" class="boton-secundario" type="button" data-i18n="est.informe">Guardar informe…</button>
-          </div>
-        </div>
-
         <!-- Vista de Ajustes: el formulario. La zona del medio se desplaza; Guardar queda fijo abajo. -->
         <div class="vista-panel" id="vista-ajustes">
           <form id="formulario-ajustes" novalidate>
@@ -109,12 +84,12 @@
                   <label class="campo">
                     <span class="campo-titulo" data-i18n="aj.vista">Vista</span>
                     <select id="modo">
-                      <option value="normal" data-i18n="aj.vista.normal">Normal</option>
-                      <option value="compacto" data-i18n="aj.vista.compacto">Compacto (una sola línea)</option>
-                      <option value="completo" data-i18n="aj.vista.completo">Completo (todo a la vez)</option>
-                      <option value="tablero" data-i18n="aj.vista.tablero">Panel de control (todos los gráficos)</option>
-                      <option value="cuentas" data-i18n="aj.vista.cuentas">Cuentas (todas a la vez)</option>
-                      <option value="mini" data-i18n="aj.vista.mini">Mínimo (un círculo)</option>
+                      <option value="mini" data-i18n="aj.vista.mini">Mínima: solo un círculo con el número</option>
+                      <option value="compacto" data-i18n="aj.vista.compacto">Compacta: una línea con las barras</option>
+                      <option value="normal" data-i18n="aj.vista.normal">Normal: la tarjeta (los paneles se abren con sus íconos)</option>
+                      <option value="completo" data-i18n="aj.vista.completo">Completa: la tarjeta con historial, desglose y proyección</option>
+                      <option value="tablero" data-i18n="aj.vista.tablero">Panel de control: todo, con fichas y ocho gráficos</option>
+                      <option value="cuentas" data-i18n="aj.vista.cuentas">Cuentas: todas las cuentas en una lista</option>
                     </select>
                   </label>
                   <label class="campo">
@@ -158,13 +133,18 @@
                   <p class="campo-ayuda" data-i18n="aj.escala.ayuda">Agranda o achica todo el widget al instante. También: Ctrl + rueda del mouse, o Ctrl + / Ctrl − (y Ctrl 0 vuelve al 100%).</p>
                   </section>
                   <section class="ajustes-grupo">
-                  <h3 data-i18n="aj.seccion.copia">Copia de seguridad</h3>
+                  <h3 data-i18n="aj.seccion.copia">Copia de seguridad e informe</h3>
                   <div class="campo botones-fila">
                     <button id="guardar-copia" class="boton-secundario" type="button" data-i18n="aj.copia.guardar">Guardar copia…</button>
                     <button id="restaurar-copia" class="boton-secundario" type="button" data-i18n="aj.copia.restaurar">Restaurar copia…</button>
                     <span id="mensaje-copia" class="mensaje-chico" role="status"></span>
                   </div>
                   <p class="campo-ayuda" data-i18n="aj.copia.ayuda">La copia guarda tus ajustes, cuentas e historial. No guarda tus sesiones: en otro computador tendrás que entrar de nuevo a cada cuenta.</p>
+                  <div class="campo botones-fila">
+                    <button id="guardar-informe" class="boton-secundario" type="button" data-i18n="est.informe">Guardar informe…</button>
+                    <span id="mensaje-informe" class="mensaje-chico" role="status"></span>
+                  </div>
+                  <p class="campo-ayuda" data-i18n="aj.informe.ayuda">El informe es una página con tus estadísticas (día más alto, promedios, mes a mes, últimos 30 días) para imprimir o guardar como PDF.</p>
                   </section>
                 </div>
 
@@ -607,9 +587,6 @@
               </button>
               <button id="boton-productos" class="boton-icono" data-panel="productos" type="button" title="Uso por producto a lo largo del tiempo" data-i18n-title="boton.productos" aria-label="Ver el uso por producto a lo largo del tiempo" data-i18n-aria="boton.productos" aria-pressed="false">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13.5h12"/><path d="M2.5 10.5c2-3 3.5-3.5 5-1.5s3 1 6-4"/><path d="M2.5 12c2.5-1.5 4-1.5 5.5-.5s3.5.5 5.5-1.5" opacity=".55"/></svg>
-              </button>
-              <button id="boton-estadisticas" class="boton-icono" data-panel="estadisticas" type="button" title="Estadísticas: récords, rachas y costumbres" data-i18n-title="boton.estadisticas" aria-label="Estadísticas" data-i18n-aria="boton.estadisticas" aria-pressed="false">
-                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.2l1.75 3.55 3.9.55-2.8 2.75.65 3.9L8 11.1l-3.5 1.85.65-3.9-2.8-2.75 3.9-.55z"/></svg>
               </button>
               <button id="boton-ajustes" class="boton-icono" data-panel="ajustes" type="button" title="Ajustes" data-i18n-title="boton.ajustes" aria-label="Abrir los ajustes" data-i18n-aria="boton.ajustesAria" aria-pressed="false">
                 <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.6"/><circle cx="5" cy="11.5" r="1.6"/></svg>
