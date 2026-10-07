@@ -64,3 +64,23 @@ test('aviso semanal: una vez por semana', () => {
 test('últimos días: del más antiguo a hoy', () => {
   assert.deepStrictEqual(calculo.ultimosDias(a_las('12:00'), 3), ['2026-10-04', '2026-10-05', '2026-10-06']);
 });
+
+test('proyección de la sesión de 5 horas: a este ritmo, ¿la agotas antes del reinicio?', () => {
+  const reinicio = a_las('17:00'); // la sesión empezó a las 12:00
+  // 40% a las 14:00 (2 h): 20% por hora → 100% a las 17:00 justo: no antes del reinicio
+  let p = calculo.proyeccionDeSesion({ sesion5h: { porcentaje: 40, reinicio }, ahora: a_las('14:00') });
+  assert.strictEqual(p.tipo, 'llegaras');
+  assert.strictEqual(p.cuando.getTime(), a_las('17:00').getTime());
+  // 60% a las 14:00: 30% por hora → 100% a las 15:20
+  p = calculo.proyeccionDeSesion({ sesion5h: { porcentaje: 60, reinicio }, ahora: a_las('14:00') });
+  assert.strictEqual(p.tipo, 'llegaras');
+  assert.strictEqual(p.cuando.getTime(), a_las('15:20').getTime());
+  // 20% a las 14:00: 10% por hora → 50% al reinicio
+  p = calculo.proyeccionDeSesion({ sesion5h: { porcentaje: 20, reinicio }, ahora: a_las('14:00') });
+  assert.deepStrictEqual(p, { tipo: 'no-llegaras', finDeSesion: 50 });
+  // Muy pronto (10 minutos), sin uso, ya agotada, sin sesión
+  assert.strictEqual(calculo.proyeccionDeSesion({ sesion5h: { porcentaje: 5, reinicio }, ahora: a_las('12:10') }).tipo, 'sin-datos');
+  assert.strictEqual(calculo.proyeccionDeSesion({ sesion5h: { porcentaje: 0, reinicio }, ahora: a_las('13:00') }).tipo, 'sin-uso');
+  assert.strictEqual(calculo.proyeccionDeSesion({ sesion5h: { porcentaje: 100, reinicio }, ahora: a_las('13:00') }).tipo, 'ya-llegaste');
+  assert.strictEqual(calculo.proyeccionDeSesion({ sesion5h: null, ahora: a_las('13:00') }).tipo, 'sin-datos');
+});

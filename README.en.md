@@ -93,7 +93,7 @@ The screenshots use **simulated data** (10 days of made-up usage) to show everyt
 - **Busiest hours:** what time of day most of your quota goes (the average of each hour), with your peak hour.
 - **Comparison with last week:** next to the weekly bar, how many points above or below last week you are at this same point. The same for **Today** (against yesterday at this time) and for the **5-hour session** (against the previous session).
 - Weekly **breakdown** by product (Claude Code, Chats, Cowork…) and **usage by product over time**: today, this week (from the day your plan resets), 30 days or week by week. On plans with a per-model limit (**Fable**), that limit shows up as one more dashed line.
-- **Projection** ("at this pace you'd hit the limit at 6:40 pm").
+- **Projection** for today, the 5-hour session and the week ("at this pace you'd hit the limit at 6:40 pm", "you'd use up the session around 4:20 pm"). The session one also shows when you hover its bar.
 - **Statistics** on the dashboard, from what is already stored: your highest day, your average, your streak under the limit, which weekdays and hours you use most (a day-by-hour map), how much you have left each week, a suggested daily limit and how many 5-hour sessions you exhaust. It keeps up to a year of history and, from Settings, saves a **report** to print or save as PDF.
 - With several accounts, the history, breakdown and projection show every account at once.
 - **Hover over a bar** to see what it shows.

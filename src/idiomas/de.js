@@ -107,6 +107,16 @@ module.exports = {
   "proy.sinDatos": "Noch keine Daten",
   "proy.sinDatos.detalle": "Warte auf die erste Abfrage.",
   "proy.nota": "Schätzungen auf Basis deines bisherigen Nutzungstempos.",
+  "proy.sesion.yaLlegaste": "Du hast diese Sitzung schon aufgebraucht",
+  "proy.sesion.yaLlegaste.detalle": "Sie wird um {reinicio} zurückgesetzt.",
+  "proy.sesion.llegaras": "Du würdest die Sitzung gegen {hora} aufbrauchen",
+  "proy.sesion.llegaras.detalle": "In diesem Tempo, vor dem Zurücksetzen um {reinicio}.",
+  "proy.sesion.noLlegaras": "Du würdest diese Sitzung nicht aufbrauchen",
+  "proy.sesion.noLlegaras.detalle": "Du kämst beim Zurücksetzen um {reinicio} auf ~{fin}%.",
+  "proy.sesion.sinUso": "Du hast diese Sitzung noch nicht genutzt",
+  "proy.sesion.sinUso.detalle": "Noch nichts zu schätzen.",
+  "proy.sesion.sinDatos": "Noch zu früh zum Schätzen",
+  "proy.sesion.sinDatos.detalle": "Die Sitzung hat gerade erst begonnen (oder keine ist aktiv).",
 
   // ----- Einstellungen -----
   "aj.seccion.vista": "Ansicht",

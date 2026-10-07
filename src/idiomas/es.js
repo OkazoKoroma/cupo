@@ -108,6 +108,16 @@ module.exports = {
   'proy.sinDatos': 'Todavía no hay datos',
   'proy.sinDatos.detalle': 'Espera a la primera lectura.',
   'proy.nota': 'Estimaciones según tu ritmo de uso hasta ahora.',
+  "proy.sesion.yaLlegaste": "Ya agotaste esta sesión",
+  "proy.sesion.yaLlegaste.detalle": "Se reinicia a las {reinicio}.",
+  "proy.sesion.llegaras": "Agotarías la sesión hacia las {hora}",
+  "proy.sesion.llegaras.detalle": "A este ritmo, antes del reinicio de las {reinicio}.",
+  "proy.sesion.noLlegaras": "No agotarías esta sesión",
+  "proy.sesion.noLlegaras.detalle": "Llegarías a ~{fin}% al reinicio de las {reinicio}.",
+  "proy.sesion.sinUso": "Todavía no has usado esta sesión",
+  "proy.sesion.sinUso.detalle": "No hay nada que proyectar aún.",
+  "proy.sesion.sinDatos": "Aún es pronto para estimar",
+  "proy.sesion.sinDatos.detalle": "La sesión acaba de empezar (o no hay una activa).",
 
   // ----- Ajustes -----
   'aj.seccion.vista': 'Vista',

@@ -107,6 +107,16 @@ module.exports = {
   "proy.sinDatos": "Pas encore de données",
   "proy.sinDatos.detalle": "Attendez la première lecture.",
   "proy.nota": "Estimations selon votre rythme d'utilisation jusqu'ici.",
+  "proy.sesion.yaLlegaste": "Vous avez déjà épuisé cette session",
+  "proy.sesion.yaLlegaste.detalle": "Elle se réinitialise à {reinicio}.",
+  "proy.sesion.llegaras": "Vous épuiseriez la session vers {hora}",
+  "proy.sesion.llegaras.detalle": "À ce rythme, avant la réinitialisation de {reinicio}.",
+  "proy.sesion.noLlegaras": "Vous n’épuiseriez pas cette session",
+  "proy.sesion.noLlegaras.detalle": "Vous arriveriez à ~{fin}% à la réinitialisation de {reinicio}.",
+  "proy.sesion.sinUso": "Vous n’avez pas encore utilisé cette session",
+  "proy.sesion.sinUso.detalle": "Rien à projeter pour l’instant.",
+  "proy.sesion.sinDatos": "Trop tôt pour estimer",
+  "proy.sesion.sinDatos.detalle": "La session vient de commencer (ou aucune n’est active).",
 
   // ----- Réglages -----
   "aj.seccion.vista": "Affichage",

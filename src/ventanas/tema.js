@@ -55,6 +55,8 @@ function aplicarExtra(apariencia) {
   // Lo que TÚ estiraste (sin lo que creció por las cuentas): el panel de control lo reparte entre arriba y abajo
   document.documentElement.style.setProperty('--extra-estirado', `${Math.max(0, extra.alto - (apariencia.extraPorCuentas || 0))}px`);
   document.body.classList.toggle('redimensionando', Boolean(apariencia.redimensionando));
+  // Panel de control: cuánto se achicó la sección de gráficos para caber en la pantalla
+  document.documentElement.style.setProperty('--tablero-recorte', `${apariencia.recorteTablero || 0}px`);
   // La tarjeta mide lo que mide su vista, aunque la ventana se ensanche para un panel más ancho (como Ajustes).
   // (Va aquí porque el ancho de la vista también cambia sin cambiar de vista: por ejemplo, al aparecer una columna extra.)
   if (apariencia.anchoVista) document.documentElement.style.setProperty('--ancho-vista', `${apariencia.anchoVista}px`);

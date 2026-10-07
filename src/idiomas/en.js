@@ -107,6 +107,16 @@ module.exports = {
   'proy.sinDatos': 'No data yet',
   'proy.sinDatos.detalle': 'Wait for the first reading.',
   'proy.nota': 'Estimates based on your usage pace so far.',
+  "proy.sesion.yaLlegaste": "You already used up this session",
+  "proy.sesion.yaLlegaste.detalle": "It resets at {reinicio}.",
+  "proy.sesion.llegaras": "You would use up the session around {hora}",
+  "proy.sesion.llegaras.detalle": "At this pace, before the {reinicio} reset.",
+  "proy.sesion.noLlegaras": "You would not use up this session",
+  "proy.sesion.noLlegaras.detalle": "You would reach ~{fin}% at the {reinicio} reset.",
+  "proy.sesion.sinUso": "You have not used this session yet",
+  "proy.sesion.sinUso.detalle": "Nothing to project yet.",
+  "proy.sesion.sinDatos": "Too early to estimate",
+  "proy.sesion.sinDatos.detalle": "The session just started (or none is active).",
 
   // ----- Settings -----
   'aj.seccion.vista': 'View',

@@ -93,7 +93,7 @@ Las capturas usan **datos simulados** (10 días de uso inventado), para mostrar 
 - **Horas de más uso:** a qué horas del día se te va más cuota (el promedio de cada hora), con tu hora pico.
 - **Comparación con la semana pasada:** junto a la barra de la semana, cuántos puntos llevas de más o de menos que la semana pasada a esta misma altura. Lo mismo para **Hoy** (contra ayer a esta hora) y para la **sesión de 5 horas** (contra la sesión anterior).
 - **Desglose** de la semana por producto (Claude Code, Chats, Cowork…) y **uso por producto a lo largo del tiempo**: hoy, esta semana (desde el día en que se reinicia tu plan), 30 días o semana a semana. En los planes con límite por modelo (**Fable**), ese límite sale como una línea punteada más.
-- **Proyección** ("a este ritmo llegarías al límite a las 18:40").
+- **Proyección** de hoy, de la sesión de 5 horas y de la semana ("a este ritmo llegarías al límite a las 18:40", "agotarías la sesión hacia las 16:20"). La de la sesión también sale al pasar el mouse por su barra.
 - **Estadísticas** en el panel de control, con lo que ya está guardado: tu día más alto, tu promedio, tu racha bajo el límite, qué días de la semana y a qué horas usas más (un mapa de día por hora), cuánto te sobra cada semana, un límite diario sugerido y cuántas sesiones de 5 horas agotas. Guarda hasta un año de historial y, desde Ajustes, saca un **informe** para imprimir o guardar como PDF.
 - Con varias cuentas, el historial, el desglose y la proyección muestran todas las cuentas a la vez.
 - **Al dejar el mouse sobre una barra** se explica qué muestra.

@@ -226,6 +226,24 @@ function proyeccionSemanal({ semana, inicioSemana, reinicio, ahora }) {
   return { tipo: 'no-llegaras', finDeSemana: semana + ritmo * horasHastaElReinicio };
 }
 
+// ¿Agotarás la sesión de 5 horas antes de que se reinicie? Mismos tipos que arriba; 'no-llegaras' trae "finDeSesion"
+// (el % con que terminaría la sesión). Se estima con lo usado desde que empezó la sesión (5 horas antes de su reinicio).
+function proyeccionDeSesion({ sesion5h, ahora }) {
+  if (!sesion5h || !Number.isFinite(sesion5h.porcentaje) || !sesion5h.reinicio) return { tipo: 'sin-datos' };
+  if (sesion5h.porcentaje >= 100) return { tipo: 'ya-llegaste' };
+  const reinicioMs = sesion5h.reinicio.getTime();
+  const horas = (ahora.getTime() - (reinicioMs - 5 * HORA_MS)) / HORA_MS;
+  const horasHastaElReinicio = (reinicioMs - ahora.getTime()) / HORA_MS;
+  if (!Number.isFinite(horas) || horas < 1 / 3 || horasHastaElReinicio <= 0) return { tipo: 'sin-datos' }; // antes de 20 minutos es muy pronto
+  if (sesion5h.porcentaje <= 0) return { tipo: 'sin-uso' };
+  const ritmo = sesion5h.porcentaje / horas;
+  const horasParaCien = (100 - sesion5h.porcentaje) / ritmo;
+  if (horasParaCien <= horasHastaElReinicio) {
+    return { tipo: 'llegaras', cuando: new Date(ahora.getTime() + horasParaCien * HORA_MS) };
+  }
+  return { tipo: 'no-llegaras', finDeSesion: sesion5h.porcentaje + ritmo * horasHastaElReinicio };
+}
+
 // ----- Alertas de la sesión de 5 horas -----
 //
 // Cada "sesión" es una ventana de 5 horas que claude.ai reinicia a una hora fija.
@@ -517,5 +535,6 @@ module.exports = {
   procesarSesion,
   proyeccionDiaria,
   proyeccionSemanal,
+  proyeccionDeSesion,
   horasHastaFinDelDia,
 };

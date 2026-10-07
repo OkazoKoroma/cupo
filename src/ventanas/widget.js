@@ -250,7 +250,9 @@ function ponerAyuda(idDelRelleno, texto) {
 
 function ponerAyudasDeLasBarras(uso) {
   ponerAyuda('relleno-hoy', t('ayuda.hoy', { hoy: uso ? formatear(uso.hoy) : '—', limite: uso ? formatear(uso.limiteDiario) : '—' }));
-  ponerAyuda('relleno-sesion', t('ayuda.sesion'));
+  // La sesión también dice a qué hora la agotarías a este ritmo (si se puede estimar)
+  const sesion = uso && uso.proyeccion && uso.proyeccion.sesion && uso.sesion5h ? textosDeLaProyeccionDeSesion(uso.proyeccion.sesion, uso.sesion5h.reinicioTexto) : null;
+  ponerAyuda('relleno-sesion', sesion && ['llegaras', 'no-llegaras'].includes(uso.proyeccion.sesion.tipo) ? `${t('ayuda.sesion')}\n${sesion.titulo}. ${sesion.detalle}` : t('ayuda.sesion'));
   ponerAyuda('relleno-semana', t('ayuda.semana'));
 }
 
@@ -381,7 +383,7 @@ const TITULOS_DE_PANEL = {
 const TAMANOS_DE_PANEL = {
   historial: { alto: 222 },
   desglose: { alto: 226 },
-  proyeccion: { alto: 228 },
+  proyeccion: { alto: 300 },
   ajustes: { alto: 790, ancho: 940, altoCompleto: 950 }, // en la vista completa es más angosto (3 columnas): necesita más alto
   cuentas: { alto: 350 },
   bienvenida: { alto: 390 },
@@ -398,7 +400,7 @@ function tamanoBaseDePanel(nombre) {
   const base = TAMANOS_DE_PANEL[nombre];
   const cuentas = variasCuentas() ? ultimosDatos.cuentas.length : 1;
   if (cuentas < 2) return base;
-  if (nombre === 'proyeccion') return { ...base, alto: Math.max(base.alto, 124 + 32 * cuentas) };
+  if (nombre === 'proyeccion') return { ...base, alto: Math.max(base.alto, 150 + 51 * cuentas) }; // tres tarjetas con una línea por cuenta
   if (nombre === 'desglose') return { ...base, alto: Math.max(base.alto, 150 + 24 * cuentas) };
   if (nombre === 'historial') return { ...base, alto: base.alto + (cuentas >= 3 ? 40 : 0) }; // la leyenda ocupa hasta dos líneas
   return base;
@@ -482,7 +484,7 @@ async function abrirPanel(nombre) {
     // (en el panel de control, el panel abierto usa también el lugar de los gráficos de abajo)
     // (y como es ancho, Ajustes cabe en sus cuatro columnas: no necesita el alto extra de la vista completa)
     const altoPedido = esTablero() ? TAMANOS_DE_PANEL[nombre].alto : TAMANOS_DE_PANEL[nombre].altoCompleto || TAMANOS_DE_PANEL[nombre].alto;
-    const falta = altoPedido - ALTO_PANELES_COMPLETO - extraAlto - (esTablero() ? ALTO_DEL_TABLERO : 0);
+    const falta = altoPedido - ALTO_PANELES_COMPLETO - extraAlto - (esTablero() ? ALTO_DEL_TABLERO - recorteDelTablero : 0);
     if (falta > 0) {
       const { alto } = await window.widget.ajustarVentana(true, falta - SEPARACION_PANEL, 0, true, panelActual);
       if (panelActual === nombre) ponerAltoExtraCompleto(alto + SEPARACION_PANEL);
@@ -735,6 +737,7 @@ function despuesDelProximoCuadro(funcion) {
 
 const ALTO_BARRAS_BASE = 96;  // alto máximo de una columna, en píxeles
 let extraAlto = 0;            // cuánto estiraste la ventana a lo alto (en la vista completa, el gráfico crece lo mismo)
+let recorteDelTablero = 0;    // panel de control: cuánto se achicó la sección de gráficos para caber en la pantalla
 const altoDeBarras = () => ALTO_BARRAS_BASE + (esCompleto() || PARTE ? extraAlto : 0);
 const ALTO_ETIQUETA_DIA = 18; // espacio que ocupa el nombre del día bajo cada columna
 
@@ -1139,7 +1142,7 @@ function dibujarDesgloseDeVarias(cuentas) {
 
 // Proyección de varias cuentas: en cada tarjeta (Hoy y Semana), una línea por cuenta con su color.
 function dibujarProyeccionDeVarias(cuentas) {
-  for (const clave of ['hoy', 'semana']) {
+  for (const clave of ['hoy', 'sesion', 'semana']) {
     const tarjeta = document.getElementById(`proyeccion-${clave}`);
     tarjeta.classList.add('varias');
     tarjeta.style.setProperty('--tono', 'var(--linea)');
@@ -1153,7 +1156,9 @@ function dibujarProyeccionDeVarias(cuentas) {
       const p = cuenta.proyeccion;
       const textos = !p
         ? { titulo: t('proy.sinDatos'), detalle: t('proy.sinDatos.detalle'), tono: '#6e6e78' }
-        : clave === 'hoy' ? textosDeLaProyeccionDiaria(p.diaria) : textosDeLaProyeccionSemanal(p.semanal, cuenta.reinicioTexto);
+        : clave === 'hoy' ? textosDeLaProyeccionDiaria(p.diaria)
+          : clave === 'sesion' ? textosDeLaProyeccionDeSesion(p.sesion || { tipo: 'sin-datos' }, cuenta.sesionReinicioTexto || '')
+            : textosDeLaProyeccionSemanal(p.semanal, cuenta.reinicioTexto);
       const linea = crear('div', 'proyeccion-linea');
       linea.style.setProperty('--tono', textos.tono);
       // En la semana, al pasar el mouse: también cómo va contra la semana pasada
@@ -1170,6 +1175,7 @@ function volverAUnaCuenta() {
   document.getElementById('barra-total').style.display = '';
   document.getElementById('proyeccion-semana-comparacion').textContent = '';
   document.getElementById('proyeccion-hoy-comparacion').textContent = '';
+  document.getElementById('proyeccion-sesion-comparacion').textContent = '';
   for (const tarjeta of document.querySelectorAll('.proyeccion.varias')) {
     tarjeta.classList.remove('varias');
     const lineas = tarjeta.querySelector('.proyeccion-cuentas');
@@ -1411,6 +1417,18 @@ function textosDeLaProyeccionDiaria(p) {
   }
 }
 
+// Textos para la proyección de la SESIÓN de 5 horas.
+function textosDeLaProyeccionDeSesion(p, reinicioTexto) {
+  const con = (clave, tono, valores) => ({ titulo: t(clave, valores), detalle: t(clave + '.detalle', valores), tono });
+  switch (p.tipo) {
+    case 'ya-llegaste': return con('proy.sesion.yaLlegaste', ROJO, { reinicio: reinicioTexto });
+    case 'llegaras': return con('proy.sesion.llegaras', AMARILLO, { hora: p.cuandoTexto, reinicio: reinicioTexto });
+    case 'no-llegaras': return con('proy.sesion.noLlegaras', VERDE, { fin: aproximado(p.fin), reinicio: reinicioTexto });
+    case 'sin-uso': return con('proy.sesion.sinUso', VERDE);
+    default: return con('proy.sesion.sinDatos', '#6e6e78');
+  }
+}
+
 // Textos para la proyección de la SEMANA (cuota semanal).
 function textosDeLaProyeccionSemanal(p, reinicioTexto) {
   const con = (clave, tono, valores) => ({ titulo: t(clave, valores), detalle: t(clave + '.detalle', valores), tono });
@@ -1432,14 +1450,19 @@ function dibujarProyeccion() {
   const sinDatos = { titulo: t('proy.sinDatos'), detalle: t('proy.sinDatos.detalle'), tono: '#6e6e78' };
   const hoy = proyeccion ? textosDeLaProyeccionDiaria(proyeccion.diaria) : sinDatos;
   const semana = proyeccion ? textosDeLaProyeccionSemanal(proyeccion.semanal, uso.reinicioTexto) : sinDatos;
+  const sesion = proyeccion && proyeccion.sesion ? textosDeLaProyeccionDeSesion(proyeccion.sesion, uso.sesion5h ? uso.sesion5h.reinicioTexto : '') : sinDatos;
 
-  for (const [clave, comparacion] of [['semana', textosDeLaComparacion(uso && uso.comparacion)], ['hoy', textosDeLaComparacion(uso && uso.comparacionHoy, 'hoy.')]]) {
+  for (const [clave, comparacion] of [
+    ['semana', textosDeLaComparacion(uso && uso.comparacion)],
+    ['hoy', textosDeLaComparacion(uso && uso.comparacionHoy, 'hoy.')],
+    ['sesion', textosDeLaComparacion(uso && uso.sesion5h ? uso.comparacionSesion : null, 'sesion.')],
+  ]) {
     const lineaDeComparacion = document.getElementById(`proyeccion-${clave}-comparacion`);
     lineaDeComparacion.textContent = comparacion ? comparacion.linea : '';
     lineaDeComparacion.title = comparacion ? comparacion.frase : '';
     lineaDeComparacion.style.color = comparacion ? comparacion.tono : '';
   }
-  for (const [clave, textos] of [['hoy', hoy], ['semana', semana]]) {
+  for (const [clave, textos] of [['hoy', hoy], ['sesion', sesion], ['semana', semana]]) {
     document.getElementById(`proyeccion-${clave}-titulo`).textContent = textos.titulo;
     document.getElementById(`proyeccion-${clave}-detalle`).textContent = textos.detalle;
     document.getElementById(`proyeccion-${clave}`).style.setProperty('--tono', textos.tono);
@@ -1534,6 +1557,7 @@ function aplicarAparienciaAnimada(apariencia) {
   }
   const altoAnterior = extraAlto;
   extraAlto = (apariencia.extra && apariencia.extra.alto) || 0;
+  recorteDelTablero = apariencia.recorteTablero || 0;
   tamanosGuardadosDePaneles = apariencia.paneles || {};
   if (soloTamano) {
     aparienciaMostrada = apariencia;

@@ -265,10 +265,10 @@ const hayResumenDeCuentas = () => totalDeCuentas >= 2 && !ventanasSeparadas;
 
 // Con muchas cuentas a la vez, el desglose y la proyección necesitan más alto (una línea por cuenta).
 // (Estas cuentas deben coincidir con las de widget.js → tamanoBaseDePanel.)
-const ALTO_POR_CUENTA_EN_PROYECCION = 36; // una línea en "Hoy" y otra en "Semana"
+const ALTO_POR_CUENTA_EN_PROYECCION = 54; // una línea en "Hoy", otra en "Sesión 5 h" y otra en "Semana"
 const ALTO_POR_CUENTA_EN_DESGLOSE = 24;
 // La vista completa crece lo que le falta a la proyección a partir de la cuarta cuenta.
-const extraDeCompletoPorCuentas = () => (hayResumenDeCuentas() ? Math.max(0, totalDeCuentas - 3) * ALTO_POR_CUENTA_EN_PROYECCION : 0);
+const extraDeCompletoPorCuentas = () => (hayResumenDeCuentas() ? Math.max(0, totalDeCuentas - 2) * ALTO_POR_CUENTA_EN_PROYECCION : 0);
 
 function altoDelResumen() {
   return hayResumenDeCuentas() ? RESUMEN_SEPARACION + RESUMEN_RELLENO + RESUMEN_FILA * totalDeCuentas : 0;
@@ -298,6 +298,17 @@ function medidasDeVista(w, vista = w.vista) {
   return { ancho: base.ancho + extras.ancho, alto: base.alto + extras.alto };
 }
 
+// El panel de control es alto (718 px más los chats y las cuentas): si no cabe en la pantalla, la sección de gráficos
+// de abajo se achica lo justo (hasta RECORTE_MAXIMO_DEL_TABLERO). La pantalla recibe ese recorte en la apariencia.
+const RECORTE_MAXIMO_DEL_TABLERO = 120;
+function recorteDelTablero(w, vista = w.vista) {
+  if (vista.modo !== 'tablero' || w.parte) return 0;
+  const sinRecorte = MEDIDAS_DE_VISTA.tablero.alto + altoDelResumen() + extraDeCompletoPorCuentas() + altoDeChats(w, vista) + 2 * MARGEN;
+  const area = (estaViva(w) ? screen.getDisplayMatching(w.ventana.getBounds()) : screen.getPrimaryDisplay()).workArea;
+  const sobra = Math.ceil(sinRecorte - area.height / escalaActual);
+  return Math.max(0, Math.min(RECORTE_MAXIMO_DEL_TABLERO, sobra));
+}
+
 // Las medidas de una vista sin estirar.
 function medidasBase(w, vista = w.vista) {
   const medidas = medidasSinChats(w, vista);
@@ -308,7 +319,7 @@ function medidasBase(w, vista = w.vista) {
 const MEDIDAS_DE_PARTE = {
   historial: { ancho: 320, alto: 250 },
   desglose: { ancho: 300, alto: 230 },
-  proyeccion: { ancho: 300, alto: 252 },
+  proyeccion: { ancho: 300, alto: 322 },
   productos: { ancho: 500, alto: 300 },
 };
 // "w": la ventana de esa parte. Si muestra todas las cuentas a la vez, el desglose y la proyección crecen con ellas.
@@ -317,7 +328,7 @@ function medidasDeParte(parte, w) {
   const base = MEDIDAS_DE_PARTE[parte];
   const cuentas = w && !w.cuentaId && hayResumenDeCuentas() ? totalDeCuentas : 1;
   if (cuentas < 2) return base;
-  if (parte === 'proyeccion') return { ...base, alto: Math.max(base.alto, 148 + 32 * cuentas) };
+  if (parte === 'proyeccion') return { ...base, alto: Math.max(base.alto, 176 + 48 * cuentas) };
   if (parte === 'desglose') return { ...base, alto: Math.max(base.alto, 154 + ALTO_POR_CUENTA_EN_DESGLOSE * cuentas) };
   if (parte === 'historial') return { ...base, alto: base.alto + (cuentas >= 3 ? 40 : 0) }; // la leyenda va en sus propias líneas
   return base;
@@ -330,7 +341,7 @@ function medidasSinChats(w, vista) {
   // La vista completa: más alta con el resumen de cuentas, y más ancha si alguna cuenta tiene límites extra (una columna por cada uno).
   if (esVistaCompleta(vista)) {
     const columnasExtra = hayResumenDeCuentas() ? maximoDeLimitesExtra() : 0;
-    return { ancho: base.ancho + ANCHO_COLUMNA_EXTRA_LISTA * columnasExtra, alto: base.alto + altoDelResumen() + extraDeCompletoPorCuentas() - (sinBarras ? AHORRO_SIN_BARRA_FRANJA : 0) };
+    return { ancho: base.ancho + ANCHO_COLUMNA_EXTRA_LISTA * columnasExtra, alto: base.alto + altoDelResumen() + extraDeCompletoPorCuentas() - (sinBarras ? AHORRO_SIN_BARRA_FRANJA : 0) - recorteDelTablero(w, vista) };
   }
   // Cada límite extra (por ejemplo Fable) es una barra más: en la vista vertical la tarjeta crece a lo alto, y en la horizontal a lo ancho.
   if (!todasALaVez(w, vista) && vista.modo === 'normal') {
@@ -609,6 +620,7 @@ function aparienciaActual(w) {
     // lo que creció por tener muchas cuentas
     extra: { ...extrasDeVista(w), alto: extrasDeVista(w).alto + (esVistaCompleta(w.vista) && !w.parte ? extraDeCompletoPorCuentas() : 0) },
     extraPorCuentas: esVistaCompleta(w.vista) && !w.parte ? extraDeCompletoPorCuentas() : 0, // la parte de ese alto que es por tener muchas cuentas
+    recorteTablero: recorteDelTablero(w),  // cuánto se achicó la sección de gráficos del panel de control para caber en la pantalla
     redimensionando: Boolean(w.redimension), // true mientras estás arrastrando un borde
     altoPanel: w.expansion.alto || null, // alto del panel abierto (puede achicarse si ya no cabe en la pantalla)
     anchoPanel: w.expansion.anchoPanel || 0, // ancho del panel abierto, si es más ancho que la vista
@@ -1798,10 +1810,11 @@ function proyeccionParaLaPantalla(proyeccion, esSemanal) {
   }
   if (proyeccion.finDelDia !== undefined) resultado.fin = proyeccion.finDelDia;
   if (proyeccion.finDeSemana !== undefined) resultado.fin = proyeccion.finDeSemana;
+  if (proyeccion.finDeSesion !== undefined) resultado.fin = proyeccion.finDeSesion;
   return resultado;
 }
 
-// Calcula "a este ritmo..." para hoy y para la semana, con los últimos datos leídos.
+// Calcula "a este ritmo..." para hoy, para la semana y para la sesión de 5 horas, con los últimos datos leídos.
 function calcularProyecciones(id) {
   const ahora = fechaActual();
   const lectura = lecturaDe(id);
@@ -1811,9 +1824,11 @@ function calcularProyecciones(id) {
   const semanal = calculo.proyeccionSemanal({
     semana: lectura.uso.semana, inicioSemana: lectura.inicioSemana, reinicio: lectura.reinicioSemana, ahora,
   });
+  const sesion = calculo.proyeccionDeSesion({ sesion5h: lectura.uso.sesion5h, ahora });
   return {
     diaria: proyeccionParaLaPantalla(diaria, false),
     semanal: proyeccionParaLaPantalla(semanal, true),
+    sesion: proyeccionParaLaPantalla(sesion, false),
   };
 }
 
@@ -2296,6 +2311,7 @@ function resumenDeCuentas() {
       proyeccion: datos ? datos.proyeccion || null : null,
       comparacion: datos ? datos.comparacion || null : null,
       reinicioTexto: datos ? datos.reinicioTexto : null,
+      sesionReinicioTexto: datos && datos.sesion5h ? datos.sesion5h.reinicioTexto : null,
       extras: limitesExtraDe(cuenta.id).map((extra) => ({ nombre: extra.nombre, porcentaje: extra.porcentaje })),
       uso: datos && {
         hoy: datos.hoy,

@@ -2110,7 +2110,7 @@ body.tablero.ajustes-abierto.abajo .panel,
 body.tablero.ajustes-abierto.panel-abierto .panel,
 body.tablero.ajustes-abierto.abajo.panel-abierto .panel,
 body.tablero.ajustes-abierto .panel-interior {
-  height: calc(250px + 368px + var(--extra-alto, 0px) + var(--panel-extra, 0px));
+  height: calc(250px + 368px - var(--tablero-recorte, 0px) + var(--extra-alto, 0px) + var(--panel-extra, 0px));
 }
 
 /* Con los botones del panel de control y de la vista mínima hay diez íconos: en la tarjeta vertical van un poco más juntos */
@@ -2148,7 +2148,7 @@ body.tablero:not(.ajustes-abierto) .panel-interior {
 }
 
 body.tablero:not(.ajustes-abierto) .tablero-graficos {
-  height: calc(360px + var(--extra-estirado, 0px) * 0.55);
+  height: calc(360px - var(--tablero-recorte, 0px) + var(--extra-estirado, 0px) * 0.55);
 }
 
 /* Vista completa y panel de control: en una ventana ancha (más de 1280), las letras crecen con el ancho */
@@ -2373,4 +2373,30 @@ body.sin-barras.todas.compacto .resumen-medidor {
   stroke: var(--fondo-a, #1d1d22);
   stroke-width: 3px;
   stroke-linejoin: round;
+}
+
+/* Vista completa: con tres tarjetas en la Proyección (hoy, sesión y semana) van más juntas y sin la nota de abajo */
+body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion {
+  margin-bottom: 4px;
+  padding: 4px 10px;
+}
+
+body.completo:not(.ajustes-abierto) #vista-proyeccion .nota {
+  display: none;
+}
+
+/* Vista completa: las tres tarjetas de la proyección, un poco más juntas para que la última no se corte */
+body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion {
+  margin-bottom: 3px;
+  padding: 3px 10px;
+}
+
+body.completo:not(.ajustes-abierto) #vista-proyeccion .proyeccion-detalle {
+  line-height: 1.25;
+}
+
+/* Panel de control achicado para caber en la pantalla: el mapa usa letras más chicas en los días y las horas */
+.tablero-celda .est-mapa-dia,
+.tablero-celda .est-mapa-hora {
+  font-size: 8px;
 }
